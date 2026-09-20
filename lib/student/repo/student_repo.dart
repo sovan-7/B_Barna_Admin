@@ -135,7 +135,8 @@ class StudentRepo {
   Future<List<UnitModel>> getUnitList({required String subjectCode}) async {
     QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection(unit)
-        .where("subject_code", isEqualTo: subjectCode)
+        .where("subjectCodeList", arrayContains: subjectCode )
+        .where("willShow", isEqualTo: true)
         .get();
     return snapshot.docs
         .map((docSnapshot) => UnitModel.fromDocumentSnapshot(docSnapshot))

@@ -425,6 +425,40 @@ void main() {
       expect(effective.decoration ?? TextDecoration.none, TextDecoration.none);
     }
   });
+
+  // Regression: DropdownButton asserts there is exactly one item per value.
+  // Two subject (or teacher) docs sharing a display name used to build one
+  // DropdownMenuItem per doc, so opening a class whose subject/teacher name
+  // was duplicated in Firestore crashed the whole form.
+  testWidgets(
+      'editing a class does not crash when two subjects share a display name',
+      (tester) async {
+    when(() => repo.getSubjects()).thenAnswer((_) async => const [
+          LiveClassSubject(code: 'BEN1', name: 'Bengali'),
+          LiveClassSubject(code: 'BEN2', name: 'Bengali'),
+        ]);
+
+    final vm = LiveClassViewModel(liveClassRepo: repo);
+    await _pump(tester, const Size(1024, 900),
+        EditLiveClass(liveClassData: _fixture().first), vm);
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'editing a class does not crash when two teachers share a display name',
+      (tester) async {
+    when(() => repo.getTeachers()).thenAnswer((_) async => const [
+          LiveClassTeacher(id: 'ravi1', name: 'Ravi Kumar'),
+          LiveClassTeacher(id: 'ravi2', name: 'Ravi Kumar'),
+        ]);
+
+    final vm = LiveClassViewModel(liveClassRepo: repo);
+    await _pump(tester, const Size(1024, 900),
+        EditLiveClass(liveClassData: _fixture().first), vm);
+
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Future<void> _pickFromDropdown(

@@ -2,6 +2,7 @@ import 'package:bbarna/core/widgets/app_header.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/core/widgets/sidebar.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
+import 'package:bbarna/live_class/repo/live_class_repo.dart';
 import 'package:bbarna/live_class/viewModel/live_class_view_model.dart';
 import 'package:bbarna/live_class/widgets/live_class_status_badge.dart';
 import 'package:bbarna/live_class/widgets/live_class_theme.dart';
@@ -48,6 +49,11 @@ class _LiveClassFormState extends State<LiveClassForm> {
   /// marks nobody as the teacher rather than marking the wrong person.
   String _selectedTeacherId = "";
 
+  /// The picked teacher's phone number, resolved alongside [_selectedTeacherId]
+  /// — same rule: empty when the name was typed by hand or belongs to a
+  /// teacher who has since been removed.
+  String _selectedTeacherPhone = "";
+
   String? _selectedSubject;
   String _selectedSubjectCode = "";
 
@@ -90,6 +96,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
       teacherNameController.text = existing.teacherName;
       _selectedTeacher = existing.teacherName;
       _selectedTeacherId = existing.teacherId;
+      _selectedTeacherPhone = existing.teacherPhone;
       _selectedSubject = existing.subject.isEmpty ? null : existing.subject;
       _selectedSubjectCode = existing.subjectCode;
       _classDate = _dateOnly(existing.startDateTime);
@@ -198,6 +205,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
       youtubeLink: youtubeLinkController.text,
       teacherName: (_selectedTeacher ?? teacherNameController.text).trim(),
       teacherId: _selectedTeacherId,
+      teacherPhone: _selectedTeacherPhone,
       subject: _selectedSubject ?? "",
       subjectCode: _selectedSubjectCode,
       startDateTime: _startDateTime!,
@@ -512,6 +520,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
         youtubeLink: youtubeLinkController.text,
         teacherName: _selectedTeacher ?? "",
         teacherId: _selectedTeacherId,
+        teacherPhone: _selectedTeacherPhone,
         subject: _selectedSubject ?? "",
         subjectCode: _selectedSubjectCode,
         startDateTime: _startDateTime!,
@@ -623,8 +632,11 @@ class _LiveClassFormState extends State<LiveClassForm> {
   /// in the title, and on its own line underneath — so a class needs one
   /// before it is worth showing.
   Widget _subjectField(LiveClassViewModel liveClassViewModel) {
+    // Deduplicated: two subject docs can share a display name (different
+    // codes, or a straight duplicate), and DropdownButton asserts there is
+    // exactly one item per value — a repeated name crashes the whole form.
     final List<String> names =
-        liveClassViewModel.subjects.map((s) => s.name).toList();
+        liveClassViewModel.subjects.map((s) => s.name).toSet().toList();
 
     // An existing class may name a subject that has since been renamed or
     // removed — keep that value selectable so editing doesn't drop it.
@@ -716,8 +728,11 @@ class _LiveClassFormState extends State<LiveClassForm> {
   /// text field only when that collection is empty (or unreachable), so the
   /// form is never a dead end.
   Widget _teacherField(LiveClassViewModel liveClassViewModel) {
+    // Deduplicated for the same reason as the subject dropdown below: two
+    // teachers can share a display name, and DropdownButton asserts there is
+    // exactly one item per value.
     final List<String> names =
-        liveClassViewModel.teachers.map((t) => t.name).toList();
+        liveClassViewModel.teachers.map((t) => t.name).toSet().toList();
     // An existing class may name a teacher who has since been removed —
     // keep that value selectable so editing doesn't silently drop it.
     final String? current = _selectedTeacher;
@@ -804,11 +819,11 @@ class _LiveClassFormState extends State<LiveClassForm> {
                   // deleted teacher has no id, and pairing it with the
                   // previous pick's id would badge the wrong person in the
                   // app's live room.
-                  _selectedTeacherId = liveClassViewModel.teachers
-                          .where((t) => t.name == newValue)
-                          .map((t) => t.id)
-                          .firstOrNull ??
-                      "";
+                  final LiveClassTeacher? matched = liveClassViewModel.teachers
+                      .where((t) => t.name == newValue)
+                      .firstOrNull;
+                  _selectedTeacherId = matched?.id ?? "";
+                  _selectedTeacherPhone = matched?.phoneNumber ?? "";
                 });
                 _revalidate();
               },

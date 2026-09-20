@@ -101,6 +101,23 @@ class _TeacherCardState extends State<TeacherCard> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          const Icon(Icons.phone_outlined,
+                              size: 12, color: AppTokens.inkFaint),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: SelectableLabel(
+                                _data.phoneNumber.trim().isEmpty
+                                    ? "No phone"
+                                    : _data.phoneNumber,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppTokens.inkMuted)),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),

@@ -19,15 +19,15 @@ class SubjectModel {
   bool isSelected = boolDefault;
   bool isPopular = boolDefault;
 
-  /// The coupon live on this subject, as the student app reads it:
+  /// The coupon on this subject, as the student app reads it:
   /// `couponDiscount` is a flat rupee amount off `sellingPrice`, not a
   /// percentage, and `couponValidTill` is epoch millis.
   ///
-  /// Read-only in this panel. They are deliberately absent from [toMap]
-  /// because there is no coupon editor here, and writing the "NA"/-1
-  /// defaults back would wipe a live coupon on every subject save.
-  /// [SubjectRepo.updateSubject] uses `update()`, which touches only the
-  /// keys [toMap] lists, so the document keeps them.
+  /// `couponCode` and `couponDiscount` are editable from Add/Edit Subject
+  /// (see [SubjectForm]) and are included in [toMap]. `couponValidTill` has
+  /// no editor here — it stays whatever it already was, because [toMap]
+  /// does not list it and [SubjectRepo.updateSubject] uses `update()`,
+  /// which only touches the keys [toMap] lists.
   String couponCode = stringDefault;
   double couponDiscount = doubleDefault;
   int couponValidTill = intDefault;
@@ -46,8 +46,11 @@ class SubjectModel {
     this.timeStamp,
     this.willDisplay,
     this.isLocked,
-    this.isPopular
-  );
+    this.isPopular, {
+    String? couponCode,
+    double? couponDiscount,
+  })  : couponCode = couponCode ?? stringDefault,
+        couponDiscount = couponDiscount ?? doubleDefault;
 
   Map<String, dynamic> toMap() {
     return {
@@ -64,7 +67,9 @@ class SubjectModel {
       "selling_price":sellingPrice,
       "willDisplay": willDisplay,
       "isLocked": isLocked,
-      "isPopular":isPopular
+      "isPopular":isPopular,
+      "couponCode": couponCode.trim(),
+      "couponDiscount": couponDiscount,
     };
   }
 

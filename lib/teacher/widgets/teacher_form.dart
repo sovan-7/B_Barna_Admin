@@ -8,6 +8,7 @@ import 'package:bbarna/utils/helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 /// The seam widget tests reach through to set a photo without driving a
@@ -36,7 +37,7 @@ class TeacherForm extends StatefulWidget {
 }
 
 /// The fields that can carry an inline error.
-enum _Field { name, username, password, photo, modules }
+enum _Field { name, username, password, phone, photo, modules }
 
 class _TeacherFormState extends TeacherFormTestHooks {
   final GlobalKey<ScaffoldState> key = GlobalKey();
@@ -44,6 +45,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
 
   bool isPasswordVisible = false;
   bool isSaving = false;
@@ -68,6 +70,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
     if (existing != null) {
       nameController.text = existing.name;
       usernameController.text = existing.username;
+      phoneController.text = existing.phoneNumber;
       selectedRole = existing.role.isEmpty ? roleSubadmin : existing.role;
       selectedModules.addAll(existing.moduleAccess);
     }
@@ -78,6 +81,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
     nameController.dispose();
     usernameController.dispose();
     passwordController.dispose();
+    phoneController.dispose();
     super.dispose();
   }
 
@@ -143,6 +147,11 @@ class _TeacherFormState extends TeacherFormTestHooks {
       errors[_Field.password] = "Password must be at least 8 characters";
     }
 
+    final String phone = phoneController.text.trim();
+    if (!RegExp(r'^[0-9]{10}$').hasMatch(phone)) {
+      errors[_Field.phone] = "Enter a valid 10-digit phone number";
+    }
+
     final PlatformFile? imageFile = selectedImageFile;
     final Uint8List? imageBytes = selectedImageBytes;
     if (imageFile == null || imageBytes == null) {
@@ -203,6 +212,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
             original: widget.existing!,
             name: nameController.text.trim(),
             newPassword: passwordController.text,
+            phoneNumber: phoneController.text.trim(),
             moduleAccess: moduleAccess,
             role: selectedRole,
             newImage: selectedImageBytes,
@@ -211,6 +221,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
             name: nameController.text.trim(),
             username: usernameController.text.trim(),
             password: passwordController.text,
+            phoneNumber: phoneController.text.trim(),
             image: selectedImageBytes!,
             moduleAccess: moduleAccess,
             role: selectedRole,
@@ -308,6 +319,19 @@ class _TeacherFormState extends TeacherFormTestHooks {
                               ? "A username cannot be changed."
                               : null,
                         ),
+                      ),
+                      const SizedBox(height: AppTokens.gapMd),
+                      _textField(
+                        fieldKey: const Key('teacher_phone_field'),
+                        label: "Phone number",
+                        hint: "10-digit mobile number",
+                        controller: phoneController,
+                        error: _errors[_Field.phone],
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
                       ),
                       const SizedBox(height: AppTokens.gapMd),
                       _passwordField(),
@@ -435,6 +459,8 @@ class _TeacherFormState extends TeacherFormTestHooks {
     bool enabled = true,
     bool obscure = false,
     Widget? suffix,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,6 +479,8 @@ class _TeacherFormState extends TeacherFormTestHooks {
             controller: controller,
             enabled: enabled,
             obscureText: obscure,
+            keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
             onChanged: (_) => _revalidate(),
             style: const TextStyle(fontSize: 13.5, color: AppTokens.ink),
             decoration: InputDecoration(

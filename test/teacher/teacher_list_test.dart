@@ -25,6 +25,7 @@ TeacherModel _teacher(
       imageUrl: imageUrl,
       username: username,
       password: "hash",
+      phoneNumber: "9876543210",
       timeStamp: 0,
       moduleAccess: modules ?? const ['COURSES', 'SUBJECT'],
       role: role,

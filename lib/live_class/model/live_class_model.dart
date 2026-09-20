@@ -37,6 +37,13 @@ class LiveClassModel {
   /// "NA" where an empty string draws nothing.
   String teacherId = "";
 
+  /// The picked teacher's phone number, copied from the `teacher` collection
+  /// at save time. Not read by the student app today — kept here purely so
+  /// admins can see who to call about a class without opening Teachers.
+  /// Empty under the same conditions as [teacherId]: a hand-typed name, or a
+  /// removed teacher.
+  String teacherPhone = "";
+
   /// The subject's display name, shown on the class card in the app.
   String subject = "";
 
@@ -77,6 +84,7 @@ class LiveClassModel {
     required this.startDateTime,
     required this.endDateTime,
     this.teacherId = "",
+    this.teacherPhone = "",
     this.subject = "",
     this.subjectCode = "",
     this.createdAt,
@@ -108,6 +116,7 @@ class LiveClassModel {
       "subjectId": subjectCode.trim(),
       "teacherName": teacherName.trim(),
       "teacherId": teacherId.trim(),
+      "teacherPhone": teacherPhone.trim(),
       "youtubeVideoLink": youtubeLink.trim(),
       "startTime": startDateTime.millisecondsSinceEpoch,
       "endTime": endDateTime.millisecondsSinceEpoch,
@@ -129,6 +138,7 @@ class LiveClassModel {
             stringDefault,
         teacherName = doc.data()?["teacherName"] ?? stringDefault,
         teacherId = doc.data()?["teacherId"] ?? "",
+        teacherPhone = doc.data()?["teacherPhone"] ?? "",
         subject = doc.data()?["subject"] ?? "",
         subjectCode = doc.data()?["subjectId"] ?? "",
         startDateTime = _toDateTime(doc.data()?["startTime"]) ??

@@ -488,18 +488,86 @@ void main() {
       expect(find.byIcon(Icons.local_offer_outlined), findsNothing);
     });
 
-    test('saving a subject cannot wipe the coupon', () {
+    test('saving a subject carries the coupon code and discount, but not the expiry', () {
       final SubjectModel subject = _subject('a', 'MECH', 'Mechanics',
           couponCode: 'NEWYEAR50', couponDiscount: 100, couponValidTill: 999);
 
-      // There is no coupon editor in this panel, so toMap must not carry the
-      // coupon keys — updateSubject uses update(), which only touches the
-      // keys toMap lists. If they appeared here, every subject save would
-      // overwrite a live coupon with this panel's defaults.
+      // couponCode/couponDiscount are now editable from this form and must
+      // round-trip through toMap(). couponValidTill still has no editor, so
+      // it is deliberately absent -- updateSubject uses update(), which
+      // only touches the keys toMap lists, and there is no expiry field
+      // here to have produced a fresh value for it.
       final Map<String, dynamic> written = subject.toMap();
-      expect(written.containsKey('couponCode'), isFalse);
-      expect(written.containsKey('couponDiscount'), isFalse);
+      expect(written['couponCode'], 'NEWYEAR50');
+      expect(written['couponDiscount'], 100);
       expect(written.containsKey('couponValidTill'), isFalse);
+    });
+
+    test('a blank coupon in the model writes the NA/-1 defaults', () {
+      final SubjectModel subject = _subject('a', 'MECH', 'Mechanics');
+
+      final Map<String, dynamic> written = subject.toMap();
+      expect(written['couponCode'], stringDefault);
+      expect(written['couponDiscount'], doubleDefault);
+    });
+  });
+
+  group('editing the coupon in the form', () {
+    testWidgets('an existing coupon prefills the code and discount fields',
+        (tester) async {
+      final SubjectModel withCoupon = _subject('a', 'MECH', 'Mechanics',
+          couponCode: 'NEWYEAR50', couponDiscount: 100, couponValidTill: 0);
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          EditSubject(subjectData: withCoupon), vm);
+
+      expect(find.text('NEWYEAR50'), findsOneWidget);
+      expect(find.text('100'), findsOneWidget);
+    });
+
+    testWidgets('a coupon code without a discount blocks submission',
+        (tester) async {
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          EditSubject(subjectData: _fixture().first), vm);
+
+      // Coupon code is the 7th TextField: code, priority, name, description,
+      // price, selling price, coupon code, coupon discount -- the form's own
+      // layout order.
+      final Finder fields = find.byType(TextField);
+      await tester.enterText(fields.at(6), 'SAVE10');
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+
+      expect(find.text('Set a discount for this coupon'), findsOneWidget);
+      verifyNever(() => repo.updateSubject(any(), any()));
+    });
+
+    testWidgets('leaving both coupon fields blank on save clears the coupon',
+        (tester) async {
+      when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
+      final SubjectModel withCoupon = _subject('a', 'MECH', 'Mechanics',
+          couponCode: 'NEWYEAR50', couponDiscount: 100, couponValidTill: 0);
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          EditSubject(subjectData: withCoupon), vm);
+
+      final Finder fields = find.byType(TextField);
+      await tester.enterText(fields.at(6), '');
+      await tester.enterText(fields.at(7), '');
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+      await tester.pump();
+
+      final SubjectModel saved =
+          verify(() => repo.updateSubject(captureAny(), 'a')).captured.single
+              as SubjectModel;
+      expect(saved.toMap()['couponCode'], stringDefault);
+      expect(saved.toMap()['couponDiscount'], doubleDefault);
     });
   });
 

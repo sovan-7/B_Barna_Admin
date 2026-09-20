@@ -20,6 +20,7 @@ void main() {
     String subject = "Mechanics",
     String subjectCode = "MECH",
     String teacherId = "ravi",
+    String teacherPhone = "9876543210",
   }) =>
       LiveClassModel(
         docId: 'doc1',
@@ -28,6 +29,7 @@ void main() {
         youtubeLink: "  https://youtu.be/abc  ",
         teacherName: "  Ravi Kumar  ",
         teacherId: teacherId,
+        teacherPhone: teacherPhone,
         subject: subject,
         subjectCode: subjectCode,
         startDateTime: start ?? DateTime(2026, 4, 2, 18, 0),
@@ -45,6 +47,7 @@ void main() {
           'subjectId',
           'teacherName',
           'teacherId',
+          'teacherPhone',
           'youtubeVideoLink',
           'startTime',
           'endTime',
@@ -96,6 +99,21 @@ void main() {
       // previous pick was.
       expect(map['teacherId'], '');
       expect(map['teacherName'], 'Ravi Kumar');
+    });
+
+    test('the teacher phone number is trimmed and written under teacherPhone',
+        () {
+      final Map<String, dynamic> map =
+          model(teacherPhone: "  9876543210  ").toMap();
+
+      expect(map['teacherPhone'], '9876543210');
+    });
+
+    test('an unresolved teacher writes an empty phone, never a stale one',
+        () {
+      final Map<String, dynamic> map = model(teacherPhone: "").toMap();
+
+      expect(map['teacherPhone'], '');
     });
 
     test('no Timestamp survives anywhere in the map', () {

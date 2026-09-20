@@ -1,4 +1,7 @@
+import 'dart:collection';
+
 import 'package:bbarna/resources/app_tokens.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 
@@ -40,6 +43,72 @@ class QuestionRichField extends StatelessWidget {
     this.trailing,
     super.key,
   });
+
+  /// Name of the script below, and the message that runs it.
+  static const String _dropScriptName = 'singleInsertOnDrop';
+
+  /// Replaces Summernote's drop handler with one that inserts once.
+  ///
+  /// Dropping text from another application put it in twice. Summernote's
+  /// dropzone `preventDefault`s the browser's own drop and then walks every
+  /// flavour the drag is carrying, pasting each one whose MIME type
+  /// contains "text":
+  ///
+  /// ```js
+  /// each(dataTransfer.types, function (_, type) {
+  ///   var data = dataTransfer.getData(type);
+  ///   type.toLowerCase().indexOf('text') > -1
+  ///     ? context.invoke('editor.pasteHTML', data)
+  ///     : $(data).each(...)
+  /// })
+  /// ```
+  ///
+  /// A drag out of WordPad carries the same content as both `text/html` and
+  /// `text/plain`. Both match, so both are pasted — the styled copy, then
+  /// the bare one.
+  ///
+  /// This unbinds *every* drop handler on the dropzone before binding one,
+  /// so it also covers the other way the duplication could arise: a second
+  /// handler stacking on the first, which is what "the first drop is fine,
+  /// the rest double up" would look like.
+  ///
+  /// Files are still handed to Summernote's image path, so dragging in a
+  /// picture keeps working. Text takes `text/html` when the source offers
+  /// it and falls back to `text/plain`, so formatting survives.
+  ///
+  /// Guarded throughout: if the editor is not ready or its internals have
+  /// moved, it retries once and then leaves Summernote's own handler in
+  /// place rather than breaking dropping altogether.
+  static final WebScript _singleInsertOnDrop = WebScript(
+    name: _dropScriptName,
+    script: """
+      (function attach(attempt) {
+        var note = \$('#summernote-2');
+        var context = note.data('summernote');
+        var dropzone = \$('.note-dropzone');
+        if (!context || !dropzone.length) {
+          if (attempt < 5) setTimeout(function () { attach(attempt + 1); }, 200);
+          return;
+        }
+        dropzone.off('drop');
+        dropzone.on('drop', function (event) {
+          var transfer = event.originalEvent.dataTransfer;
+          event.preventDefault();
+          if (!transfer) return;
+          if (transfer.files && transfer.files.length) {
+            context.invoke('editor.insertImagesOrCallback', transfer.files);
+            return;
+          }
+          var html = transfer.getData('text/html');
+          var plain = transfer.getData('text/plain');
+          var payload = (html && html.trim().length) ? html : plain;
+          if (payload && payload.length) {
+            context.invoke('editor.pasteHTML', payload);
+          }
+        });
+      })(0);
+    """,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +156,12 @@ class QuestionRichField extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppTokens.radiusMd - 1),
             child: HtmlEditor(
               controller: controller,
+              // Registering the script above only makes it available; this
+              // is what runs it, once the editor exists.
+              callbacks: Callbacks(onInit: () {
+                if (!kIsWeb) return;
+                controller.evaluateJavascriptWeb(_dropScriptName);
+              }),
               htmlToolbarOptions: const HtmlToolbarOptions(
                 dropdownMenuMaxHeight: 200,
                 dropdownMenuDirection: DropdownMenuDirection.down,
@@ -117,6 +192,8 @@ class QuestionRichField extends StatelessWidget {
                 // *after* anything an earlier setText managed to write, so
                 // an empty string here blanked the editor either way.
                 initialText: initialText,
+                webInitialScripts:
+                    UnmodifiableListView<WebScript>([_singleInsertOnDrop]),
               ),
               otherOptions:
                   OtherOptions(height: height, decoration: const BoxDecoration()),

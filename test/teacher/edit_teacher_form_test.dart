@@ -23,6 +23,7 @@ final TeacherModel _existingTeacher = TeacherModel(
   imageUrl: 'https://example.com/original.jpg',
   username: 'jane_doe',
   password: 'original-hash',
+  phoneNumber: '9876543210',
   timeStamp: 1700000000000,
   moduleAccess: const ['COURSES', 'SUBJECT'],
   role: roleSubadmin,
@@ -99,6 +100,9 @@ void main() {
     expect(
         find.widgetWithText(TextField, 'jane_doe', skipOffstage: false),
         findsOneWidget);
+    expect(
+        find.widgetWithText(TextField, '9876543210', skipOffstage: false),
+        findsOneWidget);
   });
 
   testWidgets('username field is disabled', (tester) async {
@@ -166,6 +170,32 @@ void main() {
     await tester.pumpAndSettle();
 
     verifyNever(() => repo.updateTeacher(any()));
+  });
+
+  testWidgets('blocks submission when the phone number is edited to fewer than 10 digits',
+      (tester) async {
+    await pumpEditTeacher(tester, viewModel);
+    await tester.enterText(
+        find.byKey(const Key('teacher_phone_field')), '12345');
+    await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
+    await tester.tap(find.byKey(const Key('teacher_save_button')));
+    await tester.pumpAndSettle();
+
+    verifyNever(() => repo.updateTeacher(any()));
+  });
+
+  testWidgets('saves the edited phone number', (tester) async {
+    await pumpEditTeacher(tester, viewModel);
+    await tester.enterText(
+        find.byKey(const Key('teacher_phone_field')), '1234567890');
+    await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
+    await tester.tap(find.byKey(const Key('teacher_save_button')));
+    await tester.pumpAndSettle();
+
+    final captured =
+        verify(() => repo.updateTeacher(captureAny())).captured.single
+            as TeacherModel;
+    expect(captured.phoneNumber, '1234567890');
   });
 
   testWidgets('blocks submission when every module is unchecked',

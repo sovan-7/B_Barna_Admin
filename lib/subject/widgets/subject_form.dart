@@ -32,7 +32,18 @@ class SubjectForm extends StatefulWidget {
 }
 
 /// The fields that can carry an inline error.
-enum _Field { course, type, code, name, priority, price, sellingPrice, image }
+enum _Field {
+  course,
+  type,
+  code,
+  name,
+  priority,
+  price,
+  sellingPrice,
+  image,
+  couponCode,
+  couponDiscount
+}
 
 class _SubjectFormState extends State<SubjectForm> {
   final GlobalKey<ScaffoldState> key = GlobalKey();
@@ -43,6 +54,8 @@ class _SubjectFormState extends State<SubjectForm> {
   final TextEditingController priorityController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController sellingPriceController = TextEditingController();
+  final TextEditingController couponCodeController = TextEditingController();
+  final TextEditingController couponDiscountController = TextEditingController();
 
   static const List<String> courseTypeList = [
     "Full Course",
@@ -73,6 +86,11 @@ class _SubjectFormState extends State<SubjectForm> {
       priorityController.text = existing.displayPriority.toString();
       priceController.text = _plain(existing.price);
       sellingPriceController.text = _plain(existing.sellingPrice);
+      couponCodeController.text =
+          existing.couponCode == stringDefault ? "" : existing.couponCode;
+      couponDiscountController.text = existing.couponDiscount == doubleDefault
+          ? ""
+          : _plain(existing.couponDiscount);
       _selectedCourseName =
           existing.courseName == stringDefault ? null : existing.courseName;
       _selectedCourseType =
@@ -103,6 +121,8 @@ class _SubjectFormState extends State<SubjectForm> {
     priorityController.dispose();
     priceController.dispose();
     sellingPriceController.dispose();
+    couponCodeController.dispose();
+    couponDiscountController.dispose();
     super.dispose();
   }
 
@@ -152,6 +172,27 @@ class _SubjectFormState extends State<SubjectForm> {
     // subject already has.
     if (!widget.isEdit && selectedImageBytes == null) {
       errors[_Field.image] = "Choose a subject image";
+    }
+
+    // The coupon is optional as a whole -- leaving both blank removes it --
+    // but a code with no discount (or a discount with no code) is a coupon
+    // that could never apply.
+    final String couponCode = couponCodeController.text.trim();
+    final String couponDiscountText = couponDiscountController.text.trim();
+    if (couponCode.isNotEmpty && couponDiscountText.isEmpty) {
+      errors[_Field.couponDiscount] = "Set a discount for this coupon";
+    } else if (couponDiscountText.isNotEmpty && couponCode.isEmpty) {
+      errors[_Field.couponCode] = "Give the coupon a code";
+    } else if (couponDiscountText.isNotEmpty) {
+      final double? discount = double.tryParse(couponDiscountText);
+      final double? selling = double.tryParse(sellingPriceController.text.trim());
+      if (discount == null) {
+        errors[_Field.couponDiscount] = "Discount must be a number";
+      } else if (discount < 0) {
+        errors[_Field.couponDiscount] = "Discount cannot be negative";
+      } else if (selling != null && discount > selling) {
+        errors[_Field.couponDiscount] = "Cannot be more than the selling price";
+      }
     }
     return errors;
   }
@@ -209,6 +250,12 @@ class _SubjectFormState extends State<SubjectForm> {
         widget.existing?.courseCode ??
         stringDefault;
 
+    // Blank means "no coupon" -- pass null so the model falls back to its
+    // own NA/-1 defaults, which is also how an existing coupon gets cleared.
+    final String couponCodeText = couponCodeController.text.trim().toUpperCase();
+    final double? couponDiscountValue =
+        double.tryParse(couponDiscountController.text.trim());
+
     final SubjectModel model = SubjectModel(
       courseCode,
       _selectedCourseType ?? stringDefault,
@@ -224,6 +271,8 @@ class _SubjectFormState extends State<SubjectForm> {
       willDisplay,
       isLocked,
       isPopular,
+      couponCode: couponCodeText.isEmpty ? null : couponCodeText,
+      couponDiscount: couponCodeText.isEmpty ? null : couponDiscountValue,
     );
 
     final bool success = widget.isEdit
@@ -393,6 +442,29 @@ class _SubjectFormState extends State<SubjectForm> {
                       _discountNote(),
                     ]),
                     const SizedBox(height: AppTokens.gapMd),
+                    _section(title: "COUPON (OPTIONAL)", children: [
+                      _twoUp(
+                        width,
+                        _textField(
+                          label: "Coupon code",
+                          hint: "e.g. NEWYEAR50",
+                          controller: couponCodeController,
+                          error: _errors[_Field.couponCode],
+                          onChanged: _revalidate,
+                          uppercase: true,
+                        ),
+                        _textField(
+                          label: "Coupon discount",
+                          hint: "Flat amount off selling price",
+                          controller: couponDiscountController,
+                          error: _errors[_Field.couponDiscount],
+                          onChanged: _revalidate,
+                          money: true,
+                        ),
+                      ),
+                      _couponNote(),
+                    ]),
+                    const SizedBox(height: AppTokens.gapMd),
                     _section(
                         title: "SUBJECT IMAGE", children: [_imageField()]),
                     const SizedBox(height: AppTokens.gapMd),
@@ -471,6 +543,41 @@ class _SubjectFormState extends State<SubjectForm> {
                         "${(((price - selling) / price) * 100).round()}% off ₹${price.toStringAsFixed(2)}."
                     : "Students pay ₹${selling.toStringAsFixed(2)}. No discount is shown.",
                 style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppTokens.inkMuted),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Explains the two things that are not obvious from the fields alone:
+  /// the amount is flat rupees off the selling price (not a percentage,
+  /// matching how the student app applies it), and clearing both fields is
+  /// how an existing coupon is removed. Expiry stays outside this panel.
+  Widget _couponNote() {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTokens.gapMd),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppTokens.surfaceMuted,
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          border: Border.all(color: AppTokens.hairline),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.info_outline, size: 16, color: AppTokens.inkMuted),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "A flat ₹ amount off the selling price, not a percentage. "
+                "Leave both fields blank to remove an existing coupon. "
+                "Expiry is set outside this panel.",
+                style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     color: AppTokens.inkMuted),

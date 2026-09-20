@@ -15,6 +15,7 @@ void main() {
         imageUrl: 'https://example.com/jane.jpg',
         username: 'jane_doe',
         password: 'hashed-password-value',
+        phoneNumber: '9876543210',
         timeStamp: 1700000000000,
         moduleAccess: const ['COURSES', 'SUBJECT'],
         role: 'admin',
@@ -25,6 +26,7 @@ void main() {
         'image_url': 'https://example.com/jane.jpg',
         'username': 'jane_doe',
         'password': 'hashed-password-value',
+        'phone_number': '9876543210',
         'timeStamp': 1700000000000,
         'module_access': ['COURSES', 'SUBJECT'],
         'role': 'admin',
@@ -39,6 +41,7 @@ void main() {
         'image_url': 'https://example.com/jane.jpg',
         'username': 'jane_doe',
         'password': 'hashed-password-value',
+        'phone_number': '9876543210',
         'timeStamp': 1700000000000,
         'module_access': ['COURSES', 'SUBJECT'],
         'role': 'admin',
@@ -51,6 +54,7 @@ void main() {
       expect(model.imageUrl, 'https://example.com/jane.jpg');
       expect(model.username, 'jane_doe');
       expect(model.password, 'hashed-password-value');
+      expect(model.phoneNumber, '9876543210');
       expect(model.timeStamp, 1700000000000);
       expect(model.moduleAccess, ['COURSES', 'SUBJECT']);
       expect(model.role, 'admin');
@@ -71,6 +75,7 @@ void main() {
       expect(model.imageUrl, 'NA'); // stringDefault, from lib/resources/constant.dart
       expect(model.username, 'NA'); // stringDefault
       expect(model.password, 'NA'); // stringDefault
+      expect(model.phoneNumber, 'NA'); // stringDefault
       expect(model.timeStamp, -1); // intDefault
       expect(model.moduleAccess, isEmpty);
       expect(model.role, 'subadmin'); // falls back to roleSubadmin, not stringDefault

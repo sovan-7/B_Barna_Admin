@@ -11,7 +11,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class LiveClassTeacher {
   final String id;
   final String name;
-  const LiveClassTeacher({required this.id, required this.name});
+  final String phoneNumber;
+  const LiveClassTeacher(
+      {required this.id, required this.name, this.phoneNumber = ""});
 }
 
 /// A subject as the class form needs it: the name shown on the student's
@@ -96,7 +98,10 @@ class LiveClassRepo {
         await _fireStore.collection(teacher).get();
     final List<LiveClassTeacher> teachers = snapshot.docs
         .map((doc) => LiveClassTeacher(
-            id: doc.id, name: (doc.data()["name"] ?? "").toString().trim()))
+            id: doc.id,
+            name: (doc.data()["name"] ?? "").toString().trim(),
+            phoneNumber:
+                (doc.data()["phone_number"] ?? "").toString().trim()))
         .where((t) => t.name.isNotEmpty && t.name != stringDefault)
         .toList();
     teachers.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));

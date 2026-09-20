@@ -7,6 +7,7 @@ class TeacherModel {
   String imageUrl = stringDefault;
   String username = stringDefault;
   String password = stringDefault;
+  String phoneNumber = stringDefault;
   int timeStamp = intDefault;
   List<String> moduleAccess = const [];
   String role = stringDefault;
@@ -17,6 +18,7 @@ class TeacherModel {
     required this.imageUrl,
     required this.username,
     required this.password,
+    required this.phoneNumber,
     required this.timeStamp,
     required this.moduleAccess,
     required this.role,
@@ -28,6 +30,7 @@ class TeacherModel {
       "image_url": imageUrl,
       "username": username,
       "password": password,
+      "phone_number": phoneNumber,
       "timeStamp": timeStamp,
       "module_access": moduleAccess,
       "role": role,
@@ -40,6 +43,7 @@ class TeacherModel {
         imageUrl = doc.data()!["image_url"] ?? stringDefault,
         username = doc.data()!["username"] ?? stringDefault,
         password = doc.data()!["password"] ?? stringDefault,
+        phoneNumber = doc.data()!["phone_number"] ?? stringDefault,
         timeStamp = doc.data()!["timeStamp"] ?? intDefault,
         moduleAccess = List<String>.from(doc.data()!["module_access"] ?? []),
         role = doc.data()!["role"] ?? roleSubadmin;
