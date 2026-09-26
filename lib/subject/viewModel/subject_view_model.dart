@@ -52,6 +52,7 @@ class SubjectViewModel with ChangeNotifier {
       subjectList = await _subjectRepo.getSubjectList();
       filterSubject();
       copySubjectList = List<SubjectModel>.from(subjectList);
+      _applySearch();
     } catch (e) {
       Helper.showSnackBarMessage(
           msg: "Error while fetching subjects", isSuccess: false);
@@ -143,7 +144,18 @@ class SubjectViewModel with ChangeNotifier {
     }
   }
 
+  /// What the search box last held. Kept here rather than on the list
+  /// screen so it survives the round trip to Add/Edit, and is
+  /// re-applied after every refetch instead of showing everything.
+  String searchText = "";
+
   void searchSubject({required String searchText}) {
+    this.searchText = searchText;
+    _applySearch();
+    notifyListeners();
+  }
+
+  void _applySearch() {
     final String query = searchText.toLowerCase().trim();
     if (query.isEmpty) {
       subjectList = List<SubjectModel>.from(copySubjectList);
@@ -155,7 +167,6 @@ class SubjectViewModel with ChangeNotifier {
               subject.courseName.toLowerCase().contains(query))
           .toList();
     }
-    notifyListeners();
   }
 
   /// Newest first.

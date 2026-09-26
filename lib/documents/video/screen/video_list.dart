@@ -22,12 +22,16 @@ class _VideoListState extends State<VideoList> {
   @override
   void initState() {
     super.initState();
+    // Put back what was being searched when this list was last left;
+    // the view model keeps it across Add/Edit and module switches.
+    searchController.text =
+        Provider.of<VideoViewModel>(context, listen: false).searchText;
     // Deferred to after the first frame: this screen is mounted from
     // Sidebar's `screenList[selectedIndex]` *during* a build, and the fetch
     // notifies synchronously.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Provider.of<VideoViewModel>(context, listen: false).getFirstVideoList();
+      Provider.of<VideoViewModel>(context, listen: false).refresh();
     });
   }
 
@@ -124,8 +128,7 @@ class _VideoListState extends State<VideoList> {
       context,
       MaterialPageRoute(builder: (context) => const AddVideo()),
     ).whenComplete(() {
-      searchController.clear();
-      videoViewModel.getFirstVideoList();
+      videoViewModel.refresh();
     });
   }
 
@@ -201,7 +204,7 @@ class _VideoListState extends State<VideoList> {
       itemBuilder: (context, index) => VideoCard(
         key: ValueKey(videos[index].docId),
         videoData: videos[index],
-        onChanged: videoViewModel.getFirstVideoList,
+        onChanged: videoViewModel.refresh,
       ),
     );
   }

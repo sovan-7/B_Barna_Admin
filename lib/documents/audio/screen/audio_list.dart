@@ -22,12 +22,16 @@ class _AudioListState extends State<AudioList> {
   @override
   void initState() {
     super.initState();
+    // Put back what was being searched when this list was last left;
+    // the view model keeps it across Add/Edit and module switches.
+    searchController.text =
+        Provider.of<AudioViewModel>(context, listen: false).searchText;
     // Deferred to after the first frame: this screen is mounted from
     // Sidebar's `screenList[selectedIndex]` *during* a build, and the fetch
     // notifies synchronously.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Provider.of<AudioViewModel>(context, listen: false).getFirstAudioList();
+      Provider.of<AudioViewModel>(context, listen: false).refresh();
     });
   }
 
@@ -124,8 +128,7 @@ class _AudioListState extends State<AudioList> {
       context,
       MaterialPageRoute(builder: (context) => const AddAudio()),
     ).whenComplete(() {
-      searchController.clear();
-      audioViewModel.getFirstAudioList();
+      audioViewModel.refresh();
     });
   }
 
@@ -201,7 +204,7 @@ class _AudioListState extends State<AudioList> {
       itemBuilder: (context, index) => AudioCard(
         key: ValueKey(videos[index].docId),
         audioData: videos[index],
-        onChanged: audioViewModel.getFirstAudioList,
+        onChanged: audioViewModel.refresh,
       ),
     );
   }

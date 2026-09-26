@@ -87,7 +87,7 @@ class _UnitFormState extends State<UnitForm> {
       if (!mounted) return;
       final CourseViewModel courseViewModel =
           Provider.of<CourseViewModel>(context, listen: false);
-      if (courseViewModel.courseList.isEmpty) courseViewModel.getCourseList();
+      if (courseViewModel.allCourses.isEmpty) courseViewModel.getCourseList();
       // Editing starts with a course already chosen, so its subjects have
       // to be fetched before the subject picker can show anything.
       if (_selectedCourseCode.isNotEmpty) {
@@ -480,7 +480,7 @@ class _UnitFormState extends State<UnitForm> {
 
   Widget _courseField(
       UnitViewModel unitViewModel, CourseViewModel courseViewModel) {
-    final List<CourseModel> courses = courseViewModel.courseList;
+    final List<CourseModel> courses = courseViewModel.allCourses;
     final List<String> names =
         courses.map((c) => c.name).where((n) => n.isNotEmpty).toSet().toList();
 

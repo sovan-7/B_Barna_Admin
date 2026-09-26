@@ -21,6 +21,10 @@ class _TeacherListState extends State<TeacherList> {
   @override
   void initState() {
     super.initState();
+    // Put back what was being searched when this list was last left;
+    // the view model keeps it across Add/Edit and module switches.
+    searchController.text =
+        Provider.of<TeacherViewModel>(context, listen: false).searchText;
     // Deferred to after the first frame: this screen is mounted from
     // Sidebar's `screenList[selectedIndex]` *during* a build, and the fetch
     // notifies synchronously.
@@ -112,7 +116,6 @@ class _TeacherListState extends State<TeacherList> {
       context,
       MaterialPageRoute(builder: (context) => const AddTeacher()),
     ).whenComplete(() {
-      searchController.clear();
       teacherViewModel.getTeacherList();
     });
   }

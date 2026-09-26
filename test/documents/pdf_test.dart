@@ -152,6 +152,54 @@ void main() {
           tester, const Size(1024, 768), const Scaffold(body: PDFList()), vm);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('a search survives the round trip to Add', (tester) async {
+      when(() => repo.searchPdf(any()))
+          .thenAnswer((_) async => [_fixture().first]);
+      final vm = PdfViewModel(pdfRepo: repo);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: PDFList()), vm);
+
+      await tester.enterText(find.byType(TextField).first, 'notes-01');
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      expect(find.byType(PdfCard), findsOneWidget);
+
+      await tester.tap(find.text('NEW PDF'));
+      await tester.pumpAndSettle();
+      navigatorKey.currentState!.pop();
+      await tester.pumpAndSettle();
+
+      // Coming back re-runs the search rather than loading the first page
+      // under a search box that still says "notes-01".
+      verify(() => repo.searchPdf('NOTES-01')).called(2);
+      verify(() => repo.getFirstPdfList(any())).called(1);
+      expect(find.widgetWithText(TextField, 'notes-01'), findsOneWidget);
+      expect(find.byType(PdfCard), findsOneWidget);
+    });
+
+    testWidgets('a search result that arrives late does not replace a newer one',
+        (tester) async {
+      final vm = PdfViewModel(pdfRepo: repo);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: PDFList()), vm);
+
+      when(() => repo.searchPdf('OLD')).thenAnswer((_) async {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        return [_fixture().last];
+      });
+      when(() => repo.searchPdf('NEW'))
+          .thenAnswer((_) async => [_fixture().first]);
+
+      vm.searchText = 'old';
+      final Future<void> slow = vm.refresh();
+      vm.searchText = 'new';
+      await vm.refresh();
+      await tester.pump(const Duration(seconds: 2));
+      await slow;
+
+      expect(vm.pdfList.map((p) => p.docId).toList(), ['a']);
+    });
   });
 
   group('the flag toggles', () {

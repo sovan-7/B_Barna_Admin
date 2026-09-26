@@ -21,6 +21,10 @@ class _CourseListState extends State<CourseList> {
   @override
   void initState() {
     super.initState();
+    // Put back what was being searched when this list was last left;
+    // the view model keeps it across Add/Edit and module switches.
+    searchController.text =
+        Provider.of<CourseViewModel>(context, listen: false).searchText;
     // Deferred to after the first frame: this screen is mounted from
     // Sidebar's `screenList[selectedIndex]` *during* a build, and the fetch
     // notifies synchronously.
@@ -114,7 +118,6 @@ class _CourseListState extends State<CourseList> {
       context,
       MaterialPageRoute(builder: (context) => const AddCourse()),
     ).whenComplete(() {
-      searchController.clear();
       courseViewModel.getCourseList();
     });
   }

@@ -54,6 +54,7 @@ class CourseViewModel with ChangeNotifier {
       courseList = await _courseRepo.getCourseList();
       filterCourse();
       copyCourseList = List<CourseModel>.from(courseList);
+      _applySearch();
     } catch (e) {
       Helper.showSnackBarMessage(
           msg: "Error while fetching courses", isSuccess: false);
@@ -130,7 +131,23 @@ class CourseViewModel with ChangeNotifier {
     }
   }
 
+  /// What the search box last held. Kept here rather than on the list
+  /// screen so it survives the round trip to Add/Edit, and is
+  /// re-applied after every refetch instead of showing everything.
+  String searchText = "";
+
+  /// Every course, whatever the Courses search is showing. The course
+  /// pickers on the Subject, Topic and Unit forms read this — reading
+  /// [courseList] would offer them only the courses a search matched.
+  List<CourseModel> get allCourses => copyCourseList;
+
   void searchCourse({required String searchText}) {
+    this.searchText = searchText;
+    _applySearch();
+    notifyListeners();
+  }
+
+  void _applySearch() {
     final String query = searchText.toLowerCase().trim();
     if (query.isEmpty) {
       courseList = List<CourseModel>.from(copyCourseList);
@@ -141,7 +158,6 @@ class CourseViewModel with ChangeNotifier {
               course.name.toLowerCase().contains(query))
           .toList();
     }
-    notifyListeners();
   }
 
   /// Newest first.

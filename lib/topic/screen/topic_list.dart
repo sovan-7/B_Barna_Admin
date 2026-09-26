@@ -30,16 +30,20 @@ class _TopicListState extends State<TopicList> {
   @override
   void initState() {
     super.initState();
+    // Put back what was being searched when this list was last left;
+    // the view model keeps it across Add/Edit and module switches.
+    searchController.text =
+        Provider.of<TopicViewModel>(context, listen: false).searchText;
     // Deferred to after the first frame: this screen is mounted from
     // Sidebar's `screenList[selectedIndex]` *during* a build, and the fetch
     // notifies synchronously.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Provider.of<TopicViewModel>(context, listen: false).getFirstTopicList();
+      Provider.of<TopicViewModel>(context, listen: false).refresh();
       // The add/edit form needs the course list for its course picker.
       final CourseViewModel courseViewModel =
           Provider.of<CourseViewModel>(context, listen: false);
-      if (courseViewModel.courseList.isEmpty) courseViewModel.getCourseList();
+      if (courseViewModel.allCourses.isEmpty) courseViewModel.getCourseList();
     });
   }
 
@@ -129,8 +133,7 @@ class _TopicListState extends State<TopicList> {
       context,
       MaterialPageRoute(builder: (context) => const AddTopic()),
     ).whenComplete(() {
-      searchController.clear();
-      topicViewModel.getFirstTopicList();
+      topicViewModel.refresh();
     });
   }
 
@@ -206,7 +209,7 @@ class _TopicListState extends State<TopicList> {
       itemBuilder: (context, index) => TopicCard(
         key: ValueKey(topics[index].docId),
         topicData: topics[index],
-        onChanged: topicViewModel.getFirstTopicList,
+        onChanged: topicViewModel.refresh,
       ),
     );
   }

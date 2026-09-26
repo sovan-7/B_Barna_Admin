@@ -187,32 +187,51 @@ class TopicViewModel with ChangeNotifier {
     }
   }
 
+  /// What the search box last held. Kept here rather than on the list
+  /// screen so it survives the round trip to Add/Edit, and so [refresh]
+  /// puts the same results back instead of the unfiltered first page.
+  String searchText = "";
+
   /// Debounced prefix search on the topic code, run server-side because
   /// the collection is paged and most of it is not in memory.
   Future<void> searchTopic({required String searchText}) async {
-    if (_debounce?.isActive ?? false) _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () async {
-      if (searchText.trim().isEmpty) {
-        await getFirstTopicList();
-        return;
-      }
+    this.searchText = searchText;
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), _runSearch);
+  }
 
-      isSearching = true;
-      isLoading = true;
+  /// Reloads what the list is showing: the current search's results if
+  /// there is one, otherwise the first page. The list calls this after
+  /// Add/Edit rather than refetching the first page over a search.
+  Future<void> refresh() {
+    _debounce?.cancel();
+    return _runSearch();
+  }
+
+  Future<void> _runSearch() async {
+    final String query = searchText.trim();
+    if (query.isEmpty) {
+      await getFirstTopicList();
+      return;
+    }
+
+    isSearching = true;
+    isLoading = true;
+    notifyListeners();
+    try {
+      final results = await _topicRepo.searchTopic(query.toUpperCase());
+      // A newer search (or a refresh) has taken over meanwhile.
+      if (query != searchText.trim()) return;
+      topicList = results;
+    } catch (e) {
+      topicList = [];
+      // The old catch popped the current route before showing this —
+      // a failed search took the whole page off the navigator.
+      Helper.showSnackBarMessage(
+          msg: "Error while searching topics", isSuccess: false);
+    } finally {
+      isLoading = false;
       notifyListeners();
-      try {
-        topicList =
-            await _topicRepo.searchTopic(searchText.trim().toUpperCase());
-      } catch (e) {
-        topicList = [];
-        // The old catch popped the current route before showing this —
-        // a failed search took the whole page off the navigator.
-        Helper.showSnackBarMessage(
-            msg: "Error while searching topics", isSuccess: false);
-      } finally {
-        isLoading = false;
-        notifyListeners();
-      }
-    });
+    }
   }
 }

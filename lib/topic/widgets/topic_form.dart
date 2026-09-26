@@ -84,7 +84,7 @@ class _TopicFormState extends State<TopicForm> {
       if (!mounted) return;
       final CourseViewModel courseViewModel =
           Provider.of<CourseViewModel>(context, listen: false);
-      if (courseViewModel.courseList.isEmpty) courseViewModel.getCourseList();
+      if (courseViewModel.allCourses.isEmpty) courseViewModel.getCourseList();
       // Editing starts with a course and subject already chosen, so the
       // two levels below have to be fetched before their pickers can show
       // anything.
@@ -447,7 +447,7 @@ class _TopicFormState extends State<TopicForm> {
 
   Widget _courseField(
       TopicViewModel topicViewModel, CourseViewModel courseViewModel) {
-    final List<CourseModel> courses = courseViewModel.courseList;
+    final List<CourseModel> courses = courseViewModel.allCourses;
     final List<String> names =
         courses.map((c) => c.name).where((n) => n.isNotEmpty).toSet().toList();
 

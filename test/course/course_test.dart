@@ -115,6 +115,21 @@ void main() {
   });
 
   group('the list', () {
+    testWidgets('a course search does not shrink the other forms\' pickers',
+        (tester) async {
+      final vm = CourseViewModel(courseRepo: repo);
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: CourseList()), vm);
+
+      await tester.enterText(find.byType(TextField).first, 'chemistry');
+      await tester.pump();
+
+      // The Subject, Topic and Unit forms offer allCourses; the search
+      // only narrows what the Courses list shows.
+      expect(vm.courseList, hasLength(1));
+      expect(vm.allCourses, hasLength(_fixture().length));
+    });
+
     testWidgets('is newest first', (tester) async {
       final vm = CourseViewModel(courseRepo: repo);
       await _pump(tester, const Size(1440, 900),

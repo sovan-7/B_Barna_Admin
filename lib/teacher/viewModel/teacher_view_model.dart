@@ -163,6 +163,7 @@ class TeacherViewModel with ChangeNotifier {
     try {
       teacherList = await _teacherRepo.getTeacherList();
       copyTeacherList = List<TeacherModel>.from(teacherList);
+      _applySearch();
     } catch (e) {
       // The old version had no catch at all, so a failed fetch threw out of
       // an unawaited call and left the loader dialog up for good.
@@ -195,7 +196,18 @@ class TeacherViewModel with ChangeNotifier {
     }
   }
 
+  /// What the search box last held. Kept here rather than on the list
+  /// screen so it survives the round trip to Add/Edit, and is
+  /// re-applied after every refetch instead of showing everything.
+  String searchText = "";
+
   void searchTeacher({required String searchText}) {
+    this.searchText = searchText;
+    _applySearch();
+    notifyListeners();
+  }
+
+  void _applySearch() {
     final String query = searchText.toLowerCase().trim();
     if (query.isEmpty) {
       teacherList = List<TeacherModel>.from(copyTeacherList);
@@ -206,6 +218,5 @@ class TeacherViewModel with ChangeNotifier {
               teacher.username.toLowerCase().contains(query))
           .toList();
     }
-    notifyListeners();
   }
 }

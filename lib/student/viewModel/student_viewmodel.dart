@@ -102,8 +102,8 @@ class StudentViewModel with ChangeNotifier {
 
   void clearStudentData() {
     enrolledCourseBaseModel = null;
-    selectedEditUnitList.clear();
-    unitList.clear();
+    selectedEditUnitList = [];
+    unitList = [];
   }
 
   // ---- The list -------------------------------------------------------
@@ -122,8 +122,9 @@ class StudentViewModel with ChangeNotifier {
     isSearching = false;
     notifyListeners();
     try {
-      studentList = await _studentRepo.getFirstStudentList(limit, sort: sort);
-      copyStudentList = List<Student>.from(studentList);
+      copyStudentList =
+          await _studentRepo.getFirstStudentList(limit, sort: sort);
+      _applySearch();
       studentListLength = await _studentRepo.getStudentListLength();
       if (sort == StudentSort.lastActive) {
         signedInStudentCount = await _studentRepo.getSignedInStudentCount();
@@ -163,7 +164,18 @@ class StudentViewModel with ChangeNotifier {
     } catch (_) {}
   }
 
+  /// What the search box last held. Kept here rather than on the list
+  /// screen so it survives the round trip to Add/Edit, and is
+  /// re-applied after every refetch instead of showing everything.
+  String searchText = "";
+
   void searchStudent({required String searchText}) {
+    this.searchText = searchText;
+    _applySearch();
+    notifyListeners();
+  }
+
+  void _applySearch() {
     final String query = searchText.toLowerCase().trim();
     isSearching = query.isNotEmpty;
     if (query.isEmpty) {
@@ -176,7 +188,6 @@ class StudentViewModel with ChangeNotifier {
               student.studentEmail.toLowerCase().contains(query))
           .toList();
     }
-    notifyListeners();
   }
 
   /// Deletes by document id and drops that row from both lists.
@@ -262,7 +273,8 @@ class StudentViewModel with ChangeNotifier {
     notifyListeners();
     try {
       unitList = await _studentRepo.getUnitList(subjectCode: subjectCode);
-      selectedUnitList = List<String>.filled(unitList.length, "");
+      selectedUnitList =
+          List<String>.filled(unitList.length, "", growable: true);
     } catch (e) {
       unitList = [];
       selectedUnitList = [];
@@ -270,12 +282,17 @@ class StudentViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  // Reassign rather than `.clear()`: `selectedUnitList` comes from
+  // `List.filled`, which is fixed-length and throws on clear.
   void clearUnitList() {
-    selectedUnitList.clear();
-    unitList.clear();
+    selectedUnitList = [];
+    unitList = [];
     selectedUnitLength = 0;
   }
-
+  void clearSubjectList() {
+    subjectList = [];
+    selectedSubjectModel=null;
+  }
   void updateCheckList(int index) {
     selectedUnitList[index] =
         selectedUnitList[index] == "" ? unitList[index].code : "";
@@ -349,7 +366,7 @@ class StudentViewModel with ChangeNotifier {
   }
 
   Future<void> setEditedUnitList(String subjectCode) async {
-    selectedEditUnitList.clear();
+    selectedEditUnitList = [];
     selectedSubjectModel = enrolledCourseBaseModel?.enrolledCourseList
         .where((element) => element.subjectCode == subjectCode)
         .firstOrNull;

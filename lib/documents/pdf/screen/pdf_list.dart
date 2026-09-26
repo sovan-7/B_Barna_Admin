@@ -22,12 +22,16 @@ class _PDFListState extends State<PDFList> {
   @override
   void initState() {
     super.initState();
+    // Put back what was being searched when this list was last left;
+    // the view model keeps it across Add/Edit and module switches.
+    searchController.text =
+        Provider.of<PdfViewModel>(context, listen: false).searchText;
     // Deferred to after the first frame: this screen is mounted from
     // Sidebar's `screenList[selectedIndex]` *during* a build, and the fetch
     // notifies synchronously.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Provider.of<PdfViewModel>(context, listen: false).getFirstPdfList();
+      Provider.of<PdfViewModel>(context, listen: false).refresh();
     });
   }
 
@@ -124,8 +128,7 @@ class _PDFListState extends State<PDFList> {
       context,
       MaterialPageRoute(builder: (context) => const AddPdf()),
     ).whenComplete(() {
-      searchController.clear();
-      pdfViewModel.getFirstPdfList();
+      pdfViewModel.refresh();
     });
   }
 
@@ -201,7 +204,7 @@ class _PDFListState extends State<PDFList> {
       itemBuilder: (context, index) => PdfCard(
         key: ValueKey(videos[index].docId),
         pdfData: videos[index],
-        onChanged: pdfViewModel.getFirstPdfList,
+        onChanged: pdfViewModel.refresh,
       ),
     );
   }

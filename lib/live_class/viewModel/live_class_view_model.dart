@@ -66,8 +66,8 @@ class LiveClassViewModel with ChangeNotifier {
     isLoading = true;
     notifyListeners();
     try {
-      liveClassList = await _liveClassRepo.getLiveClassList();
-      copyLiveClassList = liveClassList;
+      copyLiveClassList = await _liveClassRepo.getLiveClassList();
+      _applySearch();
     } catch (e) {
       Helper.showSnackBarMessage(
           msg: "Error while fetching classes", isSuccess: false);
@@ -96,8 +96,9 @@ class LiveClassViewModel with ChangeNotifier {
   }
 
   /// Classes the student app cannot read yet. Empty is the healthy state.
+  /// Counted over every class, not just the ones a search is showing.
   List<LiveClassModel> get classesNeedingAppSync =>
-      liveClassList.where((liveClass) => liveClass.needsAppSync).toList();
+      copyLiveClassList.where((liveClass) => liveClass.needsAppSync).toList();
 
   /// True while [syncClassesForApp] is running.
   bool isSyncingForApp = false;
@@ -196,17 +197,27 @@ class LiveClassViewModel with ChangeNotifier {
 
   /// Local filter over the already-fetched list (matches title or teacher),
   /// mirroring TeacherViewModel.searchTeacher.
+  /// What the search box last held. Kept here rather than on the list
+  /// screen so it survives the round trip to Add/Edit, and is
+  /// re-applied after every refetch instead of showing everything.
+  String searchText = "";
+
   void searchLiveClass({required String searchText}) {
-    if (searchText.trim().isEmpty) {
+    this.searchText = searchText;
+    _applySearch();
+    notifyListeners();
+  }
+
+  void _applySearch() {
+    final String query = searchText.toLowerCase().trim();
+    if (query.isEmpty) {
       liveClassList = copyLiveClassList;
     } else {
-      final String query = searchText.toLowerCase().trim();
       liveClassList = copyLiveClassList
           .where((liveClass) =>
               liveClass.title.toLowerCase().contains(query) ||
               liveClass.teacherName.toLowerCase().contains(query))
           .toList();
     }
-    notifyListeners();
   }
 }

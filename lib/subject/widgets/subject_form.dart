@@ -1,6 +1,7 @@
 import 'package:bbarna/core/widgets/app_header.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/core/widgets/sidebar.dart';
+import 'package:bbarna/core/widgets/valid_till_picker.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/course/viewModel/course_view_model.dart';
 import 'package:bbarna/course/widgets/course_form.dart' show UpperCaseTextFormatter;
@@ -12,6 +13,7 @@ import 'package:bbarna/utils/helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 /// The whole Add/Edit Subject page. [existing] null means Add.
@@ -42,7 +44,8 @@ enum _Field {
   sellingPrice,
   image,
   couponCode,
-  couponDiscount
+  couponDiscount,
+  couponValidTill
 }
 
 class _SubjectFormState extends State<SubjectForm> {
@@ -72,6 +75,11 @@ class _SubjectFormState extends State<SubjectForm> {
   bool isPopular = false;
   bool _isSaving = false;
 
+  /// The last day the coupon can be used (date only); saved as the end of
+  /// that day so "valid till 30 Sep" still works on 30 Sep.
+  DateTime? _couponValidDate;
+  static final DateFormat _validDateFormat = DateFormat("d MMM yyyy");
+
   final Map<_Field, String> _errors = <_Field, String>{};
 
   @override
@@ -91,6 +99,10 @@ class _SubjectFormState extends State<SubjectForm> {
       couponDiscountController.text = existing.couponDiscount == doubleDefault
           ? ""
           : _plain(existing.couponDiscount);
+      if (existing.couponValidTill > 0) {
+        _couponValidDate = _dateOnly(
+            DateTime.fromMillisecondsSinceEpoch(existing.couponValidTill));
+      }
       _selectedCourseName =
           existing.courseName == stringDefault ? null : existing.courseName;
       _selectedCourseType =
@@ -106,12 +118,17 @@ class _SubjectFormState extends State<SubjectForm> {
       if (!mounted) return;
       final CourseViewModel courseViewModel =
           Provider.of<CourseViewModel>(context, listen: false);
-      if (courseViewModel.courseList.isEmpty) courseViewModel.getCourseList();
+      if (courseViewModel.allCourses.isEmpty) courseViewModel.getCourseList();
     });
   }
 
   static String _plain(double value) =>
       value == value.roundToDouble() ? value.toInt().toString() : "$value";
+
+  static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  static int _endOfDayMillis(DateTime d) =>
+      DateTime(d.year, d.month, d.day, 23, 59, 59, 999).millisecondsSinceEpoch;
 
   @override
   void dispose() {
@@ -194,6 +211,18 @@ class _SubjectFormState extends State<SubjectForm> {
         errors[_Field.couponDiscount] = "Cannot be more than the selling price";
       }
     }
+
+    // Every coupon needs an end date, and one that has already passed is
+    // another coupon that could never apply.
+    final DateTime? validDate = _couponValidDate;
+    if (couponCode.isNotEmpty && validDate == null) {
+      errors[_Field.couponValidTill] = "Set how long this coupon is valid";
+    } else if (validDate != null && couponCode.isEmpty) {
+      errors.putIfAbsent(_Field.couponCode, () => "Give the coupon a code");
+    } else if (validDate != null &&
+        validDate.isBefore(_dateOnly(DateTime.now()))) {
+      errors[_Field.couponValidTill] = "This date has already passed";
+    }
     return errors;
   }
 
@@ -243,7 +272,7 @@ class _SubjectFormState extends State<SubjectForm> {
     // The course code is derived from the chosen course. The old form did
     // `.where(...).first`, which throws if the course was renamed or
     // removed since; this keeps whatever the subject already had.
-    final String courseCode = courseViewModel.courseList
+    final String courseCode = courseViewModel.allCourses
         .where((c) => c.name == _selectedCourseName)
         .map((c) => c.code)
         .firstOrNull ??
@@ -273,6 +302,9 @@ class _SubjectFormState extends State<SubjectForm> {
       isPopular,
       couponCode: couponCodeText.isEmpty ? null : couponCodeText,
       couponDiscount: couponCodeText.isEmpty ? null : couponDiscountValue,
+      couponValidTill: couponCodeText.isEmpty || _couponValidDate == null
+          ? null
+          : _endOfDayMillis(_couponValidDate!),
     );
 
     final bool success = widget.isEdit
@@ -462,6 +494,8 @@ class _SubjectFormState extends State<SubjectForm> {
                           money: true,
                         ),
                       ),
+                      const SizedBox(height: AppTokens.gapMd),
+                      _couponValidityField(),
                       _couponNote(),
                     ]),
                     const SizedBox(height: AppTokens.gapMd),
@@ -556,8 +590,8 @@ class _SubjectFormState extends State<SubjectForm> {
 
   /// Explains the two things that are not obvious from the fields alone:
   /// the amount is flat rupees off the selling price (not a percentage,
-  /// matching how the student app applies it), and clearing both fields is
-  /// how an existing coupon is removed. Expiry stays outside this panel.
+  /// matching how the student app applies it), and clearing the fields is
+  /// how an existing coupon is removed.
   Widget _couponNote() {
     return Padding(
       padding: const EdgeInsets.only(top: AppTokens.gapMd),
@@ -575,8 +609,8 @@ class _SubjectFormState extends State<SubjectForm> {
             Expanded(
               child: Text(
                 "A flat ₹ amount off the selling price, not a percentage. "
-                "Leave both fields blank to remove an existing coupon. "
-                "Expiry is set outside this panel.",
+                "The coupon works up to the end of its valid-till date. "
+                "Leave all fields blank to remove an existing coupon.",
                 style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
@@ -586,6 +620,91 @@ class _SubjectFormState extends State<SubjectForm> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _pickCouponValidDate() async {
+    final DateTime? picked = await showValidTillPicker(
+      context,
+      title: "Coupon valid till",
+      initial: _couponValidDate,
+      presets: const [
+        DatePreset.days(7, "1 week"),
+        DatePreset.days(14, "2 weeks"),
+        DatePreset.months(1, "1 month"),
+        DatePreset.months(3, "3 months"),
+      ],
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _couponValidDate = _dateOnly(picked));
+    _revalidate();
+  }
+
+  Widget _couponValidityField() {
+    final String? error = _errors[_Field.couponValidTill];
+    final DateTime? date = _couponValidDate;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Valid till", style: _labelStyle),
+        const SizedBox(height: 6),
+        Material(
+          color: AppTokens.surface,
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          child: InkWell(
+            key: const Key('subject_coupon_valid_till'),
+            onTap: _isSaving ? null : _pickCouponValidDate,
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
+              constraints: const BoxConstraints(minHeight: 46),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                border: Border.all(
+                    color:
+                        error != null ? AppTokens.danger : AppTokens.hairline),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.event_outlined,
+                      size: 16, color: AppTokens.inkFaint),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      date == null
+                          ? "Pick the last day this coupon works"
+                          : _validDateFormat.format(date),
+                      style: date == null
+                          ? const TextStyle(
+                              fontSize: 13, color: AppTokens.inkFaint)
+                          : const TextStyle(
+                              fontSize: 13.5, color: AppTokens.ink),
+                    ),
+                  ),
+                  if (date != null)
+                    IconButton(
+                      tooltip: "Clear date",
+                      onPressed: _isSaving
+                          ? null
+                          : () {
+                              setState(() => _couponValidDate = null);
+                              _revalidate();
+                            },
+                      icon: const Icon(Icons.close, size: 16),
+                      color: AppTokens.inkMuted,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (error != null) ...[
+          const SizedBox(height: 5),
+          Text(error, style: AppTokens.errorText),
+        ],
+      ],
     );
   }
 
@@ -742,7 +861,7 @@ class _SubjectFormState extends State<SubjectForm> {
       fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF344054));
 
   Widget _courseField(CourseViewModel courseViewModel) {
-    final List<String> names = courseViewModel.courseList
+    final List<String> names = courseViewModel.allCourses
         .map((CourseModel c) => c.name)
         .where((String name) => name.isNotEmpty)
         .toSet()

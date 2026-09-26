@@ -22,12 +22,16 @@ class _QuizListState extends State<QuizList> {
   @override
   void initState() {
     super.initState();
+    // Put back what was being searched when this list was last left;
+    // the view model keeps it across Add/Edit and module switches.
+    searchController.text =
+        Provider.of<QuizViewModel>(context, listen: false).searchText;
     // Deferred to after the first frame: this screen is mounted from
     // Sidebar's `screenList[selectedIndex]` *during* a build, and the fetch
     // notifies synchronously.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Provider.of<QuizViewModel>(context, listen: false).getFirstQuizList();
+      Provider.of<QuizViewModel>(context, listen: false).refresh();
     });
   }
 
@@ -124,8 +128,7 @@ class _QuizListState extends State<QuizList> {
       context,
       MaterialPageRoute(builder: (context) => const AddQuiz()),
     ).whenComplete(() {
-      searchController.clear();
-      quizViewModel.getFirstQuizList();
+      quizViewModel.refresh();
     });
   }
 
@@ -201,7 +204,7 @@ class _QuizListState extends State<QuizList> {
       itemBuilder: (context, index) => QuizCard(
         key: ValueKey(videos[index].docId),
         quizData: videos[index],
-        onChanged: quizViewModel.getFirstQuizList,
+        onChanged: quizViewModel.refresh,
       ),
     );
   }

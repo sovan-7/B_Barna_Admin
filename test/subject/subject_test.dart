@@ -14,6 +14,7 @@ import 'package:bbarna/subject/viewModel/subject_view_model.dart';
 import 'package:bbarna/subject/widgets/subject_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 
@@ -56,8 +57,8 @@ SubjectModel _subject(
       isLocked,
       isPopular);
   model.docId = id;
-  // Written outside this panel and read-only here, so they are set on the
-  // built model rather than through the constructor.
+  // Set on the built model to keep the fixture call short; the form
+  // passes them through the constructor.
   if (couponCode != null) {
     model.couponCode = couponCode;
     model.couponDiscount = couponDiscount;
@@ -194,6 +195,45 @@ void main() {
       await tester.enterText(find.byType(TextField).first, '');
       await tester.pump();
       expect(find.byType(SubjectCard), findsNWidgets(3));
+    });
+
+    testWidgets('a search survives the round trip to Add', (tester) async {
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: SubjectList()), vm);
+
+      await tester.enterText(find.byType(TextField).first, 'chemistry');
+      await tester.pump();
+      expect(find.byType(SubjectCard), findsOneWidget);
+
+      await tester.tap(find.text('NEW SUBJECT'));
+      await tester.pumpAndSettle();
+      navigatorKey.currentState!.pop();
+      await tester.pumpAndSettle();
+
+      // The list refetched on the way back, and the search is still applied
+      // to what came back -- it used to be cleared, and after Edit the box
+      // kept its text while the list showed everything.
+      verify(() => repo.getSubjectList()).called(2);
+      expect(find.widgetWithText(TextField, 'chemistry'), findsOneWidget);
+      expect(find.byType(SubjectCard), findsOneWidget);
+    });
+
+    testWidgets('a search is put back when the list is opened again',
+        (tester) async {
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: SubjectList()), vm);
+      await tester.enterText(find.byType(TextField).first, 'trig');
+      await tester.pump();
+
+      // Leave the list entirely (another module), then come back to it.
+      await _pump(tester, const Size(1440, 900), const SizedBox(), vm);
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: SubjectList()), vm);
+
+      expect(find.widgetWithText(TextField, 'trig'), findsOneWidget);
+      expect(find.byType(SubjectCard), findsOneWidget);
     });
 
     testWidgets('an empty result says which kind of empty it is',
@@ -488,19 +528,14 @@ void main() {
       expect(find.byIcon(Icons.local_offer_outlined), findsNothing);
     });
 
-    test('saving a subject carries the coupon code and discount, but not the expiry', () {
+    test('saving a subject carries the coupon code, discount and expiry', () {
       final SubjectModel subject = _subject('a', 'MECH', 'Mechanics',
           couponCode: 'NEWYEAR50', couponDiscount: 100, couponValidTill: 999);
 
-      // couponCode/couponDiscount are now editable from this form and must
-      // round-trip through toMap(). couponValidTill still has no editor, so
-      // it is deliberately absent -- updateSubject uses update(), which
-      // only touches the keys toMap lists, and there is no expiry field
-      // here to have produced a fresh value for it.
       final Map<String, dynamic> written = subject.toMap();
       expect(written['couponCode'], 'NEWYEAR50');
       expect(written['couponDiscount'], 100);
-      expect(written.containsKey('couponValidTill'), isFalse);
+      expect(written['couponValidTill'], 999);
     });
 
     test('a blank coupon in the model writes the NA/-1 defaults', () {
@@ -509,6 +544,7 @@ void main() {
       final Map<String, dynamic> written = subject.toMap();
       expect(written['couponCode'], stringDefault);
       expect(written['couponDiscount'], doubleDefault);
+      expect(written['couponValidTill'], intDefault);
     });
   });
 
@@ -543,6 +579,95 @@ void main() {
 
       expect(find.text('Set a discount for this coupon'), findsOneWidget);
       verifyNever(() => repo.updateSubject(any(), any()));
+    });
+
+    testWidgets('a coupon without a valid-till date blocks submission',
+        (tester) async {
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          EditSubject(subjectData: _fixture().first), vm);
+
+      final Finder fields = find.byType(TextField);
+      await tester.enterText(fields.at(6), 'SAVE10');
+      await tester.enterText(fields.at(7), '10');
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+
+      expect(find.text('Set how long this coupon is valid'), findsOneWidget);
+      verifyNever(() => repo.updateSubject(any(), any()));
+    });
+
+    testWidgets('a quick pick in the calendar sets the valid-till date',
+        (tester) async {
+      when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          EditSubject(subjectData: _fixture().first), vm);
+
+      final Finder fields = find.byType(TextField);
+      await tester.enterText(fields.at(6), 'SAVE10');
+      await tester.enterText(fields.at(7), '10');
+      await tester.pump();
+
+      final Finder validTill = find.byKey(const Key('subject_coupon_valid_till'));
+      await tester.ensureVisible(validTill);
+      await tester.tap(validTill);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('2 weeks'));
+      await tester.pump();
+      expect(find.text('Expires in 14 days'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('valid_till_confirm')));
+      await tester.pumpAndSettle();
+
+      final DateTime inTwoWeeks =
+          DateUtils.dateOnly(DateTime.now()).add(const Duration(days: 14));
+      expect(find.text(DateFormat('d MMM yyyy').format(inTwoWeeks)),
+          findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+      await tester.pump();
+
+      final SubjectModel saved =
+          verify(() => repo.updateSubject(captureAny(), 'a')).captured.single
+              as SubjectModel;
+      expect(
+          saved.couponValidTill,
+          DateTime(inTwoWeeks.year, inTwoWeeks.month, inTwoWeeks.day, 23, 59,
+                  59, 999)
+              .millisecondsSinceEpoch);
+    });
+
+    testWidgets('an existing expiry is prefilled and saved back',
+        (tester) async {
+      when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
+      final DateTime inAWeek = DateTime.now().add(const Duration(days: 7));
+      final int validTill = DateTime(
+              inAWeek.year, inAWeek.month, inAWeek.day, 23, 59, 59, 999)
+          .millisecondsSinceEpoch;
+      final SubjectModel withCoupon = _subject('a', 'MECH', 'Mechanics',
+          couponCode: 'NEWYEAR50',
+          couponDiscount: 100,
+          couponValidTill: validTill);
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          EditSubject(subjectData: withCoupon), vm);
+
+      expect(find.text(DateFormat('d MMM yyyy').format(inAWeek)),
+          findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+      await tester.pump();
+
+      final SubjectModel saved =
+          verify(() => repo.updateSubject(captureAny(), 'a')).captured.single
+              as SubjectModel;
+      expect(saved.toMap()['couponValidTill'], validTill);
     });
 
     testWidgets('leaving both coupon fields blank on save clears the coupon',

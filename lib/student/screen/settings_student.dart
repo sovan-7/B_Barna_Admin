@@ -1,6 +1,7 @@
 import 'package:bbarna/core/widgets/app_header.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/core/widgets/sidebar.dart';
+import 'package:bbarna/core/widgets/valid_till_picker.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
@@ -140,16 +141,23 @@ class _SettingStudentState extends State<SettingStudent> {
     studentViewModel.clearUnitList();
   }
 
+  /// Enrolments run for months or years, so the quick picks do too. The
+  /// calendar still reaches five years out -- a year used to be the hard
+  /// ceiling, so a two-year enrolment could not be entered at all.
+  static const DatePreset _oneYear = DatePreset.months(12, "1 year");
+
   Future<void> _pickValidTill() async {
-    final DateTime now = DateTime.now();
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _validTill ?? now.add(const Duration(days: 365)),
-      firstDate: now,
-      // A year was the hard ceiling before, so a two-year enrolment could
-      // not be entered at all.
-      lastDate: DateTime(now.year + 5),
-      helpText: "Access valid till",
+    final DateTime? picked = await showValidTillPicker(
+      context,
+      title: "Access valid till",
+      initial: _validTill,
+      presets: const [
+        DatePreset.months(3, "3 months"),
+        DatePreset.months(6, "6 months"),
+        _oneYear,
+        DatePreset.months(24, "2 years"),
+      ],
+      defaultPreset: _oneYear,
     );
     if (picked == null || !mounted) return;
     setState(() => _validTill = picked);
@@ -385,6 +393,7 @@ class _SettingStudentState extends State<SettingStudent> {
           _selectedSubjectCode = "";
           _selectedSubjectImage = "";
         });
+        studentViewModel.clearSubjectList();
         studentViewModel.clearUnitList();
         if (_selectedCourseCode.isNotEmpty) {
           studentViewModel.getSubjectList(_selectedCourseCode);

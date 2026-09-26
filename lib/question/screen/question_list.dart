@@ -22,12 +22,16 @@ class _QuestionListState extends State<QuestionList> {
   @override
   void initState() {
     super.initState();
+    // Put back what was being searched when this list was last left;
+    // the view model keeps it across Add/Edit and module switches.
+    searchController.text =
+        Provider.of<QuestionViewModel>(context, listen: false).searchText;
     // Deferred to after the first frame: this screen is mounted from
     // Sidebar's `screenList[selectedIndex]` *during* a build, and the fetch
     // notifies synchronously.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Provider.of<QuestionViewModel>(context, listen: false).fetchFirstQuestionList();
+      Provider.of<QuestionViewModel>(context, listen: false).refresh();
     });
   }
 
@@ -124,8 +128,7 @@ class _QuestionListState extends State<QuestionList> {
       context,
       MaterialPageRoute(builder: (context) => const AddQuestion()),
     ).whenComplete(() {
-      searchController.clear();
-      questionViewModel.fetchFirstQuestionList();
+      questionViewModel.refresh();
     });
   }
 
@@ -201,7 +204,7 @@ class _QuestionListState extends State<QuestionList> {
       itemBuilder: (context, index) => QuestionCard(
         key: ValueKey(videos[index].docId),
         questionData: videos[index],
-        onChanged: questionViewModel.fetchFirstQuestionList,
+        onChanged: questionViewModel.refresh,
       ),
     );
   }

@@ -14,6 +14,7 @@ import 'package:bbarna/student/viewModel/student_viewmodel.dart';
 import 'package:bbarna/student/widgets/student_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 
@@ -345,6 +346,33 @@ void main() {
       expect(find.text('Choose a subject'), findsOneWidget);
       expect(find.text('Choose at least one unit'), findsOneWidget);
       expect(find.text('Set how long the access lasts'), findsOneWidget);
+    });
+
+    testWidgets('the validity calendar opens on a year and offers longer picks',
+        (tester) async {
+      await pumpSettings(tester);
+
+      await tester.ensureVisible(find.byKey(const Key('enrol_validity_field')));
+      await tester.tap(find.byKey(const Key('enrol_validity_field')));
+      await tester.pumpAndSettle();
+
+      // The same calendar as a coupon's expiry, with enrolment-length picks.
+      expect(find.text('ACCESS VALID TILL'), findsOneWidget);
+      for (final String pick in ['3 months', '6 months', '1 year', '2 years']) {
+        expect(find.text(pick), findsOneWidget);
+      }
+      expect(find.textContaining('about 1 year'), findsOneWidget);
+
+      await tester.tap(find.text('2 years'));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('valid_till_confirm')));
+      await tester.pumpAndSettle();
+
+      final DateTime today = DateUtils.dateOnly(DateTime.now());
+      final DateTime inTwoYears = DateTime(today.year + 2, today.month,
+          today.day.clamp(1, DateUtils.getDaysInMonth(today.year + 2, today.month)));
+      expect(find.text(DateFormat('d MMM yyyy').format(inTwoYears)),
+          findsOneWidget);
     });
 
     testWidgets('an enrolment shows its units and validity', (tester) async {

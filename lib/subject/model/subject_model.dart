@@ -23,11 +23,9 @@ class SubjectModel {
   /// `couponDiscount` is a flat rupee amount off `sellingPrice`, not a
   /// percentage, and `couponValidTill` is epoch millis.
   ///
-  /// `couponCode` and `couponDiscount` are editable from Add/Edit Subject
-  /// (see [SubjectForm]) and are included in [toMap]. `couponValidTill` has
-  /// no editor here — it stays whatever it already was, because [toMap]
-  /// does not list it and [SubjectRepo.updateSubject] uses `update()`,
-  /// which only touches the keys [toMap] lists.
+  /// All three are editable from Add/Edit Subject (see [SubjectForm]) and
+  /// are included in [toMap]; a subject with no coupon writes the NA/-1
+  /// defaults for each.
   String couponCode = stringDefault;
   double couponDiscount = doubleDefault;
   int couponValidTill = intDefault;
@@ -49,8 +47,10 @@ class SubjectModel {
     this.isPopular, {
     String? couponCode,
     double? couponDiscount,
+    int? couponValidTill,
   })  : couponCode = couponCode ?? stringDefault,
-        couponDiscount = couponDiscount ?? doubleDefault;
+        couponDiscount = couponDiscount ?? doubleDefault,
+        couponValidTill = couponValidTill ?? intDefault;
 
   Map<String, dynamic> toMap() {
     return {
@@ -70,6 +70,7 @@ class SubjectModel {
       "isPopular":isPopular,
       "couponCode": couponCode.trim(),
       "couponDiscount": couponDiscount,
+      "couponValidTill": couponValidTill,
     };
   }
 
