@@ -1,3 +1,4 @@
+import 'package:bbarna/core/viewModel/async_list.dart';
 import 'package:bbarna/core/viewModel/paged_list_view_model.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/topic/model/topic_model.dart';
@@ -16,11 +17,19 @@ class TopicViewModel extends PagedListViewModel<TopicModel> {
   TopicViewModel({TopicRepo? topicRepo})
       : _topicRepo = topicRepo ?? TopicRepo();
 
-  /// Subjects of the course chosen on the Add/Edit Topic form.
-  List<SubjectModel> subjectList = [];
+  /// Subjects of the course chosen on the Add/Edit Topic form, with their
+  /// loading / error state.
+  final AsyncList<SubjectModel> subjectsForCourse = AsyncList<SubjectModel>();
 
-  /// Units of the subject chosen on the Add/Edit Topic form.
-  List<UnitModel> unitList = [];
+  /// Units of the subject chosen on the Add/Edit Topic form, with their
+  /// loading / error state.
+  final AsyncList<UnitModel> unitsForSubject = AsyncList<UnitModel>();
+
+  /// The options in [subjectsForCourse].
+  List<SubjectModel> get subjectList => subjectsForCourse.items;
+
+  /// The options in [unitsForSubject].
+  List<UnitModel> get unitList => unitsForSubject.items;
 
   // ---- Paging hooks (see PagedListViewModel) -----------------------------
 
@@ -61,27 +70,24 @@ class TopicViewModel extends PagedListViewModel<TopicModel> {
 
   // ---- Form dropdown data ------------------------------------------------
 
-  /// Loads the subjects of [courseCode] into [subjectList]. On failure the
-  /// list is simply emptied.
-  Future<void> getSubjectList({required String courseCode}) async {
-    try {
-      subjectList = await _topicRepo.getSubjectList(courseCode: courseCode);
-    } catch (e) {
-      subjectList = [];
-    }
-    notifyListeners();
+  /// Loads the subjects of [courseCode] (and clears the unit options,
+  /// which belonged to the previous subject).
+  Future<void> getSubjectList({required String courseCode}) {
+    unitsForSubject.reset();
+    return subjectsForCourse.load(
+      () => _topicRepo.getSubjectList(courseCode: courseCode),
+      errorMessage: "Couldn't load subjects",
+      onChange: notifyListeners,
+    );
   }
 
-  /// Loads the units of [subjectCode] into [unitList]. On failure the list
-  /// is simply emptied.
-  Future<void> getUnitList({required String subjectCode}) async {
-    try {
-      unitList = await _topicRepo.getUnitList(subjectCode: subjectCode);
-    } catch (e) {
-      unitList = [];
-    }
-    notifyListeners();
-  }
+  /// Loads the units of [subjectCode].
+  Future<void> getUnitList({required String subjectCode}) =>
+      unitsForSubject.load(
+        () => _topicRepo.getUnitList(subjectCode: subjectCode),
+        errorMessage: "Couldn't load units",
+        onChange: notifyListeners,
+      );
 
   // ---- Create / update / delete ------------------------------------------
 

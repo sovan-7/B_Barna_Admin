@@ -1,3 +1,4 @@
+import 'package:bbarna/core/viewModel/async_list.dart';
 import 'dart:typed_data';
 
 import 'package:bbarna/core/viewModel/paged_list_view_model.dart';
@@ -16,8 +17,12 @@ class UnitViewModel extends PagedListViewModel<UnitModel> {
 
   UnitViewModel({UnitRepo? unitRepo}) : _unitRepo = unitRepo ?? UnitRepo();
 
-  /// Subjects of the course chosen on the Add/Edit Unit form.
-  List<SubjectModel> subjectListByCourseId = [];
+  /// Subjects of the course chosen on the Add/Edit Unit form, with their
+  /// loading / error state.
+  final AsyncList<SubjectModel> subjectsForCourse = AsyncList<SubjectModel>();
+
+  /// The options in [subjectsForCourse].
+  List<SubjectModel> get subjectListByCourseId => subjectsForCourse.items;
 
   // ---- Paging hooks (see PagedListViewModel) -----------------------------
 
@@ -59,16 +64,14 @@ class UnitViewModel extends PagedListViewModel<UnitModel> {
   // ---- Form dropdown data ------------------------------------------------
 
   /// Loads the subjects that belong to [courseCode] into
-  /// [subjectListByCourseId]. On failure the list is simply emptied.
-  Future<void> getSubjectListByCourseCode(String courseCode) async {
-    try {
-      subjectListByCourseId =
-          await _unitRepo.getSubjectListByCourseCode(courseCode);
-    } catch (e) {
-      subjectListByCourseId = [];
-    }
-    notifyListeners();
-  }
+  /// [subjectsForCourse] (older responses are ignored; a failure sets its
+  /// error).
+  Future<void> getSubjectListByCourseCode(String courseCode) =>
+      subjectsForCourse.load(
+        () => _unitRepo.getSubjectListByCourseCode(courseCode),
+        errorMessage: "Couldn't load subjects",
+        onChange: notifyListeners,
+      );
 
   // ---- Create / update / delete ------------------------------------------
 

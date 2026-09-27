@@ -524,6 +524,13 @@ class FormDropdownField extends StatelessWidget {
   /// [onChanged] when it should look disabled).
   final bool enabled;
 
+  /// Why the options could not be loaded, or null. Shown under the box with
+  /// a Retry link (when [onRetry] is given).
+  final String? loadError;
+
+  /// Loads the options again.
+  final VoidCallback? onRetry;
+
   const FormDropdownField({
     required this.label,
     required this.hint,
@@ -534,12 +541,15 @@ class FormDropdownField extends StatelessWidget {
     this.dropdownKey,
     this.error,
     this.enabled = true,
+    this.loadError,
+    this.onRetry,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
     final String? error = this.error;
+    final String? loadError = this.loadError;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -595,8 +605,53 @@ class FormDropdownField extends StatelessWidget {
             ),
           ),
         ),
-        if (error != null) FieldErrorText(error),
+        if (error != null)
+          FieldErrorText(error)
+        else if (loadError != null)
+          LoadErrorLine(message: loadError, onRetry: onRetry),
       ],
+    );
+  }
+}
+
+/// A red "Couldn't load …" line with a Retry link, shown under a field
+/// whose options failed to load.
+class LoadErrorLine extends StatelessWidget {
+  /// e.g. "Couldn't load subjects".
+  final String message;
+
+  /// Loads again; no link when null.
+  final VoidCallback? onRetry;
+
+  const LoadErrorLine({required this.message, this.onRetry, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final VoidCallback? onRetry = this.onRetry;
+    return Padding(
+      padding: const EdgeInsets.only(top: 5),
+      child: Row(
+        children: [
+          Flexible(child: Text(message, style: AppTokens.errorText)),
+          if (onRetry != null) ...[
+            const SizedBox(width: 6),
+            InkWell(
+              key: const Key('field_retry'),
+              onTap: onRetry,
+              borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Text("Retry",
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppTokens.ink,
+                        decoration: TextDecoration.underline)),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

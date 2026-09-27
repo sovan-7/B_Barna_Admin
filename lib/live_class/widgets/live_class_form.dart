@@ -1,4 +1,5 @@
 import 'package:bbarna/core/widgets/app_header.dart';
+import 'package:bbarna/core/widgets/form/form_fields.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/core/widgets/sidebar.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
@@ -668,22 +669,32 @@ class _LiveClassFormState extends State<LiveClassForm> {
     return LiveClassDropdownField(
       dropdownKey: const Key('live_class_subject_dropdown'),
       label: "Subject",
-      hint: names.isEmpty ? "No subjects found" : "Select a subject",
+      hint: liveClassViewModel.subjectOptions.hintFor(
+        hasOptions: names.isNotEmpty,
+        loading: "Loading subjects…",
+        empty: "No subjects found",
+        select: "Select a subject",
+      ),
       value: _selectedSubject,
       items: names,
       icon: Icons.library_books_outlined,
       error: _errors[_Field.subject],
-      onChanged: (String? newValue) {
-        setState(() {
-          _selectedSubject = newValue;
-          _selectedSubjectCode = liveClassViewModel.subjects
-                  .where((s) => s.name == newValue)
-                  .map((s) => s.code)
-                  .firstOrNull ??
-              "";
-        });
-        _revalidate();
-      },
+      loadError: liveClassViewModel.subjectOptions.error,
+      onRetry: liveClassViewModel.subjectOptions.retry,
+      // Disabled while the subjects load.
+      onChanged: liveClassViewModel.subjectOptions.isLoading
+          ? null
+          : (String? newValue) {
+              setState(() {
+                _selectedSubject = newValue;
+                _selectedSubjectCode = liveClassViewModel.subjects
+                        .where((s) => s.name == newValue)
+                        .map((s) => s.code)
+                        .firstOrNull ??
+                    "";
+              });
+              _revalidate();
+            },
     );
   }
 
@@ -703,7 +714,22 @@ class _LiveClassFormState extends State<LiveClassForm> {
       names.insert(0, current);
     }
 
+    // Still loading: a disabled dropdown, not the free-text fallback.
+    if (names.isEmpty && liveClassViewModel.teacherOptions.isLoading) {
+      return LiveClassDropdownField(
+        dropdownKey: const Key('live_class_teacher_dropdown'),
+        label: "Teacher",
+        hint: "Loading teachers…",
+        value: null,
+        items: const [],
+        icon: Icons.person_outline,
+        error: _errors[_Field.teacher],
+        onChanged: null,
+      );
+    }
+
     if (names.isEmpty) {
+      final String? loadError = liveClassViewModel.teacherOptions.error;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -714,11 +740,20 @@ class _LiveClassFormState extends State<LiveClassForm> {
             error: _errors[_Field.teacher],
             onChanged: _revalidate,
           ),
-          const SizedBox(height: 5),
-          const Text(
-            "No teachers found — type the name instead.",
-            style: TextStyle(fontSize: 11.5, color: LiveClassTheme.inkFaint),
-          ),
+          // No teachers, or they failed to load: typing still works, and a
+          // failed load can be retried.
+          if (loadError != null)
+            LoadErrorLine(
+              message: "$loadError — type the name instead, or",
+              onRetry: liveClassViewModel.teacherOptions.retry,
+            )
+          else ...[
+            const SizedBox(height: 5),
+            const Text(
+              "No teachers found — type the name instead.",
+              style: TextStyle(fontSize: 11.5, color: LiveClassTheme.inkFaint),
+            ),
+          ],
         ],
       );
     }

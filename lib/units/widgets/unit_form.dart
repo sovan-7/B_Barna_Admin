@@ -402,7 +402,12 @@ class _UnitFormState extends State<UnitForm> {
       label: "Course",
       hint: courseViewModel.isLoading && names.isEmpty
           ? "Loading courses…"
-          : "Select a course",
+          : courseViewModel.loadError != null && names.isEmpty
+              ? "Couldn't load courses"
+              : "Select a course",
+      // The course list failed to load: say so, with Retry.
+      loadError: names.isEmpty ? courseViewModel.loadError : null,
+      onRetry: courseViewModel.getCourseList,
       value: _selectedCourseName,
       items: names,
       error: _errors[_Field.course],
@@ -446,14 +451,20 @@ class _UnitFormState extends State<UnitForm> {
       label: "Subject",
       hint: !enabled
           ? "Choose a course first"
-          : names.isEmpty
-              ? "No subjects in this course"
-              : "Select a subject",
+          : unitViewModel.subjectsForCourse.hintFor(
+              hasOptions: names.isNotEmpty,
+              loading: "Loading subjects…",
+              empty: "No subjects in this course",
+              select: "Select a subject",
+            ),
       value: _selectedSubjectName,
       items: names,
       error: _errors[_Field.subject],
       icon: Icons.library_books_outlined,
-      enabled: enabled,
+      // Disabled while the subjects of the chosen course load.
+      enabled: enabled && !unitViewModel.subjectsForCourse.isLoading,
+      loadError: enabled ? unitViewModel.subjectsForCourse.error : null,
+      onRetry: unitViewModel.subjectsForCourse.retry,
       onChanged: (value) {
         setState(() {
           _selectedSubjectName = value;
@@ -525,6 +536,8 @@ class _UnitFormState extends State<UnitForm> {
     required ValueChanged<String?> onChanged,
     String? error,
     bool enabled = true,
+    String? loadError,
+    VoidCallback? onRetry,
   }) {
     return FormDropdownField(
       dropdownKey: key,
@@ -536,6 +549,8 @@ class _UnitFormState extends State<UnitForm> {
       onChanged: (_isSaving || !enabled) ? null : onChanged,
       error: error,
       enabled: enabled,
+      loadError: loadError,
+      onRetry: onRetry,
     );
   }
 

@@ -1,3 +1,4 @@
+import 'package:bbarna/core/widgets/form/form_fields.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
 import 'package:bbarna/live_class/widgets/live_class_theme.dart';
 import 'package:flutter/material.dart';
@@ -26,8 +27,15 @@ class LiveClassDropdownField extends StatelessWidget {
   /// Validation message; turns the border red.
   final String? error;
 
-  /// Called with the chosen option.
-  final ValueChanged<String?> onChanged;
+  /// Called with the chosen option; null disables the dropdown (e.g. while
+  /// its options load).
+  final ValueChanged<String?>? onChanged;
+
+  /// Why the options could not be loaded, or null (shown with Retry).
+  final String? loadError;
+
+  /// Loads the options again.
+  final VoidCallback? onRetry;
 
   const LiveClassDropdownField({
     required this.dropdownKey,
@@ -38,12 +46,15 @@ class LiveClassDropdownField extends StatelessWidget {
     required this.icon,
     required this.error,
     required this.onChanged,
+    this.loadError,
+    this.onRetry,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
     final String? error = this.error;
+    final String? loadError = this.loadError;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -104,7 +115,8 @@ class LiveClassDropdownField extends StatelessWidget {
         if (error != null) ...[
           const SizedBox(height: 5),
           Text(error, style: LiveClassTheme.errorText),
-        ],
+        ] else if (loadError != null)
+          LoadErrorLine(message: loadError, onRetry: onRetry),
       ],
     );
   }

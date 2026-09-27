@@ -1,3 +1,4 @@
+import 'package:bbarna/core/viewModel/async_list.dart';
 import 'package:bbarna/core/mixins/safe_notifier.dart';
 import 'package:bbarna/core/widgets/loader_dialog.dart';
 import 'package:bbarna/course/model/course_model.dart';
@@ -237,14 +238,23 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   // and "" when not. The "edit" lists do the same for an existing
   // enrolment's units.
 
-  /// Courses offered in the enrol picker.
-  List<CourseModel> courseList = [];
+  /// Courses offered in the enrol picker, with their loading / error state.
+  final AsyncList<CourseModel> courseOptions = AsyncList<CourseModel>();
 
-  /// Subjects of the course picked in the enrol card.
-  List<SubjectModel> subjectList = [];
+  /// Subjects of the course picked in the enrol card (loading / error).
+  final AsyncList<SubjectModel> subjectOptions = AsyncList<SubjectModel>();
 
-  /// Units of the subject picked in the enrol card.
-  List<UnitModel> unitList = [];
+  /// Units of the subject picked in the enrol card (loading / error).
+  final AsyncList<UnitModel> unitOptions = AsyncList<UnitModel>();
+
+  /// The options in [courseOptions].
+  List<CourseModel> get courseList => courseOptions.items;
+
+  /// The options in [subjectOptions].
+  List<SubjectModel> get subjectList => subjectOptions.items;
+
+  /// The options in [unitOptions].
+  List<UnitModel> get unitList => unitOptions.items;
 
   /// One slot per [unitList] entry: the unit code if ticked, else "".
   List<String> selectedUnitList = [];
@@ -277,7 +287,7 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   void clearStudentData() {
     enrolledCourseBaseModel = null;
     selectedEditUnitList = [];
-    unitList = [];
+    unitOptions.reset();
   }
 
   // ---- Enrolment actions ------------------------------------------------
@@ -299,39 +309,38 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   /// called from `initState`, where a delayed dialog could end up popping
   /// the page instead of itself.
   Future<void> getCourseList() async {
-    try {
-      courseList = await _studentRepo.getCourseList();
-    } catch (e) {
+    await courseOptions.load(
+      _studentRepo.getCourseList,
+      errorMessage: "Couldn't load courses",
+      onChange: notifyListeners,
+    );
+    if (courseOptions.error != null) {
       Helper.showSnackBarMessage(
           msg: "Error while fetching courses", isSuccess: false);
     }
-    notifyListeners();
   }
 
   /// Loads the subjects of [courseCode] and clears the unit picker.
-  Future<void> getSubjectList(String courseCode) async {
-    try {
-      subjectList = await _studentRepo.getSubjectList(courseCode);
-    } catch (e) {
-      subjectList = [];
-    }
+  Future<void> getSubjectList(String courseCode) {
     clearUnitList();
-    notifyListeners();
+    return subjectOptions.load(
+      () => _studentRepo.getSubjectList(courseCode),
+      errorMessage: "Couldn't load subjects",
+      onChange: notifyListeners,
+    );
   }
 
   /// Loads the units of [subjectCode] with none ticked.
-  Future<void> getUnitList({required String subjectCode}) async {
+  Future<void> getUnitList({required String subjectCode}) {
     clearUnitList();
-    notifyListeners();
-    try {
-      unitList = await _studentRepo.getUnitList(subjectCode: subjectCode);
-      selectedUnitList =
-          List<String>.filled(unitList.length, "", growable: true);
-    } catch (e) {
-      unitList = [];
-      selectedUnitList = [];
-    }
-    notifyListeners();
+    return unitOptions.load(
+      () => _studentRepo.getUnitList(subjectCode: subjectCode),
+      errorMessage: "Couldn't load units",
+      onChange: notifyListeners,
+      // One empty slot per unit: none ticked.
+      onLoaded: (units) => selectedUnitList =
+          List<String>.filled(units.length, "", growable: true),
+    );
   }
 
   /// Empties the unit picker.
@@ -339,13 +348,13 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   // `List.filled`, which is fixed-length and throws on clear.
   void clearUnitList() {
     selectedUnitList = [];
-    unitList = [];
+    unitOptions.reset();
     selectedUnitLength = 0;
   }
 
   /// Empties the subject picker.
   void clearSubjectList() {
-    subjectList = [];
+    subjectOptions.reset();
     selectedSubjectModel = null;
   }
 

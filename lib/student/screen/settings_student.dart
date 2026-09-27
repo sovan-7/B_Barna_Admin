@@ -309,12 +309,19 @@ class _SettingStudentState extends State<SettingStudent> {
     return _dropdownField(
       fieldKey: const Key('enrol_course_dropdown'),
       label: "Course",
-      hint: courses.isEmpty ? "Loading courses…" : "Select a course",
+      hint: studentViewModel.courseOptions.hintFor(
+        hasOptions: names.isNotEmpty,
+        loading: "Loading courses…",
+        empty: "No courses yet",
+        select: "Select a course",
+      ),
       value: _selectedCourseName,
       items: names,
       icon: Icons.menu_book_outlined,
       error: _errors[_Field.course],
       enabled: courses.isNotEmpty,
+      loadError: studentViewModel.courseOptions.error,
+      onRetry: studentViewModel.courseOptions.retry,
       onChanged: (value) {
         setState(() {
           _selectedCourseName = value;
@@ -352,14 +359,20 @@ class _SettingStudentState extends State<SettingStudent> {
       label: "Subject",
       hint: !enabled
           ? "Choose a course first"
-          : names.isEmpty
-              ? "No subjects in this course"
-              : "Select a subject",
+          : studentViewModel.subjectOptions.hintFor(
+              hasOptions: names.isNotEmpty,
+              loading: "Loading subjects…",
+              empty: "No subjects in this course",
+              select: "Select a subject",
+            ),
       value: _selectedSubjectName,
       items: names,
       icon: Icons.library_books_outlined,
       error: _errors[_Field.subject],
-      enabled: enabled,
+      // Disabled while the subjects of the chosen course load.
+      enabled: enabled && !studentViewModel.subjectOptions.isLoading,
+      loadError: enabled ? studentViewModel.subjectOptions.error : null,
+      onRetry: studentViewModel.subjectOptions.retry,
       onChanged: (value) {
         final SubjectModel? subject =
             subjects.where((s) => s.name == value).firstOrNull;
@@ -382,22 +395,35 @@ class _SettingStudentState extends State<SettingStudent> {
   Widget _unitsField(StudentViewModel studentViewModel) {
     final int selected = studentViewModel.selectedUnitLength;
     final int total = studentViewModel.unitList.length;
-    final bool enabled = _selectedSubjectCode.isNotEmpty;
-    final String? error = _errors[_Field.units];
+    final bool subjectChosen = _selectedSubjectCode.isNotEmpty;
+    final bool loading = studentViewModel.unitOptions.isLoading;
+    final String? loadError = studentViewModel.unitOptions.error;
+    final String? error = _errors[_Field.units] ??
+        (subjectChosen && loadError != null ? loadError : null);
 
     return _pickerField(
       fieldKey: const Key('enrol_units_field'),
       label: "Units",
       icon: Icons.layers_outlined,
       isSet: selected > 0,
-      enabled: enabled,
+      enabled: subjectChosen && !loading,
       error: error,
-      text: !enabled
+      text: !subjectChosen
           ? "Choose a subject first"
-          : selected > 0
-              ? "$selected of $total units"
-              : "Select units",
+          : loading
+              ? "Loading units…"
+              : loadError != null
+                  ? "Tap to try loading the units again"
+                  : selected > 0
+                      ? "$selected of $total units"
+                      : "Select units",
       onTap: () async {
+        // The units failed to load: tapping retries instead of opening an
+        // empty picker.
+        if (loadError != null) {
+          await studentViewModel.unitOptions.retry();
+          return;
+        }
         await showSlideDialog(context, const EnrolledUnitList());
         if (mounted) _revalidate(studentViewModel);
       },
@@ -432,6 +458,8 @@ class _SettingStudentState extends State<SettingStudent> {
     required ValueChanged<String?> onChanged,
     String? error,
     bool enabled = true,
+    String? loadError,
+    VoidCallback? onRetry,
   }) {
     return FormDropdownField(
       dropdownKey: fieldKey,
@@ -443,6 +471,8 @@ class _SettingStudentState extends State<SettingStudent> {
       onChanged: enabled ? onChanged : null,
       error: error,
       enabled: enabled,
+      loadError: loadError,
+      onRetry: onRetry,
     );
   }
 

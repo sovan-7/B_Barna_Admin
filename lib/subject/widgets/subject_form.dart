@@ -631,7 +631,12 @@ class _SubjectFormState extends State<SubjectForm> {
       label: "Course",
       hint: courseViewModel.isLoading && names.isEmpty
           ? "Loading courses…"
-          : "Select a course",
+          : courseViewModel.loadError != null && names.isEmpty
+              ? "Couldn't load courses"
+              : "Select a course",
+      // The course list failed to load: say so, with Retry.
+      loadError: names.isEmpty ? courseViewModel.loadError : null,
+      onRetry: courseViewModel.getCourseList,
       value: _selectedCourseName,
       items: names,
       error: _errors[_Field.course],
@@ -670,6 +675,8 @@ class _SubjectFormState extends State<SubjectForm> {
     required IconData icon,
     required ValueChanged<String?> onChanged,
     String? error,
+    String? loadError,
+    VoidCallback? onRetry,
   }) {
     return FormDropdownField(
       dropdownKey: key,
@@ -680,6 +687,8 @@ class _SubjectFormState extends State<SubjectForm> {
       icon: icon,
       onChanged: _isSaving ? null : onChanged,
       error: error,
+      loadError: loadError,
+      onRetry: onRetry,
     );
   }
 

@@ -1,3 +1,4 @@
+import 'package:bbarna/core/viewModel/async_list.dart';
 import 'package:bbarna/core/mixins/safe_notifier.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
 import 'package:bbarna/live_class/repo/live_class_repo.dart';
@@ -20,11 +21,21 @@ class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
   /// Every class, unfiltered; the search filters this.
   List<LiveClassModel> copyLiveClassList = [];
 
-  /// Options for the form's Teacher dropdown.
-  List<LiveClassTeacher> teachers = [];
+  /// Options for the form's Teacher dropdown, with their loading / error
+  /// state.
+  final AsyncList<LiveClassTeacher> teacherOptions =
+      AsyncList<LiveClassTeacher>();
 
-  /// Options for the form's Subject dropdown.
-  List<LiveClassSubject> subjects = [];
+  /// Options for the form's Subject dropdown, with their loading / error
+  /// state.
+  final AsyncList<LiveClassSubject> subjectOptions =
+      AsyncList<LiveClassSubject>();
+
+  /// The options in [teacherOptions].
+  List<LiveClassTeacher> get teachers => teacherOptions.items;
+
+  /// The options in [subjectOptions].
+  List<LiveClassSubject> get subjects => subjectOptions.items;
 
   /// True while the list is loading (drives the skeleton cards). Starts
   /// true so the first frame shows the loader rather than flashing
@@ -59,25 +70,19 @@ class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
     }
   }
 
-  /// Loads the Teacher dropdown options (empty on failure).
-  Future<void> getTeachers() async {
-    try {
-      teachers = await _liveClassRepo.getTeachers();
-    } catch (e) {
-      teachers = [];
-    }
-    notifyListeners();
-  }
+  /// Loads the Teacher dropdown options into [teacherOptions].
+  Future<void> getTeachers() => teacherOptions.load(
+        _liveClassRepo.getTeachers,
+        errorMessage: "Couldn't load teachers",
+        onChange: notifyListeners,
+      );
 
-  /// Loads the Subject dropdown options (empty on failure).
-  Future<void> getSubjects() async {
-    try {
-      subjects = await _liveClassRepo.getSubjects();
-    } catch (e) {
-      subjects = [];
-    }
-    notifyListeners();
-  }
+  /// Loads the Subject dropdown options into [subjectOptions].
+  Future<void> getSubjects() => subjectOptions.load(
+        _liveClassRepo.getSubjects,
+        errorMessage: "Couldn't load subjects",
+        onChange: notifyListeners,
+      );
 
   /// Classes the student app cannot read yet. Empty is the healthy state.
   /// Counted over every class, not just the ones a search is showing.

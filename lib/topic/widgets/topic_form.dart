@@ -361,7 +361,12 @@ class _TopicFormState extends State<TopicForm> {
       label: "Course",
       hint: courseViewModel.isLoading && names.isEmpty
           ? "Loading courses…"
-          : "Select a course",
+          : courseViewModel.loadError != null && names.isEmpty
+              ? "Couldn't load courses"
+              : "Select a course",
+      // The course list failed to load: say so, with Retry.
+      loadError: names.isEmpty ? courseViewModel.loadError : null,
+      onRetry: courseViewModel.getCourseList,
       value: _selectedCourseName,
       items: names,
       error: _errors[_Field.course],
@@ -407,14 +412,20 @@ class _TopicFormState extends State<TopicForm> {
       label: "Subject",
       hint: !enabled
           ? "Choose a course first"
-          : names.isEmpty
-              ? "No subjects in this course"
-              : "Select a subject",
+          : topicViewModel.subjectsForCourse.hintFor(
+              hasOptions: names.isNotEmpty,
+              loading: "Loading subjects…",
+              empty: "No subjects in this course",
+              select: "Select a subject",
+            ),
       value: _selectedSubjectName,
       items: names,
       error: _errors[_Field.subject],
       icon: Icons.library_books_outlined,
-      enabled: enabled,
+      // Disabled while the subjects of the chosen course load.
+      enabled: enabled && !topicViewModel.subjectsForCourse.isLoading,
+      loadError: enabled ? topicViewModel.subjectsForCourse.error : null,
+      onRetry: topicViewModel.subjectsForCourse.retry,
       onChanged: (value) {
         setState(() {
           _selectedSubjectName = value;
@@ -455,14 +466,20 @@ class _TopicFormState extends State<TopicForm> {
       label: "Unit",
       hint: !enabled
           ? "Choose a subject first"
-          : names.isEmpty
-              ? "No units in this subject"
-              : "Select a unit",
+          : topicViewModel.unitsForSubject.hintFor(
+              hasOptions: names.isNotEmpty,
+              loading: "Loading units…",
+              empty: "No units in this subject",
+              select: "Select a unit",
+            ),
       value: _selectedUnitName,
       items: names,
       error: _errors[_Field.unit],
       icon: Icons.layers_outlined,
-      enabled: enabled,
+      // Disabled while the units of the chosen subject load.
+      enabled: enabled && !topicViewModel.unitsForSubject.isLoading,
+      loadError: enabled ? topicViewModel.unitsForSubject.error : null,
+      onRetry: topicViewModel.unitsForSubject.retry,
       onChanged: (value) {
         setState(() {
           _selectedUnitName = value;
@@ -578,6 +595,8 @@ class _TopicFormState extends State<TopicForm> {
     required ValueChanged<String?> onChanged,
     String? error,
     bool enabled = true,
+    String? loadError,
+    VoidCallback? onRetry,
   }) {
     return FormDropdownField(
       dropdownKey: key,
@@ -589,6 +608,8 @@ class _TopicFormState extends State<TopicForm> {
       onChanged: (_isSaving || !enabled) ? null : onChanged,
       error: error,
       enabled: enabled,
+      loadError: loadError,
+      onRetry: onRetry,
     );
   }
 

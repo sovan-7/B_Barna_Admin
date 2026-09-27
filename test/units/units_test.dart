@@ -389,6 +389,31 @@ void main() {
       verify(() => repo.getSubjectListByCourseCode('PHY-11')).called(1);
     });
 
+    testWidgets('a failed subjects load says so, and Retry recovers',
+        (tester) async {
+      when(() => repo.getSubjectListByCourseCode(any()))
+          .thenThrow(Exception('offline'));
+      final vm = UnitViewModel(unitRepo: repo);
+      await _pump(tester, const Size(1024, 900), const AddUnit(), vm);
+
+      await tester.tap(find.byKey(const Key('unit_course_dropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Physics — Class 11').last);
+      await tester.pumpAndSettle();
+
+      // Not "No subjects in this course": the load failed.
+      expect(find.text('No subjects in this course'), findsNothing);
+      expect(find.text("Couldn't load subjects"), findsWidgets);
+
+      when(() => repo.getSubjectListByCourseCode(any()))
+          .thenAnswer((_) async => []);
+      await tester.tap(find.byKey(const Key('field_retry')));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Couldn't load subjects"), findsNothing);
+      expect(find.text('No subjects in this course'), findsOneWidget);
+    });
+
     testWidgets('extra subject codes can be added and removed',
         (tester) async {
       final vm = UnitViewModel(unitRepo: repo);
