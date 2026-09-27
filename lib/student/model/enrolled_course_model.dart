@@ -22,9 +22,7 @@ class EnrolledCourseBaseModel {
       : studentId = doc.data()?["student_id"] ?? stringDefault,
         studentName = doc.data()?["student_name"] ?? stringDefault,
         docId = doc.id,
-        // Empty, not a placeholder. This used to build one course out of
-        // leftover debug strings — "hggh", "bvnbn", "jhjh" — so a student
-        // with no enrolments showed a course named "jhjh".
+        // A missing list means no enrolments (empty, not a placeholder entry).
         enrolledCourseList = doc.data()?["course_list"] == null
             ? <EnrolledCourseModel>[]
             : List<EnrolledCourseModel>.from(

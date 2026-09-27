@@ -228,9 +228,8 @@ class SidebarNav extends StatelessWidget {
     );
   }
 
-  /// A 60px brand row rather than the old 200px logo box, which spent a
-  /// fifth of the rail's height on a picture and pushed the last modules
-  /// below the fold on a laptop.
+  /// A compact 60px brand row, so every module fits above the fold on a
+  /// laptop.
   Widget _brand(bool isCollapsed) {
     // The logo asset is a white badge, so on a white rail it needs a
     // tinted chip behind it to read as a mark at all.

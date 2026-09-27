@@ -65,10 +65,8 @@ class _TopicContentSectionState extends State<TopicContentSection> {
     super.dispose();
   }
 
-  /// Non-empty codes, in order, de-duplicated.
-  ///
-  /// Blanks were already dropped by the old screen, but duplicates were
-  /// not — the same code could be attached twice and counted twice.
+  /// Non-empty codes, in order, de-duplicated (so a code can never be
+  /// attached or counted twice).
   List<String> _codes() {
     final List<String> codes = [];
     for (final TextEditingController controller in _controllers) {
@@ -84,10 +82,7 @@ class _TopicContentSectionState extends State<TopicContentSection> {
     if (!mounted) return;
     setState(() {
       _isSaving = false;
-      // Only a write that actually landed clears the pending state. The
-      // old handler emptied the rows from inside `.then` regardless, and
-      // had no failure branch at all — a rejected write left the loader
-      // spinning over an emptied table.
+      // Only a write that actually landed clears the pending state.
       if (ok) _dirty = false;
     });
   }
@@ -201,16 +196,15 @@ class _TopicContentSectionState extends State<TopicContentSection> {
                     // created, so typing one in lower case here would
                     // attach nothing. Existing values are left untouched.
                     inputFormatters: [UpperCaseTextFormatter()],
-                    style: const TextStyle(
-                        fontSize: 13.5, color: AppTokens.ink),
+                    style:
+                        const TextStyle(fontSize: 13.5, color: AppTokens.ink),
                     decoration: InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
                       hintText: "${widget.kind.label} code",
                       hintStyle: const TextStyle(
                           fontSize: 13, color: AppTokens.inkFaint),
-                      contentPadding:
-                          const EdgeInsets.fromLTRB(14, 13, 14, 13),
+                      contentPadding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
                     ),
                     onChanged: (_) => setState(() => _dirty = true),
                   ),
@@ -239,8 +233,8 @@ class _TopicContentSectionState extends State<TopicContentSection> {
     );
   }
 
-  /// What the code points at. Nothing on the old screen said whether a
-  /// typed code matched anything, so a typo attached silently.
+  /// What the code points at: the item's title when it exists, or a warning
+  /// when no item has that code (so a typo is visible).
   Widget _resolution(String code) {
     if (code.isEmpty) {
       return const Text("Empty rows are dropped when you save.",
@@ -261,8 +255,7 @@ class _TopicContentSectionState extends State<TopicContentSection> {
           const SizedBox(width: 5),
           Flexible(
             child: Text("No ${widget.kind.inlineLabel} with this code",
-                overflow: TextOverflow.ellipsis,
-                style: AppTokens.errorText),
+                overflow: TextOverflow.ellipsis, style: AppTokens.errorText),
           ),
         ],
       );
@@ -276,8 +269,8 @@ class _TopicContentSectionState extends State<TopicContentSection> {
         Flexible(
           child: Text(title.isEmpty ? "Untitled" : title,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 11.5, color: AppTokens.inkMuted)),
+              style:
+                  const TextStyle(fontSize: 11.5, color: AppTokens.inkMuted)),
         ),
       ],
     );
@@ -304,8 +297,8 @@ class _TopicContentSectionState extends State<TopicContentSection> {
 
     final Widget save = ElevatedButton(
       key: Key('topic_${widget.kind.name}_save'),
-      // Disabled until something changed, so the button says whether
-      // there is anything to save. "Save all" was always live.
+      // Disabled until something changed, so the button says whether there is
+      // anything to save.
       onPressed: (_isSaving || !_dirty) ? null : _save,
       style: ElevatedButton.styleFrom(
         backgroundColor: AppTokens.ink,
@@ -325,8 +318,8 @@ class _TopicContentSectionState extends State<TopicContentSection> {
                   strokeWidth: 2, color: AppTokens.inkMuted),
             )
           : Text(_dirty ? "Save changes" : "Saved",
-              style: const TextStyle(
-                  fontSize: 12.5, fontWeight: FontWeight.w600)),
+              style:
+                  const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
     );
 
     return Container(

@@ -18,17 +18,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-/// The whole Add/Edit Subject page. [existing] null means Add.
+/// The Add/Edit Subject page. One responsive form serves both Add and Edit; the thin screens in
+/// `screen/` just choose the mode ([existing] null means Add).
 ///
-/// Add and Edit were two 936 and 962 line screens that each contained the
-/// same form written out twice — once for wide windows and once for narrow
-/// — so every field existed in four places and drifted in all of them.
-/// There is one responsive form here, and the two screens in `screen/`
-/// just choose the mode.
+/// Sections: where it belongs (course, course type), details, pricing,
+/// optional coupon, image and availability.
 class SubjectForm extends StatefulWidget {
+  /// The item being edited; null means "Add".
   final SubjectModel? existing;
   const SubjectForm({this.existing, super.key});
 
+  /// True when editing an existing item.
   bool get isEdit => existing != null;
 
   @override
@@ -51,35 +51,68 @@ enum _Field {
 }
 
 class _SubjectFormState extends State<SubjectForm> {
+  /// Text of the code field.
   final TextEditingController codeController = TextEditingController();
+
+  /// Text of the name field.
   final TextEditingController nameController = TextEditingController();
+
+  /// Text of the description field.
   final TextEditingController descriptionController = TextEditingController();
+
+  /// Text of the display priority field.
   final TextEditingController priorityController = TextEditingController();
+
+  /// Text of the price field.
   final TextEditingController priceController = TextEditingController();
+
+  /// Text of the selling price field.
   final TextEditingController sellingPriceController = TextEditingController();
+
+  /// Text of the coupon code field.
   final TextEditingController couponCodeController = TextEditingController();
+
+  /// Text of the coupon discount field.
   final TextEditingController couponDiscountController =
       TextEditingController();
 
+  /// Access types offered.
   static const List<String> courseTypeList = [
     "Full Course",
     "Part Course",
     "Mock Test",
   ];
 
+  /// Course chosen in the dropdown (by name).
   String? _selectedCourseName;
+
+  /// "Full Course", "Part Course" or "Mock Test".
   String? _selectedCourseType;
+
+  /// Newly picked file, not uploaded yet (null until one is chosen).
   Uint8List? selectedImageBytes;
+
+  /// File name of the newly picked file.
   String imageName = "";
+
+  /// "Show in the app" switch.
   bool willDisplay = false;
+
+  /// "Locked" switch.
   bool isLocked = false;
+
+  /// "Popular" switch.
   bool isPopular = false;
+
+  /// True while saving or deleting; disables every control.
   bool _isSaving = false;
 
   /// The last day the coupon can be used (date only); saved as the end of
   /// that day so "valid till 30 Sep" still works on 30 Sep.
   DateTime? _couponValidDate;
 
+  /// Inline error per field: filled on a failed submit, then refreshed on
+  /// every change so each message clears as its field is fixed.
   final Map<_Field, String> _errors = <_Field, String>{};
 
   @override
@@ -123,11 +156,14 @@ class _SubjectFormState extends State<SubjectForm> {
     });
   }
 
+  /// [value] without a trailing ".0" (for pre-filling price fields).
   static String _plain(double value) =>
       value == value.roundToDouble() ? value.toInt().toString() : "$value";
 
+  /// [d] at midnight.
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
+  /// The last millisecond of [d]'s day (coupon expiry is inclusive).
   static int _endOfDayMillis(DateTime d) =>
       DateTime(d.year, d.month, d.day, 23, 59, 59, 999).millisecondsSinceEpoch;
 
@@ -146,6 +182,7 @@ class _SubjectFormState extends State<SubjectForm> {
 
   // ---- Validation -----------------------------------------------------
 
+  /// Checks every field and returns the problems (empty when valid).
   Map<_Field, String> _validate() {
     final Map<_Field, String> errors = <_Field, String>{};
     if ((_selectedCourseName ?? "").isEmpty) {
@@ -228,6 +265,8 @@ class _SubjectFormState extends State<SubjectForm> {
     return errors;
   }
 
+  /// Re-runs validation after an edit, but only once a submit has failed
+  /// (so errors never appear while the form is still being filled in).
   void _revalidate() {
     if (_errors.isEmpty) return;
     final Map<_Field, String> fresh = _validate();
@@ -238,6 +277,7 @@ class _SubjectFormState extends State<SubjectForm> {
     });
   }
 
+  /// Opens the file picker for an image.
   Future<void> _pickImage() async {
     final FilePickerResult? picked =
         await FilePicker.platform.pickFiles(type: FileType.image);
@@ -249,6 +289,8 @@ class _SubjectFormState extends State<SubjectForm> {
     _revalidate();
   }
 
+  /// Validates, then creates or updates the item. Closes the page on
+  /// success; on failure the view model has already shown why.
   Future<void> _onSubmit(SubjectViewModel subjectViewModel,
       CourseViewModel courseViewModel) async {
     final Map<_Field, String> errors = _validate();
@@ -271,9 +313,8 @@ class _SubjectFormState extends State<SubjectForm> {
       _isSaving = true;
     });
 
-    // The course code is derived from the chosen course. The old form did
-    // `.where(...).first`, which throws if the course was renamed or
-    // removed since; this keeps whatever the subject already had.
+    // The course code comes from the chosen course. If that course has
+    // been renamed or removed since, keep the code the subject already had.
     final String courseCode = courseViewModel.allCourses
             .where((c) => c.name == _selectedCourseName)
             .map((c) => c.code)
@@ -328,6 +369,7 @@ class _SubjectFormState extends State<SubjectForm> {
     }
   }
 
+  /// Asks for confirmation, deletes the item and closes the page.
   void _onDelete(SubjectViewModel subjectViewModel) {
     final SubjectModel existing = widget.existing!;
     RemoveAlert.showRemoveAlert(
@@ -362,6 +404,7 @@ class _SubjectFormState extends State<SubjectForm> {
     );
   }
 
+  /// The scrolling form (header and sections) with the action bar below.
   Widget _page(SubjectViewModel subjectViewModel,
       CourseViewModel courseViewModel, double width) {
     return FormPageBody(
@@ -568,6 +611,7 @@ class _SubjectFormState extends State<SubjectForm> {
     );
   }
 
+  /// Course dropdown.
   Widget _courseField(CourseViewModel courseViewModel) {
     final List<String> names = courseViewModel.allCourses
         .map((CourseModel c) => c.name)
@@ -599,6 +643,7 @@ class _SubjectFormState extends State<SubjectForm> {
     );
   }
 
+  /// Course-type dropdown.
   Widget _typeField() {
     return _dropdownField(
       key: const Key('subject_type_dropdown'),

@@ -6,15 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-/// The sign-in screen.
-///
-/// It was a `Stack` of one child holding a `Row` of one `Expanded` holding
-/// a column of fixed 350px boxes, sized off `SizeConfig.screenHeight` — a
-/// static captured once at startup, so the page kept the height the window
-/// had when the app booted. Nothing scrolled, so a short window clipped
-/// the login button; the brand title was white on the palette's lightest
-/// cyan; and the button was removed outright while a sign-in was in
-/// flight, leaving a gap where it had been.
+/// The sign-in screen: a scrollable form (with the brand panel beside it on
+/// wide windows). Enter submits; errors show on the form.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -43,7 +36,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    // None of these were disposed before.
     userNameController.dispose();
     passwordController.dispose();
     userNameFocus.dispose();
@@ -75,8 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final bool signedIn = await loginViewModel.signIn(
-      // Trimmed: a trailing space pasted in with the username used to make
-      // the lookup miss with no indication why.
+      // Trimmed, so a stray space pasted with the username still matches.
       username: userNameController.text.trim(),
       password: passwordController.text,
     );
@@ -91,9 +82,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Read from MediaQuery, not from the SizeConfig static: that one is
-    // captured once when the app starts and never updated, so resizing the
-    // browser left this page laid out for the old size.
+    // Read from MediaQuery (not the SizeConfig cache) so the layout follows
+    // window resizes.
     final double width = MediaQuery.of(context).size.width;
     final bool isCompact = width < AppTokens.compactBreakpoint;
 
@@ -116,8 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _form(LoginViewModel loginViewModel, bool isCompact) {
-    // Always scrollable: the old page had no scroll view at all, so on a
-    // short window the button was simply unreachable.
+    // Always scrollable, so the button stays reachable on short windows.
     return SafeArea(
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: isCompact ? 20 : 40),
@@ -146,8 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                     const Text("Sign in", style: AppTokens.pageTitle),
                     const SizedBox(height: 5),
-                    const Text(
-                        "Use the username and password you were given.",
+                    const Text("Use the username and password you were given.",
                         style: AppTokens.pageSubtitle),
                     const SizedBox(height: AppTokens.gapXl),
                     _usernameField(loginViewModel),
@@ -202,8 +190,7 @@ class _LoginScreenState extends State<LoginScreen> {
       enabled: !loginViewModel.isSubmitting,
       obscure: _obscure,
       autofillHints: const [AutofillHints.password],
-      // Enter submits. The old form built two FocusNodes and wired neither
-      // to anything, so the keyboard could not get past the fields.
+      // Enter submits the form.
       textInputAction: TextInputAction.done,
       onSubmitted: (_) => _submit(loginViewModel),
       onChanged: () => _clearError(_Field.password, loginViewModel),
@@ -213,7 +200,9 @@ class _LoginScreenState extends State<LoginScreen> {
         // state it is already in.
         tooltip: _obscure ? "Show password" : "Hide password",
         icon: Icon(
-            _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            _obscure
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
             size: 18),
         color: AppTokens.inkFaint,
         onPressed: loginViewModel.isSubmitting
@@ -346,18 +335,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     strokeWidth: 2.2, color: Colors.white),
               )
             : const Text("Sign in",
-                style:
-                    TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
       ),
     );
   }
 }
 
-/// The cyan half of the page on a wide window.
-///
-/// The brand colour is the lightest thing in the palette, so it carries
-/// dark text here instead of the white it used to — white on this cyan is
-/// about 1.7:1.
+/// The cyan half of the page on a wide window. It carries dark text: the
+/// brand cyan is too light for white text to be readable on it.
 class _BrandPanel extends StatelessWidget {
   const _BrandPanel();
 

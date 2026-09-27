@@ -26,8 +26,8 @@ class EditEnrolledUnit extends StatelessWidget {
               studentVM.selectedSubjectModel?.subjectCode;
           final String? studentId =
               studentVM.enrolledCourseBaseModel?.studentId;
-          // Both were force-unwrapped, so a dialog opened before the
-          // subject had loaded took the app down.
+          // The subject or student may not have loaded yet; close instead of
+          // crashing.
           if (subjectCode == null || studentId == null) {
             Navigator.pop(context);
             return;

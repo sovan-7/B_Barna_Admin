@@ -2,13 +2,8 @@ import 'package:bbarna/resources/app_colors.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 
-/// One row of the navigation rail.
-///
-/// The old row was a full-bleed band with a 1px black divider under it, so
-/// thirteen modules read as a thirteen-line table. This is a rounded item
-/// with breathing room instead: selection is a tinted pill in the app's
-/// orange rather than a solid fill, and the hard separators are gone — the
-/// spacing between rows does that job now.
+/// One row of the navigation rail: icon and label in a rounded item;
+/// the selected module is a tinted pill in the app's orange.
 class SidebarWidget extends StatefulWidget {
   /// Module icon.
   final IconData iconData;

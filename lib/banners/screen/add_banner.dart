@@ -9,14 +9,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// Upload a banner.
-///
-/// The old page was three widgets stacked in the middle of an empty column:
-/// a 200x180 portrait preview of a landscape image, a grey "Choose Image"
-/// chip, and a Save button that did nothing at all when no image had been
-/// picked. This is a proper page — a 16:9 drop area that previews the
-/// banner at the shape it will actually appear in, the file's name and
-/// size, and a Save that tells you why it won't.
+/// Upload a banner: a 16:9 drop area that previews the image the way the
+/// app's carousel shows it, and a Save button that stays disabled until an
+/// image is chosen.
 class AddBanner extends StatefulWidget {
   const AddBanner({super.key});
 
@@ -47,8 +42,7 @@ class _AddBannerState extends State<AddBanner> {
   Future<void> _onSave(BannersViewModel bannersViewModel) async {
     final Uint8List? image = selectedImageBytes;
     if (image == null) {
-      // Previously this branch did nothing whatsoever — the button simply
-      // did not respond, with no way to tell what was missing.
+      // No image chosen: say so on the page.
       setState(() => _error = "Choose an image to upload");
       return;
     }
@@ -207,10 +201,8 @@ class _AddBannerState extends State<AddBanner> {
     );
   }
 
-  /// A 16:9 well — the shape the banner will be shown at — so what you see
-  /// here is what the carousel gets. The old preview was a 200x180 portrait
-  /// box with `BoxFit.fill`, which squashed every banner into a shape it
-  /// would never actually have.
+  /// A 16:9 well — the shape the banner is shown at — so the preview matches
+  /// what the carousel shows.
   Widget _dropArea() {
     final bool hasImage = selectedImageBytes != null;
 

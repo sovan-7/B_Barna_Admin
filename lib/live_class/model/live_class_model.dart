@@ -110,23 +110,17 @@ class LiveClassModel {
     this.updatedAt,
   });
 
-  /// Only the caller-editable fields. `createdAt`/`updatedAt` are owned by
-  /// [LiveClassRepo] so the server clock — not the admin's browser — decides
-  /// them.
-  ///
-  /// **These key names are the student app's, not this panel's.** The app
-  /// reads `live_classes` directly with its own `LiveClassModel.fromMap`,
-  /// and it is the shipped side — a rename here reaches every student the
-  /// moment this panel deploys, where a rename there only reaches whoever
-  /// updates. So the panel writes what the app already reads:
+  /// The caller-editable fields only (`createdAt` / `updatedAt` are set by
+  /// [LiveClassRepo] from the server clock), in the field names the student
+  /// app reads:
   ///
   ///   `subtitle` (not description), `youtubeVideoLink` (not youtubeLink),
   ///   `subjectId`, `teacherId`, and `startTime`/`endTime` as epoch
   ///   milliseconds (not `startDateTime`/`endDateTime` Timestamps).
   ///
-  /// Before this, none of those lined up: a class saved here reached the app
-  /// with `startTime: 0`, which put it in the Past bucket the instant it was
-  /// created, so it never appeared under Live or Upcoming at all.
+  /// The panel adapts to the app (not the other way round) because the
+  /// panel updates everywhere at once, while an app change only reaches
+  /// users who update.
   Map<String, dynamic> toMap() {
     return {
       "title": title.trim(),
@@ -142,9 +136,9 @@ class LiveClassModel {
     };
   }
 
-  /// Reads the app's key names, falling back to the ones this panel used to
-  /// write. Classes created before the schema was aligned keep opening and
-  /// listing correctly here; re-saving one rewrites it in the new shape.
+  /// Reads the app's key names, falling back to the older ones this panel
+  /// wrote. Classes saved in the old shape still open and list correctly;
+  /// re-saving one rewrites it in the current shape.
   LiveClassModel.fromDocumentSnapshot(
       DocumentSnapshot<Map<String, dynamic>> doc)
       : docId = doc.id,

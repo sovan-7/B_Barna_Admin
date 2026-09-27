@@ -99,9 +99,8 @@ class _QuizCardState extends State<QuizCard> {
     );
   }
 
-  /// The stored count and the questions actually attached can disagree —
-  /// the old form saved `total_question` as a number you typed by hand,
-  /// with nothing tying it to the list. Say so when they differ.
+  /// The stored question count (`total_question`) and the questions actually
+  /// attached can disagree on older quizzes; say so when they differ.
   String _questionsLabel() {
     final int attached = _data.questionCodeList.length;
     final int stated = _data.totalQuestion;

@@ -12,33 +12,49 @@ import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// The whole Add/Edit Video page. [existing] null means Add.
+/// The Add/Edit Video page. One responsive form serves both Add and Edit; the thin screens in
+/// `screen/` just choose the mode ([existing] null means Add).
 ///
-/// Add and Edit were two 273 and 298 line screens holding the same form
-/// twice over. There is one responsive form here, and the two screens in
-/// `screen/` just choose the mode.
+/// Sections: details (code, access, title, description) and the video link.
 class VideoForm extends StatefulWidget {
+  /// The item being edited; null means "Add".
   final VideoModel? existing;
   const VideoForm({this.existing, super.key});
 
+  /// True when editing an existing item.
   bool get isEdit => existing != null;
 
   @override
   State<VideoForm> createState() => _VideoFormState();
 }
 
+/// The fields that can carry an inline error.
 enum _Field { code, title, link, type }
 
 class _VideoFormState extends State<VideoForm> {
+  /// Text of the code field.
   final TextEditingController codeController = TextEditingController();
+
+  /// Text of the title field.
   final TextEditingController titleController = TextEditingController();
+
+  /// Text of the description field.
   final TextEditingController descriptionController = TextEditingController();
+
+  /// Text of the video link field.
   final TextEditingController linkController = TextEditingController();
 
+  /// Access types offered.
   static const List<String> videoTypeList = ["FREE", "PAID"];
+
+  /// The chosen access type ("FREE" / "PAID").
   String? _selectedType;
+
+  /// True while saving or deleting; disables every control.
   bool _isSaving = false;
 
+  /// Inline error per field: filled on a failed submit, then refreshed on
+  /// every change so each message clears as its field is fixed.
   final Map<_Field, String> _errors = <_Field, String>{};
 
   @override
@@ -66,6 +82,7 @@ class _VideoFormState extends State<VideoForm> {
     super.dispose();
   }
 
+  /// Checks every field and returns the problems (empty when valid).
   Map<_Field, String> _validate() {
     final Map<_Field, String> errors = <_Field, String>{};
     if (codeController.text.trim().isEmpty) {
@@ -93,6 +110,8 @@ class _VideoFormState extends State<VideoForm> {
     return errors;
   }
 
+  /// Re-runs validation after an edit, but only once a submit has failed
+  /// (so errors never appear while the form is still being filled in).
   void _revalidate() {
     if (_errors.isEmpty) return;
     final Map<_Field, String> fresh = _validate();
@@ -103,6 +122,8 @@ class _VideoFormState extends State<VideoForm> {
     });
   }
 
+  /// Validates, then creates or updates the item. Closes the page on
+  /// success; on failure the view model has already shown why.
   Future<void> _onSubmit(VideoViewModel videoViewModel) async {
     final Map<_Field, String> errors = _validate();
     if (errors.isNotEmpty) {
@@ -150,6 +171,7 @@ class _VideoFormState extends State<VideoForm> {
     }
   }
 
+  /// Asks for confirmation, deletes the item and closes the page.
   void _onDelete(VideoViewModel videoViewModel) {
     final VideoModel existing = widget.existing!;
     RemoveAlert.showRemoveAlert(
@@ -181,6 +203,7 @@ class _VideoFormState extends State<VideoForm> {
     );
   }
 
+  /// The scrolling form (header and sections) with the action bar below.
   Widget _page(VideoViewModel videoViewModel, double width) {
     return FormPageBody(
       width: width,

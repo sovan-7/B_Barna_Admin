@@ -54,17 +54,10 @@ class _ToastData {
       {required this.id, required this.message, required this.level});
 }
 
-/// Stacked toasts in the corner of the window.
+/// Stacked toasts in the corner of the window (full width on phones).
 ///
-/// This replaces a single [SnackBar] that was pushed to the top of the
-/// screen by giving it a bottom margin of `screenHeight - 50` — so it was
-/// as wide as the window minus 100px, sat wherever that arithmetic landed,
-/// and carried bold italic text. `ScaffoldMessenger` also shows one
-/// snackbar at a time and queues the rest, so a screen that reported two
-/// things made you wait four seconds to see the second.
-///
-/// These stack, dismiss on their own, pause while the pointer is over
-/// them, and can be closed by hand.
+/// They stack instead of queueing, dismiss on their own, pause while the
+/// pointer is over them, and each has a close button.
 class AppToast {
   const AppToast._();
 
@@ -373,8 +366,7 @@ class _ToastCardState extends State<_ToastCard> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(width: 6),
-          // A way to get rid of it. The snackbar had none — it was a
-          // swipe-up gesture with nothing on screen saying so.
+          // A visible way to dismiss the toast.
           IconButton(
             key: Key('toast_dismiss_${widget.data.id}'),
             tooltip: "Dismiss",

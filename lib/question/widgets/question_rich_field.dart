@@ -5,12 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 
-/// A labelled rich-text field.
-///
-/// The old editor shipped a big coloured button under every one of these —
-/// "Upload/ View Question", "Upload/ View Solution", and six more. Every
-/// one was wired to `onUpload: () {}`. They are gone; what is left is the
-/// label, the editor, and an error line.
+/// A labelled rich-text field: the label, the editor, and an error line.
 class QuestionRichField extends StatelessWidget {
   final String label;
   final HtmlEditorController controller;
@@ -178,8 +173,11 @@ class QuestionRichField extends StatelessWidget {
                   ColorButtons(),
                   ListButtons(listStyles: false),
                   ParagraphButtons(
-                      textDirection: false, lineHeight: false, caseConverter: false),
-                  InsertButtons(video: false, audio: false, table: false, hr: false),
+                      textDirection: false,
+                      lineHeight: false,
+                      caseConverter: false),
+                  InsertButtons(
+                      video: false, audio: false, table: false, hr: false),
                 ],
               ),
               htmlEditorOptions: HtmlEditorOptions(
@@ -195,8 +193,8 @@ class QuestionRichField extends StatelessWidget {
                 webInitialScripts:
                     UnmodifiableListView<WebScript>([_singleInsertOnDrop]),
               ),
-              otherOptions:
-                  OtherOptions(height: height, decoration: const BoxDecoration()),
+              otherOptions: OtherOptions(
+                  height: height, decoration: const BoxDecoration()),
             ),
           ),
         ),

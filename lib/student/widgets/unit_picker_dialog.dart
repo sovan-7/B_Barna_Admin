@@ -144,8 +144,7 @@ class UnitPickerDialog extends StatelessWidget {
     }
 
     if (units.isEmpty) {
-      // There was no empty state at all — an empty subject showed a blank
-      // white box with a Save button under it.
+      // A subject with no units: explain rather than show an empty box.
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 44, horizontal: 24),
         child: Column(
@@ -243,9 +242,8 @@ class UnitPickerDialog extends StatelessWidget {
     );
   }
 
-  /// A fixed 38px square, cropped. The old thumbnail was 50px with
-  /// `BoxFit.fill`, and its fallback rendered at 60 — so a broken image
-  /// changed the row's height as well as squashing the picture.
+  /// The unit's picture as a fixed 38px square, cropped (a letter tile
+  /// when missing), so every row has the same height.
   Widget _thumbnail(UnitModel unit) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppTokens.radiusSm),
@@ -282,8 +280,7 @@ class UnitPickerDialog extends StatelessWidget {
         children: [
           Flexible(
             child: Text(
-              // The old header offered "Select All"/"Remove All" with no
-              // count anywhere, so how much was ticked was a guess.
+              // How many units are ticked, out of the total.
               "$selectedCount of ${units.length} selected",
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 12.5, color: AppTokens.inkMuted),

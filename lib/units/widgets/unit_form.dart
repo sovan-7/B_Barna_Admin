@@ -18,16 +18,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-/// The whole Add/Edit Unit page. [existing] null means Add.
+/// The Add/Edit Unit page. One responsive form serves both Add and Edit; the thin screens in
+/// `screen/` just choose the mode ([existing] null means Add).
 ///
-/// Add and Edit were two 841 and 904 line screens that each contained the
-/// same form written out twice — once for wide windows and once for narrow
-/// — so every field existed in four places. There is one responsive form
-/// here, and the two screens in `screen/` just choose the mode.
+/// Sections: where it belongs (course, subject), details (including extra
+/// subject codes), image and availability.
 class UnitForm extends StatefulWidget {
+  /// The item being edited; null means "Add".
   final UnitModel? existing;
   const UnitForm({this.existing, super.key});
 
+  /// True when editing an existing item.
   bool get isEdit => existing != null;
 
   @override
@@ -38,26 +39,51 @@ class UnitForm extends StatefulWidget {
 enum _Field { course, subject, code, name, priority, image }
 
 class _UnitFormState extends State<UnitForm> {
+  /// Text of the code field.
   final TextEditingController codeController = TextEditingController();
+
+  /// Text of the name field.
   final TextEditingController nameController = TextEditingController();
+
+  /// Text of the description field.
   final TextEditingController descriptionController = TextEditingController();
+
+  /// Text of the display priority field.
   final TextEditingController priorityController = TextEditingController();
 
+  /// Course chosen in the dropdown (by name).
   String? _selectedCourseName;
+
+  /// Code of the chosen course.
   String _selectedCourseCode = "";
+
+  /// Subject chosen in the dropdown (by name).
   String? _selectedSubjectName;
+
+  /// Code of the chosen subject.
   String _selectedSubjectCode = "";
 
   /// Subject codes this unit also appears under. The primary subject's own
   /// code is not repeated here.
   final List<TextEditingController> _extraCodeControllers = [];
 
+  /// Newly picked file, not uploaded yet (null until one is chosen).
   Uint8List? selectedImageBytes;
+
+  /// File name of the newly picked file.
   String imageName = "";
+
+  /// "Show in the app" switch.
   bool willShow = false;
+
+  /// "Locked" switch.
   bool isLocked = false;
+
+  /// True while saving or deleting; disables every control.
   bool _isSaving = false;
 
+  /// Inline error per field: filled on a failed submit, then refreshed on
+  /// every change so each message clears as its field is fixed.
   final Map<_Field, String> _errors = <_Field, String>{};
 
   @override
@@ -112,6 +138,7 @@ class _UnitFormState extends State<UnitForm> {
 
   // ---- Validation -----------------------------------------------------
 
+  /// Checks every field and returns the problems (empty when valid).
   Map<_Field, String> _validate() {
     final Map<_Field, String> errors = <_Field, String>{};
     if (_selectedCourseCode.isEmpty) {
@@ -121,8 +148,6 @@ class _UnitFormState extends State<UnitForm> {
       errors[_Field.subject] = "Choose the subject this belongs to";
     }
     if (codeController.text.trim().isEmpty) {
-      // These messages used to say "topic code" and "topic name" — copied
-      // from the topic module and never corrected.
       errors[_Field.code] = "Give the unit a code";
     }
     if (nameController.text.trim().isEmpty) {
@@ -140,6 +165,8 @@ class _UnitFormState extends State<UnitForm> {
     return errors;
   }
 
+  /// Re-runs validation after an edit, but only once a submit has failed
+  /// (so errors never appear while the form is still being filled in).
   void _revalidate() {
     if (_errors.isEmpty) return;
     final Map<_Field, String> fresh = _validate();
@@ -150,6 +177,7 @@ class _UnitFormState extends State<UnitForm> {
     });
   }
 
+  /// Opens the file picker for an image.
   Future<void> _pickImage() async {
     final FilePickerResult? picked =
         await FilePicker.platform.pickFiles(type: FileType.image);
@@ -173,6 +201,8 @@ class _UnitFormState extends State<UnitForm> {
     return codes.where((code) => code.isNotEmpty).toList();
   }
 
+  /// Validates, then creates or updates the item. Closes the page on
+  /// success; on failure the view model has already shown why.
   Future<void> _onSubmit(UnitViewModel unitViewModel) async {
     final Map<_Field, String> errors = _validate();
     if (errors.isNotEmpty) {
@@ -228,6 +258,7 @@ class _UnitFormState extends State<UnitForm> {
     }
   }
 
+  /// Asks for confirmation, deletes the item and closes the page.
   void _onDelete(UnitViewModel unitViewModel) {
     final UnitModel existing = widget.existing!;
     RemoveAlert.showRemoveAlert(
@@ -261,6 +292,7 @@ class _UnitFormState extends State<UnitForm> {
     );
   }
 
+  /// The scrolling form (header and sections) with the action bar below.
   Widget _page(UnitViewModel unitViewModel, CourseViewModel courseViewModel,
       double width) {
     return FormPageBody(
@@ -351,6 +383,7 @@ class _UnitFormState extends State<UnitForm> {
 
   // ---- Fields ---------------------------------------------------------
 
+  /// Course dropdown.
   Widget _courseField(
       UnitViewModel unitViewModel, CourseViewModel courseViewModel) {
     final List<CourseModel> courses = courseViewModel.allCourses;

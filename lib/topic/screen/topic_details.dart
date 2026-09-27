@@ -9,15 +9,8 @@ import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// Everything attached to one topic: its videos, audio, PDFs and quizzes.
-///
-/// The old screen held four copies of the same 40-line block, each ending
-/// in a raw `FirebaseFirestore.instance...update()` from inside the widget
-/// whose `.then` popped the navigator twice — closing the loader *and*
-/// taking the page itself off the stack, so saving one list threw the
-/// admin back to the topic list mid-edit. It also had no failure branch,
-/// so a rejected write left the loader up forever. All four now go through
-/// the view model, and the page stays put.
+/// Everything attached to one topic: its videos, audio, PDFs and quizzes,
+/// one editable section per kind (see [TopicContentSection]).
 class TopicDetails extends StatefulWidget {
   final TopicModel topicData;
   const TopicDetails({required this.topicData, super.key});
@@ -55,16 +48,15 @@ class _TopicDetailsState extends State<TopicDetails> {
     setState(() => _titles[kind] = resolved);
   }
 
-  Future<bool> _save(
-      TopicViewModel topicViewModel, ContentKind kind, List<String> codes) async {
+  Future<bool> _save(TopicViewModel topicViewModel, ContentKind kind,
+      List<String> codes) async {
     final bool ok =
         await topicViewModel.saveContentCodes(widget.topicData, kind, codes);
     if (!ok) return false;
 
     Helper.showSnackBarMessage(
         msg: "${kind.label} codes saved", isSuccess: true);
-    // Re-check what the newly saved codes point at, rather than clearing
-    // the rows off the screen as the old handler did.
+    // Re-check what the newly saved codes point at (the rows stay on screen).
     await _resolve(kind, codes);
     return true;
   }
@@ -113,8 +105,8 @@ class _TopicDetailsState extends State<TopicDetails> {
 
   Widget _page(TopicViewModel topicViewModel, double width) {
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(
-          horizontal: width < 700 ? 16 : 32, vertical: 24),
+      padding:
+          EdgeInsets.symmetric(horizontal: width < 700 ? 16 : 32, vertical: 24),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
@@ -167,8 +159,7 @@ class _TopicDetailsState extends State<TopicDetails> {
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: AppTokens.surface,
-                      borderRadius:
-                          BorderRadius.circular(AppTokens.radiusPill),
+                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                       border: Border.all(color: AppTokens.hairline),
                     ),
                     child: Text(data.code,
@@ -181,9 +172,7 @@ class _TopicDetailsState extends State<TopicDetails> {
                 ],
               ),
               const SizedBox(height: 3),
-              // The old page's heading was the literal words "Topic
-              // Details" — the topic's own name only appeared inside each
-              // table's pink header, four times over.
+              // The topic's own name as the page heading.
               Text(
                 "${or(data.courseName, 'No course')}  ›  "
                 "${or(data.subjectName, 'No subject')}  ›  "

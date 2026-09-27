@@ -15,14 +15,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-/// A student's enrolments: what they can reach, and adding more.
-///
-/// The page was one 700-line `build` nested about twenty levels deep, with
-/// every control pinned at `width: 350` and spaced by a bare
-/// `SizedBox(height: 60)`. It is two cards now — enrol, and what they are
-/// already enrolled in.
+/// A student's enrolments: what they can reach, and adding more. Two cards:
+/// enrol in a subject, and the subjects already enrolled in.
 class SettingStudent extends StatefulWidget {
+  /// The student being managed.
   final String studentId;
+
+  /// Their name, shown as the page title.
   final String studentName;
 
   const SettingStudent(
@@ -36,16 +35,29 @@ class SettingStudent extends StatefulWidget {
 enum _Field { course, subject, units, validity }
 
 class _SettingStudentState extends State<SettingStudent> {
+  /// Course chosen in the dropdown (by name).
   String? _selectedCourseName;
+
+  /// Code of the chosen course.
   String _selectedCourseCode = "";
+
+  /// Subject chosen in the dropdown (by name).
   String? _selectedSubjectName;
+
+  /// Code of the chosen subject.
   String _selectedSubjectCode = "";
+
+  /// Thumbnail URL of the chosen subject (copied onto the enrolment).
   String _selectedSubjectImage = "";
 
+  /// Last day of access for the new enrolment.
   DateTime? _validTill;
 
+  /// Inline error per field: filled on a failed submit, then refreshed on
+  /// every change so each message clears as its field is fixed.
   final Map<_Field, String> _errors = {};
 
+  /// Format of the chosen validity date.
   static final DateFormat _displayDate = DateFormat("d MMM yyyy");
 
   @override
@@ -63,6 +75,7 @@ class _SettingStudentState extends State<SettingStudent> {
 
   // ---- Validation -----------------------------------------------------
 
+  /// Checks every field and returns the problems (empty when valid).
   Map<_Field, String> _validate(StudentViewModel studentViewModel) {
     final Map<_Field, String> errors = {};
     if (_selectedCourseCode.isEmpty) {
@@ -82,6 +95,8 @@ class _SettingStudentState extends State<SettingStudent> {
     return errors;
   }
 
+  /// Re-runs validation after an edit, but only once a submit has failed
+  /// (so errors never appear while the form is still being filled in).
   void _revalidate(StudentViewModel studentViewModel) {
     if (_errors.isEmpty) return;
     final Map<_Field, String> fresh = _validate(studentViewModel);
@@ -92,6 +107,8 @@ class _SettingStudentState extends State<SettingStudent> {
     });
   }
 
+  /// Validates the enrol card, then enrols the student in the chosen subject
+  /// and units until the chosen date.
   Future<void> _onEnrol(StudentViewModel studentViewModel) async {
     final Map<_Field, String> errors = _validate(studentViewModel);
     if (errors.isNotEmpty) {
@@ -100,9 +117,8 @@ class _SettingStudentState extends State<SettingStudent> {
           ..clear()
           ..addAll(errors);
       });
-      // The inline messages name what is missing; this only has to get the
-      // admin looking at them. It used to say "Please fill the above field"
-      // whatever was wrong, with nothing marked on any field.
+      // The inline messages say what is missing; the toast only points the
+      // admin at them.
       Helper.showSnackBarMessage(
           msg: errors.length == 1
               ? "Check the highlighted field"
@@ -132,11 +148,11 @@ class _SettingStudentState extends State<SettingStudent> {
     studentViewModel.clearUnitList();
   }
 
-  /// Enrolments run for months or years, so the quick picks do too. The
-  /// calendar still reaches five years out -- a year used to be the hard
-  /// ceiling, so a two-year enrolment could not be entered at all.
+  /// Default quick pick. Enrolments run for months or years, so the quick
+  /// picks do too; the calendar reaches five years out.
   static const DatePreset _oneYear = DatePreset.months(12, "1 year");
 
+  /// Opens the valid-till calendar for the enrolment.
   Future<void> _pickValidTill() async {
     final DateTime? picked = await showValidTillPicker(
       context,
@@ -168,6 +184,7 @@ class _SettingStudentState extends State<SettingStudent> {
     );
   }
 
+  /// The scrolling form (header and sections) with the action bar below.
   Widget _page(StudentViewModel studentViewModel, double width) {
     return SingleChildScrollView(
       padding:
@@ -194,6 +211,7 @@ class _SettingStudentState extends State<SettingStudent> {
     );
   }
 
+  /// Back button, the student's name and a subtitle.
   Widget _pageHeader() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,6 +238,7 @@ class _SettingStudentState extends State<SettingStudent> {
     );
   }
 
+  /// The ← button.
   Widget _backButton() {
     return Material(
       color: AppTokens.surface,
@@ -242,6 +261,8 @@ class _SettingStudentState extends State<SettingStudent> {
 
   // ---- Enrol ----------------------------------------------------------
 
+  /// "ENROL IN A SUBJECT" card: course, subject, units, validity and the
+  /// Enrol button.
   Widget _enrolCard(StudentViewModel studentViewModel, double width) {
     return FormSection(
       title: "ENROL IN A SUBJECT",
@@ -279,6 +300,7 @@ class _SettingStudentState extends State<SettingStudent> {
     );
   }
 
+  /// Course dropdown.
   Widget _courseField(StudentViewModel studentViewModel) {
     final List<CourseModel> courses = studentViewModel.courseList;
     final List<String> names =
@@ -317,13 +339,12 @@ class _SettingStudentState extends State<SettingStudent> {
     );
   }
 
+  /// Subject dropdown (enabled once a course is chosen).
   Widget _subjectField(StudentViewModel studentViewModel) {
     final List<SubjectModel> subjects = studentViewModel.subjectList;
     final List<String> names =
         subjects.map((s) => s.name).where((n) => n.isNotEmpty).toSet().toList();
-    // The old gate was `courseList.isEmpty` — it watched the *course list*
-    // rather than the chosen course, so this was open before you had picked
-    // anything and never closed again.
+    // Only usable once a course has been chosen.
     final bool enabled = _selectedCourseCode.isNotEmpty;
 
     return _dropdownField(
@@ -345,9 +366,7 @@ class _SettingStudentState extends State<SettingStudent> {
         setState(() {
           _selectedSubjectName = value;
           _selectedSubjectCode = subject?.code ?? "";
-          // The subject's own image. This was taken from the *course* and
-          // then saved as `subject_image`, so every enrolled row showed the
-          // course picture under the subject's name.
+          // The subject's own image (saved on the enrolment as `subject_image`).
           _selectedSubjectImage = subject?.image ?? "";
         });
         studentViewModel.clearUnitList();
@@ -359,6 +378,7 @@ class _SettingStudentState extends State<SettingStudent> {
     );
   }
 
+  /// Opens the unit picker; shows how many units are ticked.
   Widget _unitsField(StudentViewModel studentViewModel) {
     final int selected = studentViewModel.selectedUnitLength;
     final int total = studentViewModel.unitList.length;
@@ -384,6 +404,7 @@ class _SettingStudentState extends State<SettingStudent> {
     );
   }
 
+  /// "Access valid till" picker box.
   Widget _validityField() {
     final String? error = _errors[_Field.validity];
 
@@ -425,6 +446,7 @@ class _SettingStudentState extends State<SettingStudent> {
     );
   }
 
+  /// A labelled tappable box that opens a picker (units, date).
   Widget _pickerField({
     required Key fieldKey,
     required String label,

@@ -24,9 +24,11 @@ import 'package:provider/provider.dart';
 /// field rather than only as a snackbar, so a failed save points at what to
 /// fix instead of making the admin re-read the whole form.
 class LiveClassForm extends StatefulWidget {
+  /// The item being edited; null means "Add".
   final LiveClassModel? existing;
   const LiveClassForm({this.existing, super.key});
 
+  /// True when editing an existing item.
   bool get isEdit => existing != null;
 
   @override
@@ -37,12 +39,22 @@ class LiveClassForm extends StatefulWidget {
 enum _Field { title, subject, teacher, date, start, end }
 
 class _LiveClassFormState extends State<LiveClassForm> {
+  /// Text of the title field.
   final TextEditingController titleController = TextEditingController();
+
+  /// Text of the description field.
   final TextEditingController descriptionController = TextEditingController();
+
+  /// Text of the YouTube link field.
   final TextEditingController youtubeLinkController = TextEditingController();
+
+  /// Text of the typed teacher name (used when no teacher list is available) field.
   final TextEditingController teacherNameController = TextEditingController();
+
+  /// Lets the header's menu button open the drawer.
   final GlobalKey<ScaffoldState> key = GlobalKey();
 
+  /// Teacher chosen in the dropdown (or typed), by name.
   String? _selectedTeacher;
 
   /// The picked teacher's document id, resolved from the name the dropdown
@@ -56,7 +68,10 @@ class _LiveClassFormState extends State<LiveClassForm> {
   /// teacher who has since been removed.
   String _selectedTeacherPhone = "";
 
+  /// Subject chosen in the dropdown, by name.
   String? _selectedSubject;
+
+  /// Code of the chosen subject.
   String _selectedSubjectCode = "";
 
   /// A class runs within a single day, so the schedule is one date plus two
@@ -64,8 +79,14 @@ class _LiveClassFormState extends State<LiveClassForm> {
   /// what makes "the end is on another day" unrepresentable instead of
   /// merely rejected.
   DateTime? _classDate;
+
+  /// Start time on [_classDate].
   TimeOfDay? _startTime;
+
+  /// End time on [_classDate] (always after the start).
   TimeOfDay? _endTime;
+
+  /// True while saving or deleting; disables every control.
   bool _isSaving = false;
 
   /// Start as a full date-time (null until date and start time are set).
@@ -166,6 +187,8 @@ class _LiveClassFormState extends State<LiveClassForm> {
     });
   }
 
+  /// Validates, then creates or updates the item. Closes the page on
+  /// success; on failure the view model has already shown why.
   Future<void> _onSubmit(LiveClassViewModel liveClassViewModel) async {
     final Map<_Field, String> errors = _validate();
     if (errors.isNotEmpty) {
@@ -220,6 +243,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
     }
   }
 
+  /// Asks for confirmation, deletes the item and closes the page.
   void _onDelete(LiveClassViewModel liveClassViewModel) {
     final LiveClassModel existing = widget.existing!;
     RemoveAlert.showRemoveAlert(
@@ -265,11 +289,14 @@ class _LiveClassFormState extends State<LiveClassForm> {
     _revalidate();
   }
 
+  /// Sets the class date from a quick-pick chip.
   void _setDate(DateTime date) {
     setState(() => _classDate = ClassTime.dateOnly(date));
     _revalidate();
   }
 
+  /// Picks the start time; an existing end moves with it so the class
+  /// keeps its length (dropped if it would pass midnight).
   Future<void> _pickStartTime() async {
     final TimeOfDay? picked = await _showTimePicker(
         _startTime ?? const TimeOfDay(hour: 18, minute: 0),
@@ -298,6 +325,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
     _revalidate();
   }
 
+  /// Picks the end time (defaults to an hour after the start).
   Future<void> _pickEndTime() async {
     final TimeOfDay initial = _endTime ??
         (_startTime == null
@@ -311,6 +339,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
     _revalidate();
   }
 
+  /// The themed time picker: typed entry on wide windows, dial on narrow.
   Future<TimeOfDay?> _showTimePicker(TimeOfDay initial, String helpText) {
     // Typed entry on a desktop with a keyboard — "0730 PM" is faster and
     // more precise than dragging a clock face with a mouse. Touch-sized
@@ -468,6 +497,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
     );
   }
 
+  /// Back button, title, subtitle and (when editing) the live status badge.
   Widget _pageHeader() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -501,6 +531,8 @@ class _LiveClassFormState extends State<LiveClassForm> {
     );
   }
 
+  /// The class as it would be saved right now (for the status preview).
+  /// Only call when both date-times are set.
   LiveClassModel _previewModel() => LiveClassModel(
         docId: widget.existing?.docId ?? stringDefault,
         title: titleController.text,
@@ -515,6 +547,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
         endDateTime: _endDateTime!,
       );
 
+  /// The ← button (disabled while saving).
   Widget _backButton() {
     return Material(
       color: LiveClassTheme.surface,
@@ -536,6 +569,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
     );
   }
 
+  /// A white card grouping fields under an upper-case [title].
   Widget _section({required String title, required List<Widget> children}) {
     return Container(
       width: double.infinity,
@@ -559,9 +593,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
 
   // ---- Fields ---------------------------------------------------------
 
-  /// A full-width bordered input. The shared `CustomTextField` this
-  /// replaced was locked to `width: 350`, which is what left the old form
-  /// as a narrow ribbon of controls in the middle of a wide page.
+  /// A labelled, full-width bordered text input in the module's theme.
   Widget _textField({
     required String label,
     required String hint,
@@ -883,6 +915,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
 
   // ---- Action bar -----------------------------------------------------
 
+  /// Delete / Cancel / Save bar pinned to the bottom of the page.
   Widget _actionBar(LiveClassViewModel liveClassViewModel, double width) {
     // Under ~560px the three buttons stop fitting side by side, so Delete
     // drops to an icon and Save takes the remaining width — the usual

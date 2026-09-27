@@ -35,13 +35,22 @@ class CourseForm extends StatefulWidget {
 enum _Field { code, name, priority, image }
 
 class _CourseFormState extends State<CourseForm> {
+  /// Text of the code field.
   final TextEditingController codeController = TextEditingController();
+
+  /// Text of the name field.
   final TextEditingController nameController = TextEditingController();
+
+  /// Text of the description field.
   final TextEditingController descriptionController = TextEditingController();
+
+  /// Text of the display priority field.
   final TextEditingController priorityController = TextEditingController();
 
   /// Newly picked image (null until one is chosen) and its file name.
   Uint8List? selectedImageBytes;
+
+  /// File name of the newly picked file.
   String imageName = "";
 
   /// "Show in the app" switch.

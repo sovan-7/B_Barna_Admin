@@ -2,32 +2,15 @@ import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:flutter/material.dart';
 
-/// The confirmation every destructive action in the panel goes through.
-///
-/// It used to sit flat on the page: `barrierColor: Colors.transparent`, so
-/// nothing behind it dimmed and the card read as part of the screen rather
-/// than over it. Its two buttons were 25px-tall boxes with **Cancel in red
-/// and Yes in blue** — the safe action painted as the dangerous one and the
-/// dangerous one painted as safe. And it could not be dismissed at all:
-/// `barrierDismissible: false` with `PopScope(canPop: false)` meant no
-/// Escape, no tap-outside, only the button.
-///
-/// **The dialog still does not close itself.** Every caller pops it as the
-/// first line of [onPressYes] — that is the contract, and 26 call sites
-/// depend on it. Cancel, Escape and the barrier close it as you would
-/// expect; only confirming is the caller's to unwind.
+/// The confirmation every destructive action in the panel goes through: a
+/// card over a dimmed page, with a neutral Cancel and a red confirm button.
 class RemoveAlert {
   const RemoveAlert._();
 
-  /// Shows the confirmation.
-  ///
-  /// [title] is what is being acted on — an item's name, not a sentence.
-  /// [confirmLabel] names the action rather than answering a question:
-  /// "Delete" is what 24 of the 26 callers mean, and the two sign-out
-  /// flows pass their own.
+  /// Shows the confirmation for [title].
   ///
   /// The returned future completes when the dialog closes, so it can be
-  /// awaited. The old one resolved 100ms *before* the dialog even opened.
+  /// awaited. [onPressYes] must close the dialog itself.
   static Future<void> showRemoveAlert({
     required String title,
     required String description,
@@ -35,15 +18,13 @@ class RemoveAlert {
     String confirmLabel = "Delete",
   }) async {
     final BuildContext? context = navigatorKey.currentContext;
-    // Nothing mounted to host it. The old version did
-    // `navigatorKey.currentContext!` and threw.
+    // Nothing mounted to host the dialog yet — do nothing.
     if (context == null) return;
 
     return showGeneralDialog<void>(
       context: context,
-      // Escape and a tap outside both cancel. Nothing is destroyed by
-      // backing out of a confirmation, so trapping the admin inside it was
-      // only ever a way to make a misclick feel expensive.
+      // Escape and a tap outside both cancel — backing out of a confirmation
+      // never destroys anything.
       barrierDismissible: true,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       barrierColor: Colors.black.withValues(alpha: .45),

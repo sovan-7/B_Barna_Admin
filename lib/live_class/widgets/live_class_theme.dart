@@ -40,9 +40,8 @@ class LiveClassTheme {
   static const Color inkFaint = Color(0xFF98A2B3);
   static const Color danger = Color(0xFFD92D20);
 
-  /// Two stacked shadows — a tight contact shadow plus a wide soft one —
-  /// instead of a single 12px blur, which is what makes the old cards look
-  /// like they are floating rather than resting.
+  /// Two stacked shadows — a tight contact shadow plus a wide soft one — so
+  /// cards read as resting on the page rather than floating over it.
   static const List<BoxShadow> cardShadow = [
     BoxShadow(color: Color(0x0F101828), blurRadius: 2, offset: Offset(0, 1)),
     BoxShadow(color: Color(0x0A101828), blurRadius: 14, offset: Offset(0, 6)),
@@ -167,9 +166,8 @@ class LiveClassTheme {
       TextStyle(fontSize: 11.5, height: 1.3, color: danger);
 }
 
-/// Every date/time string the module renders. Both the card and the form
-/// used to keep their own [DateFormat]s, which is how "12 Mar 2026" in one
-/// place became "12 Mar 2026," in the other.
+/// Every date/time string the live class module renders, defined once so
+/// the card and the form always format dates the same way.
 class LiveClassFormat {
   const LiveClassFormat._();
 

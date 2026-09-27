@@ -1,9 +1,7 @@
 import 'package:intl/intl.dart';
 
-/// How long an enrolment has left, and when it runs out.
-///
-/// These were three methods on the settings screen, which is why nothing
-/// could test the arithmetic — and the arithmetic was wrong.
+/// How long an enrolment has left, and when it runs out. Pure functions,
+/// so the date arithmetic can be unit-tested.
 class EnrolmentValidity {
   const EnrolmentValidity._();
 
@@ -28,13 +26,8 @@ class EnrolmentValidity {
         .isBefore(now ?? DateTime.now());
   }
 
-  /// "1 year 2 months 3 days left", or "Expired" once it is past.
-  ///
-  /// The old version computed `yearLeft = monthsLeft % 12` — a remainder
-  /// where a division belonged — and never took the years back out of the
-  /// month count, so 25 months left rendered as
-  /// "1 Year 25 Months 5 Days Left". A date already past matched none of
-  /// its branches and fell through to "Invalid Data".
+  /// "1 year 2 months 3 days left", or "Expired" once it is past; null when
+  /// the date is unset.
   static String? formatRemaining(int millis, {DateTime? now}) {
     if (isUnset(millis)) return null;
 

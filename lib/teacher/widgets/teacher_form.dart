@@ -14,25 +14,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-/// The seam widget tests reach through to set a photo without driving a
-/// real file picker, which is untestable in this environment. It was
-/// declared twice, once per screen; there is one form now, so one hook.
+/// Lets widget tests set a photo without driving the real file picker
+/// (which cannot run in tests). [TeacherForm]'s state implements it.
 abstract class TeacherFormTestHooks extends State<TeacherForm> {
+  /// Sets the photo as if it had been picked (tests only).
   void setSelectedImageForTest(PlatformFile file);
 }
 
-/// The whole Add/Edit Teacher page. [existing] null means Add.
+/// The Add/Edit Teacher page. One responsive form serves both Add and Edit; the thin screens in
+/// `screen/` just choose the mode ([existing] null means Add).
 ///
-/// Add and Edit were two 518 and 520 line screens holding the same form
-/// twice over — and four widgets had already been extracted to fix that
-/// (`teacher_form_scaffold`, `teacher_avatar_picker`,
-/// `teacher_role_selector`, `teacher_module_access_selector`, 406 lines
-/// between them) but never wired up, so both screens still carried their
-/// own inline copies. The extracted files were dead; this is the one form.
+/// Sections: account (name, username, password, phone, photo), role and
+/// module access. The username cannot change once created.
 class TeacherForm extends StatefulWidget {
+  /// The item being edited; null means "Add".
   final TeacherModel? existing;
   const TeacherForm({this.existing, super.key});
 
+  /// True when editing an existing item.
   bool get isEdit => existing != null;
 
   @override
@@ -43,25 +42,44 @@ class TeacherForm extends StatefulWidget {
 enum _Field { name, username, password, phone, photo, modules }
 
 class _TeacherFormState extends TeacherFormTestHooks {
+  /// Text of the name field.
   final TextEditingController nameController = TextEditingController();
+
+  /// Text of the username field.
   final TextEditingController usernameController = TextEditingController();
+
+  /// Text of the password field.
   final TextEditingController passwordController = TextEditingController();
+
+  /// Text of the phone number field.
   final TextEditingController phoneController = TextEditingController();
 
+  /// Whether the password field shows its text.
   bool isPasswordVisible = false;
+
+  /// True while saving or deleting; disables every control.
   bool isSaving = false;
 
+  /// The picked photo file (name, size, bytes).
   PlatformFile? selectedImageFile;
+
+  /// Newly picked file, not uploaded yet (null until one is chosen).
   Uint8List? selectedImageBytes;
 
+  /// Stored names of the modules ticked.
   final Set<String> selectedModules = {};
 
   /// Least-privilege default — Admin must be picked deliberately.
   String selectedRole = roleSubadmin;
 
+  /// Largest photo accepted (5 MB).
   static const int _maxImageBytes = 5 * 1024 * 1024;
+
+  /// Photo file types accepted.
   static const Set<String> _allowedImageExtensions = {'jpg', 'jpeg', 'png'};
 
+  /// Inline error per field: filled on a failed submit, then refreshed on
+  /// every change so each message clears as its field is fixed.
   final Map<_Field, String> _errors = {};
 
   @override
@@ -95,12 +113,14 @@ class _TeacherFormState extends TeacherFormTestHooks {
     });
   }
 
+  /// [file]'s extension in lower case, or null if it has none.
   String? _extensionOf(PlatformFile file) {
     final int dotIndex = file.name.lastIndexOf('.');
     if (dotIndex == -1 || dotIndex == file.name.length - 1) return null;
     return file.name.substring(dotIndex + 1).toLowerCase();
   }
 
+  /// Opens the file picker for a photo.
   Future<void> _onSelectImage() async {
     final FilePickerResult? picked =
         await FilePicker.platform.pickFiles(type: FileType.image);
@@ -114,9 +134,8 @@ class _TeacherFormState extends TeacherFormTestHooks {
 
   // ---- Validation -----------------------------------------------------
 
-  /// The rules are unchanged; what is new is that every failure is reported
-  /// at once, on the field it belongs to. They used to be a chain of early
-  /// returns, one snackbar at a time, with nothing marked on the form.
+  /// Checks every field and returns all the problems at once, each shown on
+  /// its own field (empty when valid).
   Map<_Field, String> _validate() {
     final Map<_Field, String> errors = {};
 
@@ -172,6 +191,8 @@ class _TeacherFormState extends TeacherFormTestHooks {
     return errors;
   }
 
+  /// Re-runs validation after an edit, but only once a submit has failed
+  /// (so errors never appear while the form is still being filled in).
   void _revalidate() {
     if (_errors.isEmpty) return;
     final Map<_Field, String> fresh = _validate();
@@ -182,6 +203,8 @@ class _TeacherFormState extends TeacherFormTestHooks {
     });
   }
 
+  /// Validates, then creates or updates the teacher. Closes the page on
+  /// success.
   Future<void> _onSave() async {
     final Map<_Field, String> errors = _validate();
     if (errors.isNotEmpty) {
@@ -251,6 +274,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
     );
   }
 
+  /// The scrolling form (header and sections) with the action bar below.
   Widget _page(double width) {
     return FormPageBody(
       width: width,
@@ -348,6 +372,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
     );
   }
 
+  /// Password box with a show/hide button ("New password" when editing).
   Widget _passwordField() {
     return _textField(
       fieldKey: const Key('teacher_password_field'),

@@ -21,8 +21,8 @@ class AppHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The menu button opens the drawer, and above the breakpoint there is
-    // no drawer to open — it used to sit there doing nothing on desktop.
+    // The menu button opens the drawer, which only exists below the
+    // breakpoint, so it is hidden on wide windows.
     final bool showMenuButton =
         MediaQuery.of(context).size.width < AppTokens.compactBreakpoint;
 

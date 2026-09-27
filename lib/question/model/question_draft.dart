@@ -106,12 +106,8 @@ class QuestionDraft {
         QuestionOption.d => optionD,
       };
 
-  /// Which option [question]'s stored answer matches, or null when it
-  /// matches none.
-  ///
-  /// The old lookup was an if/else chain whose final `else` returned option
-  /// 4 — so a question with no answer saved, or one whose answer no longer
-  /// matched any option, displayed D as correct.
+  /// Which option's text matches the stored `answer`, or null when it
+  /// matches none (so an unmarked answer never shows as D).
   static QuestionOption? answerOf(Question question) {
     final String answer = _strip(question.answer);
     if (answer.isEmpty) return null;
@@ -140,7 +136,6 @@ class QuestionDraft {
 
     // All four options are required: a multiple-choice question with a
     // blank option is one a student can pick and never be right about.
-    // Only the code, the question and *an* answer were checked before.
     for (final QuestionOption option in QuestionOption.values) {
       if (_strip(optionFor(option)).isEmpty) {
         errors[option.field] = "Fill in option ${option.label}";

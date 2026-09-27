@@ -14,16 +14,18 @@ import 'package:flutter/material.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:provider/provider.dart';
 
-/// The whole Add/Edit Question page. [existing] null means Add.
+/// The Add/Edit Question page. One responsive form serves both Add and Edit; the thin screens in
+/// `screen/` just choose the mode ([existing] null means Add).
 ///
-/// Add and Edit were two 439 and 461 line screens that each wrote to
-/// Firestore directly and shared one set of editor controllers held on the
-/// app-wide view model. The controllers live here now, one set per open
-/// form, and saving goes through the view model like every other module.
+/// Sections: the question (code, question, optional body), options A–D
+/// with a "correct" toggle each, and hint / solution. Each open form owns
+/// its own rich-text editor controllers.
 class QuestionForm extends StatefulWidget {
+  /// The item being edited; null means "Add".
   final Question? existing;
   const QuestionForm({this.existing, super.key});
 
+  /// True when editing an existing item.
   bool get isEdit => existing != null;
 
   @override
@@ -31,26 +33,47 @@ class QuestionForm extends StatefulWidget {
 }
 
 class _QuestionFormState extends State<QuestionForm> {
+  /// Text of the code field.
   final TextEditingController codeController = TextEditingController();
 
-  // One set per open form. These used to be fields on QuestionViewModel, so
-  // two forms open at once wrote into the same buffers.
+  // Editor controllers belong to this form (one set per open form), so two
+  // open forms never share text.
+
+  /// Rich-text editor for the question.
   final HtmlEditorController questionController = HtmlEditorController();
+
+  /// Rich-text editor for the optional extra body.
   final HtmlEditorController questionBodyController = HtmlEditorController();
+
+  /// Rich-text editor for option A.
   final HtmlEditorController optionAController = HtmlEditorController();
+
+  /// Rich-text editor for option B.
   final HtmlEditorController optionBController = HtmlEditorController();
+
+  /// Rich-text editor for option C.
   final HtmlEditorController optionCController = HtmlEditorController();
+
+  /// Rich-text editor for option D.
   final HtmlEditorController optionDController = HtmlEditorController();
+
+  /// Rich-text editor for the hint.
   final HtmlEditorController hintController = HtmlEditorController();
+
+  /// Rich-text editor for the solution.
   final HtmlEditorController solutionController = HtmlEditorController();
 
   /// What the form opens with. For an edit that is the stored question; for
   /// an add it is empty.
   late final QuestionDraft _initial;
 
+  /// Which option is marked correct; null until one is.
   QuestionOption? _answer;
+
+  /// True while saving or deleting; disables every control.
   bool _isSaving = false;
 
+  /// Inline error per field (from [QuestionDraft.validate]).
   Map<QuestionField, String> _errors = {};
 
   @override
@@ -64,10 +87,8 @@ class _QuestionFormState extends State<QuestionForm> {
     _answer = _initial.answer;
 
     // The editors are seeded through `initialText` on each field, not from
-    // here. A post-frame `controller.setText` used to do it, and never
-    // worked: the editors are webviews, and the package only accepts
-    // content once the iframe has loaded — well after the first frame. So
-    // every field opened blank, whatever the question held.
+    // here: they are webviews that only accept content once their iframe
+    // has loaded, well after the first frame.
   }
 
   @override
@@ -76,6 +97,7 @@ class _QuestionFormState extends State<QuestionForm> {
     super.dispose();
   }
 
+  /// The editor holding [option]'s text.
   HtmlEditorController _controllerFor(QuestionOption option) =>
       switch (option) {
         QuestionOption.a => optionAController,
@@ -84,6 +106,7 @@ class _QuestionFormState extends State<QuestionForm> {
         QuestionOption.d => optionDController,
       };
 
+  /// Reads every editor and field into a [QuestionDraft].
   Future<QuestionDraft> _readDraft() async {
     return QuestionDraft(
       code: codeController.text,
@@ -99,6 +122,8 @@ class _QuestionFormState extends State<QuestionForm> {
     );
   }
 
+  /// Validates, then creates or updates the item. Closes the page on
+  /// success; on failure the view model has already shown why.
   Future<void> _onSubmit(QuestionViewModel questionViewModel) async {
     final QuestionDraft draft = await _readDraft();
     final Map<QuestionField, String> errors = draft.validate();
@@ -140,6 +165,7 @@ class _QuestionFormState extends State<QuestionForm> {
     }
   }
 
+  /// Asks for confirmation, deletes the item and closes the page.
   void _onDelete(QuestionViewModel questionViewModel) {
     final Question existing = widget.existing!;
     RemoveAlert.showRemoveAlert(
@@ -174,6 +200,7 @@ class _QuestionFormState extends State<QuestionForm> {
     );
   }
 
+  /// The scrolling form (header and sections) with the action bar below.
   Widget _page(QuestionViewModel questionViewModel, double width) {
     return FormPageBody(
       width: width,
@@ -225,6 +252,7 @@ class _QuestionFormState extends State<QuestionForm> {
     );
   }
 
+  /// Question code box (upper-cases as you type).
   Widget _codeField() {
     final String? error = _errors[QuestionField.code];
 
@@ -272,11 +300,8 @@ class _QuestionFormState extends State<QuestionForm> {
     );
   }
 
-  /// The four options, each with a "correct" toggle beside its label.
-  ///
-  /// The correct answer used to be a separate row of radio buttons well
-  /// away from the options themselves, so which one you were marking was a
-  /// matter of counting.
+  /// The four options, each with a "correct" toggle beside its label, and
+  /// the chosen answer summarised in the section heading.
   Widget _optionsSection() {
     final String? answerError = _errors[QuestionField.answer];
 
@@ -311,6 +336,7 @@ class _QuestionFormState extends State<QuestionForm> {
     );
   }
 
+  /// "Correct" toggle beside an option; marking one unmarks the others.
   Widget _correctToggle(QuestionOption option) {
     final bool selected = _answer == option;
     const Color green = Color(0xFF108460);

@@ -185,9 +185,8 @@ class _SubjectCardState extends State<SubjectCard> {
                     decoration: TextDecoration.lineThrough),
               ),
               const SizedBox(width: 5),
-              // Was "-25%", which reads as a negative discount. The value
-              // is always positive here (the discounted guard above needs
-              // list > selling > 0), so the minus was pure presentation.
+              // Shown as "25% OFF" (the value is always positive here: the guard above
+              // needs list > selling > 0).
               Text(
                 "${(((list - selling) / list) * 100).round()}% OFF",
                 style: const TextStyle(
@@ -256,11 +255,8 @@ class _SubjectCardState extends State<SubjectCard> {
 
   /// The coupon live on this subject, or null when there isn't one.
   ///
-  /// Coupons are written outside this panel and were invisible here, so an
-  /// admin had no way to tell which subjects were discounted or whether a
-  /// code had already expired. The code itself is selectable, because
-  /// copying it into a message or a test checkout is the whole reason to
-  /// look at it.
+  /// Shows the code (selectable, for copying), the discount and whether it
+  /// has expired.
   Widget? _couponChip() {
     final String code = _data.couponCode.trim();
     if (code.isEmpty || code == stringDefault) return null;

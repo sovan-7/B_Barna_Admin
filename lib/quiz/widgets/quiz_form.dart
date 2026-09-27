@@ -16,41 +16,67 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-/// The whole Add/Edit Quiz page. [existing] null means Add.
+/// The Add/Edit Quiz page. One responsive form serves both Add and Edit; the thin screens in
+/// `screen/` just choose the mode ([existing] null means Add).
 ///
-/// Add and Edit were two 518 and 934 line screens, and only Edit could
-/// attach questions at all — Add hardcoded an empty list, so every new quiz
-/// had to be saved and reopened before it could be given any. There is one
-/// responsive form here and it picks questions in both modes.
+/// Sections: details (code, name), rules (time limit, marks, negative
+/// marking, status, free/paid) and the question picker, which works in
+/// both modes.
 class QuizForm extends StatefulWidget {
+  /// The item being edited; null means "Add".
   final QuizModel? existing;
   const QuizForm({this.existing, super.key});
 
+  /// True when editing an existing item.
   bool get isEdit => existing != null;
 
   @override
   State<QuizForm> createState() => _QuizFormState();
 }
 
+/// The fields that can carry an inline error.
 enum _Field { code, name, status, type, time, marks }
 
 class _QuizFormState extends State<QuizForm> {
+  /// Text of the code field.
   final TextEditingController codeController = TextEditingController();
+
+  /// Text of the name field.
   final TextEditingController nameController = TextEditingController();
+
+  /// Text of the hours part of the time limit field.
   final TextEditingController hoursController = TextEditingController();
+
+  /// Text of the minutes part of the time limit field.
   final TextEditingController minutesController = TextEditingController();
+
+  /// Text of the total marks field.
   final TextEditingController marksController = TextEditingController();
+
+  /// Text of the negative marking field.
   final TextEditingController deductionController = TextEditingController();
+
+  /// Text of the question-code search field.
   final TextEditingController questionSearchController =
       TextEditingController();
 
+  /// Quiz status options.
   static const List<String> statusList = ["UPCOMING", "LIVE", "PENDING"];
+
+  /// Access types offered.
   static const List<String> typeList = ["FREE", "PAID"];
 
+  /// The chosen status.
   String? _selectedStatus;
+
+  /// The chosen access type ("FREE" / "PAID").
   String? _selectedType;
+
+  /// True while saving or deleting; disables every control.
   bool _isSaving = false;
 
+  /// Inline error per field: filled on a failed submit, then refreshed on
+  /// every change so each message clears as its field is fixed.
   final Map<_Field, String> _errors = <_Field, String>{};
 
   @override
@@ -96,12 +122,14 @@ class _QuizFormState extends State<QuizForm> {
     super.dispose();
   }
 
+  /// Hours and minutes fields combined, in minutes.
   int get _totalMinutes {
     final int hours = int.tryParse(hoursController.text.trim()) ?? 0;
     final int minutes = int.tryParse(minutesController.text.trim()) ?? 0;
     return (hours * 60) + minutes;
   }
 
+  /// Checks every field and returns the problems (empty when valid).
   Map<_Field, String> _validate() {
     final Map<_Field, String> errors = <_Field, String>{};
     if (codeController.text.trim().isEmpty) {
@@ -128,6 +156,8 @@ class _QuizFormState extends State<QuizForm> {
     return errors;
   }
 
+  /// Re-runs validation after an edit, but only once a submit has failed
+  /// (so errors never appear while the form is still being filled in).
   void _revalidate() {
     if (_errors.isEmpty) return;
     final Map<_Field, String> fresh = _validate();
@@ -138,6 +168,8 @@ class _QuizFormState extends State<QuizForm> {
     });
   }
 
+  /// Validates, then creates or updates the item. Closes the page on
+  /// success; on failure the view model has already shown why.
   Future<void> _onSubmit(QuizViewModel quizViewModel) async {
     final Map<_Field, String> errors = _validate();
     if (errors.isNotEmpty) {
@@ -171,9 +203,7 @@ class _QuizFormState extends State<QuizForm> {
       int.parse(marksController.text.trim()),
       int.tryParse(deductionController.text.trim()) ?? 0,
       widget.existing?.totalWrongAnswer ?? 0,
-      // The question count is derived from the questions actually attached.
-      // It used to be a number typed by hand in its own field, with nothing
-      // keeping the two in step.
+      // The question count is always the number of questions attached.
       questionCodes.length,
       questionCodes,
     );
@@ -195,6 +225,7 @@ class _QuizFormState extends State<QuizForm> {
     }
   }
 
+  /// Asks for confirmation, deletes the item and closes the page.
   void _onDelete(QuizViewModel quizViewModel) {
     final QuizModel existing = widget.existing!;
     RemoveAlert.showRemoveAlert(
@@ -227,6 +258,7 @@ class _QuizFormState extends State<QuizForm> {
     );
   }
 
+  /// The scrolling form (header and sections) with the action bar below.
   Widget _page(QuizViewModel quizViewModel, double width) {
     return FormPageBody(
       width: width,
@@ -325,9 +357,8 @@ class _QuizFormState extends State<QuizForm> {
     );
   }
 
-  /// Hours and minutes side by side with the total spelled out underneath.
-  /// The two boxes were unlabelled before, and nothing said they were
-  /// summed into one number of minutes.
+  /// Hours and minutes side by side, with the total in minutes spelled out
+  /// underneath.
   Widget _durationField() {
     final String? error = _errors[_Field.time];
 
@@ -360,6 +391,7 @@ class _QuizFormState extends State<QuizForm> {
     );
   }
 
+  /// A small digits-only box with a unit label ("hr", "min") after it.
   Widget _numberBox(
       TextEditingController controller, String suffix, bool hasError) {
     return Container(
@@ -391,6 +423,7 @@ class _QuizFormState extends State<QuizForm> {
     );
   }
 
+  /// Upcoming / Live / Pending choice chips.
   Widget _statusField() {
     final String? error = _errors[_Field.status];
 
@@ -425,6 +458,7 @@ class _QuizFormState extends State<QuizForm> {
     );
   }
 
+  /// Free / Paid choice chips.
   Widget _typeField() {
     final String? error = _errors[_Field.type];
 
@@ -462,8 +496,7 @@ class _QuizFormState extends State<QuizForm> {
     );
   }
 
-  /// Status was three coloured boxes you tapped with no selected state to
-  /// speak of. These read as a choice, and the selected one is obvious.
+  /// A selectable chip used for status and type; the selected one is filled.
   Widget _choiceChip({
     required Key key,
     required String label,

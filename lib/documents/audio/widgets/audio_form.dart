@@ -14,34 +14,52 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-/// The whole Add/Edit Audio page. [existing] null means Add.
+/// The Add/Edit Audio page. One responsive form serves both Add and Edit; the thin screens in
+/// `screen/` just choose the mode ([existing] null means Add).
 ///
-/// Add and Edit were two 281 and 297 line screens holding the same form
-/// twice over. There is one responsive form here, and the two screens in
-/// `screen/` just choose the mode.
+/// Sections: details (code, access, title, description) and the audio file.
 class AudioForm extends StatefulWidget {
+  /// The item being edited; null means "Add".
   final AudioModel? existing;
   const AudioForm({this.existing, super.key});
 
+  /// True when editing an existing item.
   bool get isEdit => existing != null;
 
   @override
   State<AudioForm> createState() => _AudioFormState();
 }
 
+/// The fields that can carry an inline error.
 enum _Field { code, title, file, type }
 
 class _AudioFormState extends State<AudioForm> {
+  /// Text of the code field.
   final TextEditingController codeController = TextEditingController();
+
+  /// Text of the title field.
   final TextEditingController titleController = TextEditingController();
+
+  /// Text of the description field.
   final TextEditingController descriptionController = TextEditingController();
+
+  /// Newly picked file, not uploaded yet (null until one is chosen).
   Uint8List? selectedAudioBytes;
+
+  /// File name of the newly picked file.
   String audioName = "";
 
+  /// Access types offered.
   static const List<String> audioTypeList = ["FREE", "PAID"];
+
+  /// The chosen access type ("FREE" / "PAID").
   String? _selectedType;
+
+  /// True while saving or deleting; disables every control.
   bool _isSaving = false;
 
+  /// Inline error per field: filled on a failed submit, then refreshed on
+  /// every change so each message clears as its field is fixed.
   final Map<_Field, String> _errors = <_Field, String>{};
 
   @override
@@ -67,6 +85,7 @@ class _AudioFormState extends State<AudioForm> {
     super.dispose();
   }
 
+  /// Checks every field and returns the problems (empty when valid).
   Map<_Field, String> _validate() {
     final Map<_Field, String> errors = <_Field, String>{};
     if (codeController.text.trim().isEmpty) {
@@ -88,6 +107,8 @@ class _AudioFormState extends State<AudioForm> {
     return errors;
   }
 
+  /// Re-runs validation after an edit, but only once a submit has failed
+  /// (so errors never appear while the form is still being filled in).
   void _revalidate() {
     if (_errors.isEmpty) return;
     final Map<_Field, String> fresh = _validate();
@@ -98,6 +119,8 @@ class _AudioFormState extends State<AudioForm> {
     });
   }
 
+  /// Validates, then creates or updates the item. Closes the page on
+  /// success; on failure the view model has already shown why.
   Future<void> _onSubmit(AudioViewModel audioViewModel) async {
     final Map<_Field, String> errors = _validate();
     if (errors.isNotEmpty) {
@@ -146,6 +169,7 @@ class _AudioFormState extends State<AudioForm> {
     }
   }
 
+  /// Asks for confirmation, deletes the item and closes the page.
   void _onDelete(AudioViewModel audioViewModel) {
     final AudioModel existing = widget.existing!;
     RemoveAlert.showRemoveAlert(
@@ -177,6 +201,7 @@ class _AudioFormState extends State<AudioForm> {
     );
   }
 
+  /// The scrolling form (header and sections) with the action bar below.
   Widget _page(AudioViewModel audioViewModel, double width) {
     return FormPageBody(
       width: width,
@@ -268,6 +293,7 @@ class _AudioFormState extends State<AudioForm> {
     );
   }
 
+  /// Opens the file picker for the file to upload.
   Future<void> _pickFile() async {
     final FilePickerResult? picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -281,9 +307,8 @@ class _AudioFormState extends State<AudioForm> {
     _revalidate();
   }
 
-  /// The old picker was a grey "Choose Pdf" chip with the file name in
-  /// plain text beside it, and no way to tell whether an edit already had
-  /// a file attached.
+  /// The audio file: shows the newly picked file (name and size), or that an
+  /// existing one is kept, with Choose / Replace / Remove buttons.
   Widget _fileField() {
     final String? error = _errors[_Field.file];
     final bool hasNew = selectedAudioBytes != null;

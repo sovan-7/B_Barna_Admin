@@ -91,9 +91,7 @@ class _StudentCardState extends State<StudentCard> {
                     color: AppTokens.ink),
               ),
               const SizedBox(height: 4),
-              // Phone, WhatsApp and email on one line. These were two
-              // labelled boxes taking a row each — and the WhatsApp number
-              // was read off the document and shown nowhere at all.
+              // Phone, WhatsApp and email on one wrapping line.
               Wrap(
                 spacing: 14,
                 runSpacing: 3,
@@ -126,9 +124,8 @@ class _StudentCardState extends State<StudentCard> {
     return number;
   }
 
-  /// When the student last opened the app. `login_time` was parsed onto the
-  /// model and displayed nowhere, so there was no way to tell an active
-  /// student from one who signed up and never came back.
+  /// When the student last opened the app ("Never signed in" when they
+  /// haven't), so active students stand out from inactive ones.
   Widget _lastActive() {
     final String? label = StudentActivity.lastActiveLabel(_data.lastLoginAt);
     final bool never = label == null;

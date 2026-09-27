@@ -19,16 +19,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-/// The whole Add/Edit Topic page. [existing] null means Add.
+/// The Add/Edit Topic page. One responsive form serves both Add and Edit; the thin screens in
+/// `screen/` just choose the mode ([existing] null means Add).
 ///
-/// Add and Edit were 764 and 748 line screens holding the same form written
-/// out twice — once for wide windows and once for narrow — so every field
-/// existed in four places. There is one responsive form here, and the two
-/// screens in `screen/` just choose the mode.
+/// Sections: where it belongs (course, subject, unit), details (including
+/// extra unit codes) and, when editing, a link to the content screen.
 class TopicForm extends StatefulWidget {
+  /// The item being edited; null means "Add".
   final TopicModel? existing;
   const TopicForm({this.existing, super.key});
 
+  /// True when editing an existing item.
   bool get isEdit => existing != null;
 
   @override
@@ -39,22 +40,42 @@ class TopicForm extends StatefulWidget {
 enum _Field { course, subject, unit, code, name, priority }
 
 class _TopicFormState extends State<TopicForm> {
+  /// Text of the code field.
   final TextEditingController codeController = TextEditingController();
+
+  /// Text of the name field.
   final TextEditingController nameController = TextEditingController();
+
+  /// Text of the display priority field.
   final TextEditingController priorityController = TextEditingController();
 
+  /// Course chosen in the dropdown (by name).
   String? _selectedCourseName;
+
+  /// Code of the chosen course.
   String _selectedCourseCode = "";
+
+  /// Subject chosen in the dropdown (by name).
   String? _selectedSubjectName;
+
+  /// Code of the chosen subject.
   String _selectedSubjectCode = "";
+
+  /// Unit chosen in the dropdown (by name).
   String? _selectedUnitName;
+
+  /// Code of the chosen unit.
   String _selectedUnitCode = "";
 
   /// Unit codes this topic also appears under. The primary unit's own code
   /// is not repeated here.
   final List<TextEditingController> _extraCodeControllers = [];
 
+  /// True while saving or deleting; disables every control.
   bool _isSaving = false;
+
+  /// Inline error per field: filled on a failed submit, then refreshed on
+  /// every change so each message clears as its field is fixed.
   final Map<_Field, String> _errors = <_Field, String>{};
 
   @override
@@ -112,6 +133,7 @@ class _TopicFormState extends State<TopicForm> {
 
   // ---- Validation -----------------------------------------------------
 
+  /// Checks every field and returns the problems (empty when valid).
   Map<_Field, String> _validate() {
     final Map<_Field, String> errors = <_Field, String>{};
     if (_selectedCourseCode.isEmpty) {
@@ -133,13 +155,13 @@ class _TopicFormState extends State<TopicForm> {
     if (priority.isEmpty) {
       errors[_Field.priority] = "Set a display priority";
     } else if (int.tryParse(priority) == null) {
-      // The old form went straight to `int.parse` on save, so a priority
-      // with anything but digits in it threw out of the button's callback.
       errors[_Field.priority] = "Priority must be a whole number";
     }
     return errors;
   }
 
+  /// Re-runs validation after an edit, but only once a submit has failed
+  /// (so errors never appear while the form is still being filled in).
   void _revalidate() {
     if (_errors.isEmpty) return;
     final Map<_Field, String> fresh = _validate();
@@ -151,12 +173,8 @@ class _TopicFormState extends State<TopicForm> {
   }
 
   /// The primary unit code first, then any extra ones — de-duplicated and
-  /// with blanks dropped, so an empty extra field cannot write an empty
-  /// string into the array.
-  ///
-  /// The old form left the primary code out entirely: a topic with no
-  /// extras saved `unitCodeList: []`, so nothing reading that array could
-  /// find the topic under its own unit.
+  /// with blanks dropped. The primary code is always included, so the topic
+  /// can be found under its own unit.
   List<String> _unitCodes() {
     final List<String> codes = [_selectedUnitCode];
     for (final TextEditingController controller in _extraCodeControllers) {
@@ -166,6 +184,8 @@ class _TopicFormState extends State<TopicForm> {
     return codes.where((code) => code.isNotEmpty).toList();
   }
 
+  /// Validates, then creates or updates the item. Closes the page on
+  /// success; on failure the view model has already shown why.
   Future<void> _onSubmit(TopicViewModel topicViewModel) async {
     final Map<_Field, String> errors = _validate();
     if (errors.isNotEmpty) {
@@ -218,6 +238,7 @@ class _TopicFormState extends State<TopicForm> {
     }
   }
 
+  /// Asks for confirmation, deletes the item and closes the page.
   void _onDelete(TopicViewModel topicViewModel) {
     final TopicModel existing = widget.existing!;
     RemoveAlert.showRemoveAlert(
@@ -251,6 +272,7 @@ class _TopicFormState extends State<TopicForm> {
     );
   }
 
+  /// The scrolling form (header and sections) with the action bar below.
   Widget _page(TopicViewModel topicViewModel, CourseViewModel courseViewModel,
       double width) {
     return FormPageBody(
@@ -320,6 +342,7 @@ class _TopicFormState extends State<TopicForm> {
 
   // ---- Fields ---------------------------------------------------------
 
+  /// Course dropdown.
   Widget _courseField(
       TopicViewModel topicViewModel, CourseViewModel courseViewModel) {
     final List<CourseModel> courses = courseViewModel.allCourses;
@@ -414,6 +437,7 @@ class _TopicFormState extends State<TopicForm> {
     );
   }
 
+  /// Unit dropdown (enabled once a subject is chosen).
   Widget _unitField(TopicViewModel topicViewModel) {
     final List<UnitModel> units = topicViewModel.unitList;
     final List<String> names =
@@ -473,10 +497,8 @@ class _TopicFormState extends State<TopicForm> {
     );
   }
 
-  /// A summary of what is attached, with a way through to the screen that
-  /// manages it. Editing a topic and attaching content to it were two
-  /// pages reached from two adjacent icons on the row, with nothing on
-  /// either saying the other existed.
+  /// Edit mode only: a summary of the attached content and a button to the
+  /// screen that manages it.
   Widget _contentRow() {
     final TopicModel existing = widget.existing!;
     final List<String> parts = <String>[];
