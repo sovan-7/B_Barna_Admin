@@ -15,19 +15,23 @@ enum ToastLevel {
   info,
 }
 
+/// Colour, icon and heading for each [ToastLevel].
 extension _ToastLevelStyle on ToastLevel {
+  /// Accent colour.
   Color get color => switch (this) {
         ToastLevel.success => const Color(0xFF108460),
         ToastLevel.error => AppTokens.danger,
         ToastLevel.info => const Color(0xFF175CD3),
       };
 
+  /// Leading icon.
   IconData get icon => switch (this) {
         ToastLevel.success => Icons.check_circle_outline,
         ToastLevel.error => Icons.error_outline,
         ToastLevel.info => Icons.info_outline,
       };
 
+  /// Heading shown above the message.
   String get label => switch (this) {
         ToastLevel.success => "Success",
         ToastLevel.error => "Error",
@@ -37,8 +41,13 @@ extension _ToastLevelStyle on ToastLevel {
 
 /// One message on screen.
 class _ToastData {
+  /// Unique id, used to remove exactly this toast.
   final int id;
+
+  /// The text shown.
   final String message;
+
+  /// Controls icon and colour.
   final ToastLevel level;
 
   const _ToastData(
@@ -66,16 +75,25 @@ class AppToast {
   /// iteration cannot fill the window.
   static const int maxVisible = 4;
 
+  /// Toasts currently on screen, oldest first.
   static final List<_ToastData> _toasts = <_ToastData>[];
+
+  /// Broadcasts [_toasts] to the overlay so it rebuilds.
   static final ValueNotifier<List<_ToastData>> _notifier =
       ValueNotifier<List<_ToastData>>(const []);
+
+  /// The overlay entry hosting the stack; null while nothing is shown.
   static OverlayEntry? _entry;
+
+  /// Next value for [_ToastData.id].
   static int _nextId = 0;
 
   /// Visible for tests.
   static List<String> get messages =>
       _toasts.map((toast) => toast.message).toList();
 
+  /// Shows [message] in the corner for [duration] (or until closed).
+  /// Does nothing when there is no overlay yet (e.g. unit tests).
   static void show({required String message, required ToastLevel level}) {
     // No overlay yet — the app is between frames, or this is a unit test
     // with no widget tree. Previously this path did
@@ -92,8 +110,7 @@ class AppToast {
       _toasts.add(_ToastData(
           id: _nextId++, message: current.message, level: current.level));
     } else {
-      _toasts.add(
-          _ToastData(id: _nextId++, message: message, level: level));
+      _toasts.add(_ToastData(id: _nextId++, message: message, level: level));
     }
 
     while (_toasts.length > maxVisible) {
@@ -107,6 +124,7 @@ class AppToast {
     _publish();
   }
 
+  /// Removes one toast; takes the overlay down when none are left.
   static void _remove(int id) {
     _toasts.removeWhere((toast) => toast.id == id);
     _publish();
@@ -132,10 +150,12 @@ class AppToast {
     if (entry != null && entry.mounted) entry.remove();
   }
 
+  /// Pushes the current list to [_notifier].
   static void _publish() =>
       _notifier.value = List<_ToastData>.unmodifiable(_toasts);
 }
 
+/// The column of toasts in the top-right corner (full width on phones).
 class _ToastStack extends StatelessWidget {
   const _ToastStack();
 
@@ -178,8 +198,12 @@ class _ToastStack extends StatelessWidget {
   }
 }
 
+/// One toast: slides in, counts down with a progress bar, closes itself.
 class _ToastCard extends StatefulWidget {
+  /// The toast to show.
   final _ToastData data;
+
+  /// True on narrow windows, where the toast spans the width.
   final bool fullWidth;
 
   const _ToastCard({required this.data, required this.fullWidth, super.key});
@@ -188,8 +212,7 @@ class _ToastCard extends StatefulWidget {
   State<_ToastCard> createState() => _ToastCardState();
 }
 
-class _ToastCardState extends State<_ToastCard>
-    with TickerProviderStateMixin {
+class _ToastCardState extends State<_ToastCard> with TickerProviderStateMixin {
   /// Slide and fade in, and back out again on the way to being removed.
   late final AnimationController _enter = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 220));
@@ -199,6 +222,7 @@ class _ToastCardState extends State<_ToastCard>
   late final AnimationController _countdown =
       AnimationController(vsync: this, duration: AppToast.duration);
 
+  /// Set once closing starts, so it only happens once.
   bool _closing = false;
 
   @override
@@ -210,6 +234,7 @@ class _ToastCardState extends State<_ToastCard>
       ..forward();
   }
 
+  /// Closes the toast when the countdown finishes.
   void _onCountdown(AnimationStatus status) {
     if (status == AnimationStatus.completed) _close();
   }
@@ -222,6 +247,7 @@ class _ToastCardState extends State<_ToastCard>
     super.dispose();
   }
 
+  /// Plays the exit animation, then removes the toast.
   Future<void> _close() async {
     if (_closing) return;
     _closing = true;
@@ -303,6 +329,7 @@ class _ToastCardState extends State<_ToastCard>
     );
   }
 
+  /// Icon, heading, message and close button.
   Widget _body(ToastLevel level) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),

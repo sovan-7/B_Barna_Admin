@@ -10,9 +10,16 @@ import 'package:flutter/material.dart';
 /// orange rather than a solid fill, and the hard separators are gone — the
 /// spacing between rows does that job now.
 class SidebarWidget extends StatefulWidget {
+  /// Module icon.
   final IconData iconData;
+
+  /// Module label.
   final String itemText;
+
+  /// Highlights the item.
   final bool isSelected;
+
+  /// Opens the module.
   final VoidCallback? onTap;
 
   /// Icon-only mode for the narrow rail. The label becomes a tooltip.
@@ -32,6 +39,7 @@ class SidebarWidget extends StatefulWidget {
 }
 
 class _SidebarWidgetState extends State<SidebarWidget> {
+  /// True while the pointer is over the item.
   bool _hovered = false;
 
   @override
@@ -56,8 +64,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
         // The icon sits a step back from the label so the row reads
         // label-first, without either being washed out.
         Icon(widget.iconData,
-            size: 18,
-            color: selected ? accent : AppTokens.inkMuted),
+            size: 18, color: selected ? accent : AppTokens.inkMuted),
         if (!widget.isCollapsed) ...[
           const SizedBox(width: 11),
           Expanded(
@@ -88,8 +95,8 @@ class _SidebarWidgetState extends State<SidebarWidget> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 120),
               height: 38,
-              padding: EdgeInsets.symmetric(
-                  horizontal: widget.isCollapsed ? 0 : 11),
+              padding:
+                  EdgeInsets.symmetric(horizontal: widget.isCollapsed ? 0 : 11),
               decoration: BoxDecoration(
                 color: background,
                 borderRadius: BorderRadius.circular(AppTokens.radiusSm),

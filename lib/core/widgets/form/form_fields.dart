@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 /// Red message under a field that failed validation.
 class FieldErrorText extends StatelessWidget {
+  /// The error text.
   final String message;
 
   /// Gap above the message.
@@ -34,6 +35,7 @@ class FormTextField extends StatelessWidget {
   /// Placeholder inside the empty box.
   final String hint;
 
+  /// Holds the text (owned by the form).
   final TextEditingController controller;
 
   /// Validation message; turns the border red. Null when valid.
@@ -48,10 +50,19 @@ class FormTextField extends StatelessWidget {
   /// Key on the inner [TextField] (tests type into it).
   final Key? fieldKey;
 
+  /// Lines of text the box shows.
   final int maxLines;
+
+  /// False greys the box and blocks typing.
   final bool enabled;
+
+  /// Hides the text (passwords).
   final bool obscureText;
+
+  /// Keyboard to show; null uses the platform default.
   final TextInputType? keyboardType;
+
+  /// Filters applied while typing (digits only, upper-case, …).
   final List<TextInputFormatter>? inputFormatters;
 
   /// Icon at the start of the box.
@@ -152,11 +163,13 @@ class FormTextField extends StatelessWidget {
 /// A title + explanation on the left and a [Switch] on the right, so the
 /// consequence of the toggle is spelled out.
 class FormToggleRow extends StatelessWidget {
+  /// Bold first line.
   final String title;
 
   /// What turning it on means for students.
   final String subtitle;
 
+  /// Whether the switch is on.
   final bool value;
 
   /// Null disables the switch (e.g. while saving).
@@ -235,6 +248,7 @@ class FormImagePickerField extends StatelessWidget {
   /// False while saving: nothing can be tapped.
   final bool enabled;
 
+  /// Opens the image picker.
   final VoidCallback onPick;
 
   /// Clears [bytes] (the "Remove" button, shown only for a new pick).
@@ -386,6 +400,7 @@ class FormAccessTypeField extends StatelessWidget {
   /// False while saving.
   final bool enabled;
 
+  /// Called with the chosen option.
   final ValueChanged<String> onSelect;
 
   const FormAccessTypeField({
@@ -479,6 +494,7 @@ class FormDropdownField extends StatelessWidget {
   /// Key on the inner [DropdownButton] (tests open it through this).
   final Key? dropdownKey;
 
+  /// Text above the box.
   final String label;
 
   /// Shown while nothing is selected.
@@ -487,6 +503,7 @@ class FormDropdownField extends StatelessWidget {
   /// The selected option, or null.
   final String? value;
 
+  /// The options.
   final List<String> items;
 
   /// Icon shown before every option.

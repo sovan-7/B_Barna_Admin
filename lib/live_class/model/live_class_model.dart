@@ -6,7 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// Firestore, so it can't go stale.
 enum LiveClassStatus { upcoming, live, past }
 
+/// Tab / badge text for each [LiveClassStatus].
 extension LiveClassStatusLabel on LiveClassStatus {
+  /// "Upcoming", "Live" or "Past".
   String get label {
     switch (this) {
       case LiveClassStatus.upcoming:
@@ -19,11 +21,22 @@ extension LiveClassStatusLabel on LiveClassStatus {
   }
 }
 
+/// A scheduled live class (`liveClasses` collection), in the field names
+/// the student app reads.
 class LiveClassModel {
+  /// Firestore document id.
   String docId = stringDefault;
+
+  /// Class title (`title`).
   String title = stringDefault;
+
+  /// Short description (`subtitle`).
   String description = stringDefault;
+
+  /// YouTube live link (`youtubeVideoLink`).
   String youtubeLink = stringDefault;
+
+  /// Teacher's display name (`teacherName`).
   String teacherName = stringDefault;
 
   /// The teacher's document id in the `teacher` collection.
@@ -52,13 +65,18 @@ class LiveClassModel {
   /// collection in this project uses (`subject_code`, `subjectCodeList`).
   String subjectCode = "";
 
+  /// When the class starts (`startTime`).
   DateTime startDateTime;
+
+  /// When the class ends (`endTime`); always the same day as the start.
   DateTime endDateTime;
 
   /// Written server-side by [LiveClassRepo] with `FieldValue.serverTimestamp()`
   /// — null only for a locally-built model that hasn't round-tripped through
   /// Firestore yet.
   DateTime? createdAt;
+
+  /// Server time of the last edit (`updatedAt`).
   DateTime? updatedAt;
 
   /// True for a document still written in this panel's original shape —
@@ -75,8 +93,9 @@ class LiveClassModel {
   /// parsed. Never written to Firestore.
   bool needsAppSync = false;
 
+  /// Creates a class from the Add/Edit form values.
   LiveClassModel({
-    required this.docId ,
+    required this.docId,
     required this.title,
     required this.description,
     required this.youtubeLink,
@@ -169,5 +188,6 @@ class LiveClassModel {
     return LiveClassStatus.live;
   }
 
+  /// [statusAt] for the current time.
   LiveClassStatus get status => statusAt(DateTime.now());
 }

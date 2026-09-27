@@ -4,7 +4,9 @@ import 'package:bbarna/resources/constant.dart';
 /// Which option a question's answer points at.
 enum QuestionOption { a, b, c, d }
 
+/// Display letter and form field for each [QuestionOption].
 extension QuestionOptionLabel on QuestionOption {
+  /// "A" – "D".
   String get label => switch (this) {
         QuestionOption.a => "A",
         QuestionOption.b => "B",
@@ -28,17 +30,37 @@ extension QuestionOptionLabel on QuestionOption {
 /// validation and assembly can be tested on their own, and the form is left
 /// doing only what a form should: gather text, hand it over, show errors.
 class QuestionDraft {
+  /// Question code (upper-cased on save).
   final String code;
+
+  /// The question, as HTML.
   final String question;
+
+  /// Optional extra body, as HTML.
   final String questionBody;
+
+  /// Option A, as HTML.
   final String optionA;
+
+  /// Option B, as HTML.
   final String optionB;
+
+  /// Option C, as HTML.
   final String optionC;
+
+  /// Option D, as HTML.
   final String optionD;
+
+  /// Hint, as HTML.
   final String hints;
+
+  /// Worked solution, as HTML.
   final String solution;
+
+  /// Which option is correct; null until one is marked.
   final QuestionOption? answer;
 
+  /// Creates a draft from the form's current values.
   const QuestionDraft({
     this.code = "",
     this.question = "",
@@ -76,6 +98,7 @@ class QuestionDraft {
   static String _blankDefault(String value) =>
       value == stringDefault ? "" : value;
 
+  /// The HTML of [option].
   String optionFor(QuestionOption option) => switch (option) {
         QuestionOption.a => optionA,
         QuestionOption.b => optionB,
@@ -133,7 +156,6 @@ class QuestionDraft {
     return errors;
   }
 
-
   /// The document body this draft saves as.
   Map<String, dynamic> toMap({required int timeStamp}) => {
         "question_code": code.trim().toUpperCase(),
@@ -166,8 +188,17 @@ class QuestionDraft {
     return text;
   }
 
+  /// Short alias for [plainText].
   static String _strip(String html) => plainText(html);
 }
 
 /// Every field of the question form that can carry an inline error.
-enum QuestionField { code, question, optionA, optionB, optionC, optionD, answer }
+enum QuestionField {
+  code,
+  question,
+  optionA,
+  optionB,
+  optionC,
+  optionD,
+  answer
+}

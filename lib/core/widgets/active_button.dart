@@ -3,7 +3,7 @@ import 'package:bbarna/resources/app_colors.dart';
 
 class ActiveButton extends StatelessWidget {
   final bool isActive;
-  const ActiveButton({this.isActive = true,super.key});
+  const ActiveButton({this.isActive = true, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +17,7 @@ class ActiveButton extends StatelessWidget {
       ),
       child: const Text(
         "ACTIVE",
-        style:  TextStyle(
+        style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,

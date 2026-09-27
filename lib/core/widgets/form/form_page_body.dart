@@ -128,7 +128,10 @@ class FormBackButton extends StatelessWidget {
 /// (e.g. "COURSE DETAILS"), with an optional [trailing] widget on the
 /// title row.
 class FormSection extends StatelessWidget {
+  /// Section heading, e.g. "COURSE DETAILS".
   final String title;
+
+  /// The fields in the section.
   final List<Widget> children;
 
   /// Shown at the right end of the title row (e.g. a count or a button).
@@ -179,7 +182,11 @@ class FormSection extends StatelessWidget {
 class FormTwoUp extends StatelessWidget {
   /// Window width.
   final double width;
+
+  /// First field (left, or top when stacked).
   final Widget left;
+
+  /// Second field (right, or bottom when stacked).
   final Widget right;
 
   /// Below this width the fields stack.

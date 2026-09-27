@@ -1,34 +1,83 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// App-wide messenger key, so toasts can be shown without a BuildContext.
 final GlobalKey<ScaffoldMessengerState> snackBarKey =
     GlobalKey<ScaffoldMessengerState>();
+
+/// App-wide navigator key, so dialogs can be closed from view models and
+/// helpers that have no BuildContext.
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+/// Key given to the root MaterialApp.
 final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey();
+
+/// Local key/value storage (session, module access, rail state). Set in
+/// `main` before the app starts; throws if read before that (e.g. tests).
 late SharedPreferences sharedPreferences;
 
-/// null check default value
+// ---- "No value" placeholders ------------------------------------------
+//
+// Models fill missing Firestore fields with these instead of null. Checks
+// such as `value == stringDefault` mean "this field was never set".
+
+/// Placeholder for a missing int field.
 int intDefault = -1;
+
+/// Placeholder for a missing double field.
 double doubleDefault = -1;
+
+/// Placeholder for a missing bool field.
 bool boolDefault = false;
+
+/// Placeholder for a missing string field.
 String stringDefault = "NA";
 
-/// firestore collection names
+// ---- Firestore collection names ------------------------------------------
 
+/// `admin` collection.
 const String admin = "admin";
+
+/// `question` collection.
 const String question = "question";
+
+/// `course` collection.
 const String course = "course";
+
+/// `subject` collection.
 const String subject = "subject";
+
+/// `unit` collection.
 const String unit = "unit";
+
+/// `topic` collection.
 const String topic = "topic";
+
+/// `video` collection.
 const String video = "video";
+
+/// `pdf` collection.
 const String pdf = "pdf";
+
+/// `audio` collection.
 const String audio = "audio";
+
+/// `quiz` collection.
 const String quiz = "quiz";
+
+/// `banners` collection.
 const String banners = "banners";
+
+/// `student` collection (written by the mobile app).
 const String student = "student";
+
+/// `enrolledCourses` collection: one enrolment document per student.
 const String enrolledCourse = "enrolledCourses";
+
+/// `teacher` collection: admin-panel users.
 const String teacher = "teacher";
+
+/// `live_classes` collection.
 const String liveClasses = "live_classes";
 
 /// Sidebar module names/icons, index-aligned. [Sidebar] and [ExtraSideBar]
@@ -77,7 +126,10 @@ const List<String> moduleDisplayList = [
   "Live Classes",
 ];
 
+/// Role with full access, including managing teachers.
 const String roleAdmin = "admin";
+
+/// Role limited to the modules ticked on the teacher.
 const String roleSubadmin = "subadmin";
 
 /// SharedPreferences key the signed-in teacher's document id is stored
@@ -96,21 +148,17 @@ const String moduleAccessPrefsKey = "module_access";
 /// screen makes on its way back to [Sidebar].
 const String sidebarCollapsedPrefsKey = "sidebar_collapsed";
 
-/// The stored form of a teacher's username.
+/// The stored form of a teacher's username: trimmed and lower-cased.
 ///
-/// It is both the `username` field and the Firestore document id, so the
-/// account-creation path and the login lookup must derive it identically.
-/// They did not: creation lowercased it while login queried the raw typed
-/// text, so any teacher whose username had a capital letter could never
-/// sign in — and the login screen reported that as
-/// "That username and password do not match", which reads as a wrong
-/// password.
+/// It is both the `username` field and the Firestore document id, so
+/// account creation and the login lookup must both go through this.
 String normalizeUsername(String raw) => raw.trim().toLowerCase();
 
 /// [AddTeacher] generates its role selector from this list — keep it as the
 /// single source of truth for valid teacher roles.
 const List<String> roleList = [roleAdmin, roleSubadmin];
 
+/// Sidebar icon for each module, index-aligned with [moduleList].
 const List<IconData> moduleIconList = [
   Icons.image,
   Icons.subject_outlined,
@@ -126,4 +174,3 @@ const List<IconData> moduleIconList = [
   Icons.people_alt_outlined,
   Icons.live_tv,
 ];
-

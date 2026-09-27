@@ -26,6 +26,7 @@ class FormActionBar extends StatelessWidget {
   /// e.g. "Save course" / "Update course".
   final String saveLabel;
 
+  /// Validates and saves.
   final VoidCallback onSave;
 
   /// Minimum width of the save button.

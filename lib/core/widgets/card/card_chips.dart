@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 /// The small grey box showing an item's code (e.g. "NOTES-01") next to its
 /// title. The text can be selected and copied.
 class CodeChip extends StatelessWidget {
+  /// The code to show.
   final String code;
 
   const CodeChip(this.code, {super.key});
@@ -34,9 +35,16 @@ class CodeChip extends StatelessWidget {
 /// FREE / amber PAID chip); otherwise it is grey with a coloured icon and
 /// label.
 class StatusChip extends StatelessWidget {
+  /// Leading icon.
   final IconData icon;
+
+  /// Chip text.
   final String label;
+
+  /// Icon and text colour (and tint when [filled]).
   final Color color;
+
+  /// Tints the background and border with [color].
   final bool filled;
 
   const StatusChip({
@@ -67,7 +75,10 @@ class StatusChip extends StatelessWidget {
 ///
 /// When [on], it is tinted with [onColor]; when off it is grey.
 class ToggleChip extends StatelessWidget {
+  /// Leading icon.
   final IconData icon;
+
+  /// Chip text (describes the current state).
   final String label;
 
   /// Current value of the flag.
@@ -79,6 +90,7 @@ class ToggleChip extends StatelessWidget {
   /// What tapping will do, e.g. "Lock this PDF".
   final String tooltip;
 
+  /// Flips the flag.
   final VoidCallback onTap;
 
   /// Key on the tappable [InkWell] (tests tap through it).
@@ -127,8 +139,13 @@ class ToggleChip extends StatelessWidget {
 
 /// Icon + label inside a chip.
 class _ChipContent extends StatelessWidget {
+  /// Leading icon.
   final IconData icon;
+
+  /// Text.
   final String label;
+
+  /// Icon and text colour.
   final Color color;
 
   const _ChipContent(

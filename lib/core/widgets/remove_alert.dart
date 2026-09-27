@@ -71,10 +71,19 @@ class RemoveAlert {
   }
 }
 
+/// The confirmation card itself: icon, title, description, Cancel and the
+/// red confirm button.
 class _RemoveAlert extends StatelessWidget {
+  /// What is being deleted (shown bold).
   final String title;
+
+  /// The question, e.g. "Are you sure want to delete ?".
   final String description;
+
+  /// Text of the red button.
   final String confirmLabel;
+
+  /// Runs when confirmed; it must close the dialog itself.
   final Function onPressYes;
 
   const _RemoveAlert({
@@ -147,8 +156,7 @@ class _RemoveAlert extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(description,
-                            textAlign: TextAlign.center,
-                            style: AppTokens.body),
+                            textAlign: TextAlign.center, style: AppTokens.body),
                       ],
                     ),
                   ),
@@ -163,6 +171,7 @@ class _RemoveAlert extends StatelessWidget {
     );
   }
 
+  /// Red bin icon in a tinted circle.
   Widget _icon() {
     return Container(
       height: 44,
@@ -171,14 +180,14 @@ class _RemoveAlert extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTokens.danger.withValues(alpha: .10),
         shape: BoxShape.circle,
-        border:
-            Border.all(color: AppTokens.danger.withValues(alpha: .18)),
+        border: Border.all(color: AppTokens.danger.withValues(alpha: .18)),
       ),
       child: const Icon(Icons.warning_amber_rounded,
           size: 22, color: AppTokens.danger),
     );
   }
 
+  /// Cancel and confirm buttons.
   Widget _actions(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
@@ -203,12 +212,11 @@ class _RemoveAlert extends StatelessWidget {
                 side: const BorderSide(color: AppTokens.hairline),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppTokens.radiusSm)),
+                    borderRadius: BorderRadius.circular(AppTokens.radiusSm)),
               ),
               child: const Text("Cancel",
-                  style: TextStyle(
-                      fontSize: 13.5, fontWeight: FontWeight.w600)),
+                  style:
+                      TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
             ),
           ),
           const SizedBox(width: AppTokens.gapSm),
@@ -223,8 +231,7 @@ class _RemoveAlert extends StatelessWidget {
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppTokens.radiusSm)),
+                    borderRadius: BorderRadius.circular(AppTokens.radiusSm)),
               ),
               child: Text(confirmLabel,
                   maxLines: 1,

@@ -3,7 +3,10 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 
+/// A blocking "please wait" loader shown as a dialog.
 class LoaderDialogs {
+  /// Shows the loader over the whole app (after a 100 ms delay). The
+  /// caller must close it with `Navigator.pop(navigatorKey.currentContext!)`.
   static Future<void> showLoadingDialog() async {
     Future.delayed(const Duration(milliseconds: 100), () {
       showDialog<void>(

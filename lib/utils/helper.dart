@@ -4,13 +4,12 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:flutter/material.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 
+/// Small app-wide helpers: toasts, a loader, and the locally stored
+/// sidebar / module-access preferences.
 class Helper {
-  /// Shows [msg] as a toast in the corner of the window.
-  ///
-  /// Kept its name and its `isSuccess` flag because 130-odd call sites use
-  /// them. [level] overrides the flag where a message is neither a success
-  /// nor a failure — a completed delete, say, which used to be reported
-  /// red as though it had gone wrong.
+  /// Shows [msg] as a toast in the corner of the window: green when
+  /// [isSuccess], red otherwise. [level] overrides that for messages that
+  /// are neither (e.g. a completed delete is shown as info).
   static Future<void> showSnackBarMessage({
     required String msg,
     required bool isSuccess,
@@ -28,7 +27,8 @@ class Helper {
     AppToast.show(message: msg, level: ToastLevel.info);
   }
 
-   Widget showLoader({Color? color = const Color(0xFF8ADDE1)}) {
+  /// A centred animated loader (hexagon dots) in [color].
+  Widget showLoader({Color? color = const Color(0xFF8ADDE1)}) {
     return Center(
         child: LoadingAnimationWidget.hexagonDots(
       color: color ?? AppColorsInApp.colorLightBlue,
@@ -36,16 +36,11 @@ class Helper {
     ));
   }
 
-  /// Positions within [moduleList] the logged-in teacher may see, read from
-  /// the module list stashed in SharedPreferences at login. Falls back to
-  /// every index (unrestricted) when nothing was stored — covers legacy
-  /// sessions/docs predating module access, and any context where
-  /// [sharedPreferences] hasn't been initialized yet (e.g. widget tests).
   /// Whether the navigation rail was last left collapsed.
   ///
-  /// Guarded like [allowedModuleIndices]: `sharedPreferences` is late-init
-  /// and throws anywhere it hasn't been set up (widget tests included), and
-  /// a remembered rail width is never worth taking a screen down for.
+  /// `sharedPreferences` is late-initialised and throws anywhere it has not
+  /// been set up (widget tests included), so failures read as "not
+  /// collapsed" rather than taking the screen down.
   static bool isSidebarCollapsed() {
     try {
       return sharedPreferences.getBool(sidebarCollapsedPrefsKey) ?? false;
@@ -54,6 +49,7 @@ class Helper {
     }
   }
 
+  /// Remembers whether the navigation rail is collapsed (best effort).
   static void setSidebarCollapsed(bool collapsed) {
     try {
       sharedPreferences.setBool(sidebarCollapsedPrefsKey, collapsed);
@@ -62,6 +58,12 @@ class Helper {
     }
   }
 
+  /// Positions within [moduleList] the signed-in teacher may see, read
+  /// from the module list stored at login.
+  ///
+  /// Falls back to every index (unrestricted) when nothing was stored —
+  /// older sessions/accounts without module access, or when
+  /// [sharedPreferences] is not initialised (e.g. widget tests).
   static List<int> allowedModuleIndices() {
     List<String>? access;
     try {

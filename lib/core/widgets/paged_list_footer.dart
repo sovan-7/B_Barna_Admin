@@ -19,11 +19,16 @@ class PagedListFooter extends StatelessWidget {
   /// that came from a separate query, so the wording changes.
   final bool isSearching;
 
+  /// Whether a "Load more" button should be shown.
   final bool hasMore;
+
+  /// Shows a spinner in the button while the next page loads.
   final bool isLoadingMore;
 
   /// How many the next fetch will add, for the button's label.
   final int pageSize;
+
+  /// Loads the next page.
   final VoidCallback onLoadMore;
 
   const PagedListFooter({
@@ -52,8 +57,7 @@ class PagedListFooter extends StatelessWidget {
                   ? "$shown match${shown == 1 ? '' : 'es'}"
                   : "Showing $shown of $total",
               overflow: TextOverflow.ellipsis,
-              style:
-                  const TextStyle(fontSize: 12.5, color: AppTokens.inkMuted),
+              style: const TextStyle(fontSize: 12.5, color: AppTokens.inkMuted),
             ),
           ),
           const Spacer(),

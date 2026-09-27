@@ -8,14 +8,10 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/session.dart';
 import 'package:flutter/material.dart';
 
-/// The top bar of every page.
-///
-/// It was a flat block of the app's light cyan with white text on it — the
-/// lightest colour in the palette carrying the lightest text, which is the
-/// one pairing guaranteed not to read. It is a white bar with a hairline
-/// under it now; the cyan stays as the brand mark beside the title, where
-/// it has something dark to sit against.
+/// The white top bar of every page: menu button (compact windows only),
+/// brand mark, app name, the current page title, and sign-out.
 class AppHeader extends StatelessWidget {
+  /// Opens the navigation drawer (compact windows).
   Function onTapIcon;
 
   /// Shown next to the app name — the page you are on.
@@ -122,6 +118,7 @@ class AppHeader extends StatelessWidget {
     );
   }
 
+  /// A small square icon button with a tooltip.
   Widget _iconButton({
     required IconData icon,
     required String tooltip,

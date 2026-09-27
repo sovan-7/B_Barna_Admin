@@ -7,7 +7,11 @@ class CustomSearchBar extends StatelessWidget {
   Function onChange;
   Function onClear;
   TextEditingController textEditingController;
-  CustomSearchBar({required this.onChange, required this.onClear,required this.textEditingController, super.key});
+  CustomSearchBar(
+      {required this.onChange,
+      required this.onClear,
+      required this.textEditingController,
+      super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -26,19 +30,20 @@ class CustomSearchBar extends StatelessWidget {
               color: AppColorsInApp.colorGreyWhite,
               size: 25,
             ),
-            suffix:textEditingController.text.isEmpty?const SizedBox():
-             Padding(
-              padding: const EdgeInsets.only(top: 15),
-              child: InkWell(
-                  onTap: () {
-                    onClear();
-                  },
-                  child: const Icon(
-                    Icons.close,
-                    color: AppColorsInApp.colorBlack1,
-                    size: 25,
+            suffix: textEditingController.text.isEmpty
+                ? const SizedBox()
+                : Padding(
+                    padding: const EdgeInsets.only(top: 15),
+                    child: InkWell(
+                        onTap: () {
+                          onClear();
+                        },
+                        child: const Icon(
+                          Icons.close,
+                          color: AppColorsInApp.colorBlack1,
+                          size: 25,
+                        )),
                   )),
-            )),
         onChanged: (value) {
           onChange();
         },

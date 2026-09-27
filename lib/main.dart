@@ -22,6 +22,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Entry point: starts Firebase and local storage, then runs the app with
+/// every module's view model provided at the top of the tree (so lists
+/// keep their state while the admin moves between modules).
+///
+/// If start-up fails, a plain error screen is shown instead.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -43,6 +48,7 @@ void main() async {
     return;
   }
 
+  // One view model per module, shared by its list and Add/Edit screens.
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => QuestionViewModel()),
@@ -64,7 +70,9 @@ void main() async {
   ));
 }
 
+/// Minimal app shown when Firebase or local storage failed to start.
 class InitializationErrorApp extends StatelessWidget {
+  /// What went wrong, shown on screen.
   final Object error;
 
   const InitializationErrorApp({super.key, required this.error});
@@ -97,6 +105,8 @@ class InitializationErrorApp extends StatelessWidget {
   }
 }
 
+/// The admin panel: opens the module shell ([Sidebar]) when a session
+/// exists, otherwise the [LoginScreen].
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 

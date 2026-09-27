@@ -1,12 +1,9 @@
 import 'package:bbarna/login/model/login_result.dart';
 import 'package:bbarna/resources/constant.dart';
 
-/// The signed-in admin's session.
-///
-/// A session here is just the teacher document id `LoginScreen` stashes in
-/// SharedPreferences, plus the module list that came with it. Both were
-/// read and written as bare string literals from three different files;
-/// they go through here now, so signing out cannot miss one.
+/// The signed-in admin's session: the teacher document id and their module
+/// list, both kept in SharedPreferences. All reads and writes of those keys
+/// go through here so signing in and out always handle both.
 class Session {
   const Session._();
 
@@ -23,13 +20,11 @@ class Session {
     }
   }
 
+  /// Whether someone is signed in.
   static bool get isSignedIn => adminId != null;
 
-  /// Starts a session for the user [result] identifies.
-  ///
-  /// The counterpart to [signOut] — both keys are written here, so neither
-  /// can be forgotten on the way in or left behind on the way out. The
-  /// login screen used to write them itself, inline in a button callback.
+  /// Starts a session for the user [result] identifies (writes both keys;
+  /// the counterpart of [signOut]).
   static Future<void> signIn(LoginResult result) async {
     try {
       await sharedPreferences.setString(adminIdPrefsKey, result.adminId);

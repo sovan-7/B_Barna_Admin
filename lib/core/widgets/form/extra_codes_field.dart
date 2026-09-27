@@ -29,7 +29,10 @@ class ExtraCodesField extends StatelessWidget {
   /// False while saving.
   final bool enabled;
 
+  /// Adds an empty code box.
   final VoidCallback onAdd;
+
+  /// Removes (and disposes) the box at the given index.
   final ValueChanged<int> onRemove;
 
   const ExtraCodesField({

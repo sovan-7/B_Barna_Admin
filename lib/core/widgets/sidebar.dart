@@ -18,13 +18,11 @@ import 'package:bbarna/topic/screen/topic_list.dart';
 import 'package:bbarna/units/screen/unit_list.dart';
 import 'package:bbarna/utils/helper.dart';
 
-/// The app shell: a fixed navigation rail beside the selected module.
-///
-/// The rail used to be `Expanded(flex: 1)` against `Expanded(flex: 5)` for
-/// the content — a ratio, so it was 183px on a laptop and 320px on a 27"
-/// monitor, never the width it actually wanted. It is a fixed width now,
-/// and every extra pixel of a wider window goes to the content instead.
+/// The app shell: a fixed-width navigation rail (collapsible to icons)
+/// beside the selected module's list screen. Below
+/// [AppTokens.compactBreakpoint] the rail moves into a drawer.
 class Sidebar extends StatefulWidget {
+  /// Module to open first (index into [moduleList]).
   final int sidebarIndex;
   const Sidebar({required this.sidebarIndex, super.key});
 
@@ -33,11 +31,16 @@ class Sidebar extends StatefulWidget {
 }
 
 class _SidebarState extends State<Sidebar> {
+  /// Lets the header's menu button open the drawer.
   final GlobalKey<ScaffoldState> key = GlobalKey();
 
+  /// The module currently shown.
   int selectedIndex = 0;
+
+  /// Whether the rail is reduced to icons.
   bool _collapsed = false;
 
+  /// One list screen per module, index-aligned with [moduleList].
   List<Widget> screenList = [
     const BannerList(),
     const CourseList(),
@@ -61,6 +64,7 @@ class _SidebarState extends State<Sidebar> {
     super.initState();
   }
 
+  /// Collapses / expands the rail and remembers the choice.
   void _toggleCollapsed() {
     setState(() => _collapsed = !_collapsed);
     // Remembered so the choice survives the pushReplacement that every
@@ -126,7 +130,10 @@ class _SidebarState extends State<Sidebar> {
 /// Selecting a module here leaves the current screen for [Sidebar], since
 /// those pages have no content area of their own to swap.
 class ExtraSideBar extends StatelessWidget {
+  /// Module to highlight.
   final int sidebarIndex;
+
+  /// Set when shown right after login.
   final bool isFromLogin;
   const ExtraSideBar(
       {required this.sidebarIndex, this.isFromLogin = false, super.key});
@@ -151,11 +158,12 @@ class ExtraSideBar extends StatelessWidget {
 /// The navigation itself — brand mark, grouped module list, and (when the
 /// host offers one) a collapse toggle.
 ///
-/// [Sidebar] and [ExtraSideBar] used to each carry their own copy of this,
-/// hand-synchronised, which is exactly how the two drifted apart before.
-/// There is one implementation now and both render it.
+/// Shared by [Sidebar] and [ExtraSideBar] so the two always match.
 class SidebarNav extends StatelessWidget {
+  /// Highlighted module.
   final int selectedIndex;
+
+  /// Called with the tapped module's index.
   final ValueChanged<int> onSelect;
 
   /// When null the rail sizes itself to whatever box it is given and drops
@@ -164,6 +172,8 @@ class SidebarNav extends StatelessWidget {
   /// hand it. When non-null the host is driving the width and the collapse
   /// toggle is shown.
   final bool? collapsed;
+
+  /// Collapses / expands the rail (host-driven mode only).
   final VoidCallback? onToggleCollapsed;
 
   const SidebarNav({
@@ -189,13 +199,12 @@ class SidebarNav extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 160),
       curve: Curves.easeOut,
-      width: collapsed!
-          ? AppTokens.railCollapsedWidth
-          : AppTokens.railWidth,
+      width: collapsed! ? AppTokens.railCollapsedWidth : AppTokens.railWidth,
       child: _body(isCollapsed: collapsed!),
     );
   }
 
+  /// Brand mark and the modules this user may open, grouped.
   Widget _body({required bool isCollapsed}) {
     final List<int> allowed = Helper.allowedModuleIndices();
 
@@ -297,6 +306,7 @@ class SidebarNav extends StatelessWidget {
     );
   }
 
+  /// The « / » button at the bottom of the rail.
   Widget _collapseToggle(bool isCollapsed) {
     return Tooltip(
       message: isCollapsed ? "Expand sidebar" : "Collapse sidebar",
@@ -320,8 +330,8 @@ class SidebarNav extends StatelessWidget {
               if (!isCollapsed) ...[
                 const SizedBox(width: 11),
                 const Text("Collapse",
-                    style: TextStyle(
-                        fontSize: 12.5, color: AppTokens.inkFaint)),
+                    style:
+                        TextStyle(fontSize: 12.5, color: AppTokens.inkFaint)),
               ],
             ],
           ),

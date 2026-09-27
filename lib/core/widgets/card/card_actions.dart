@@ -37,12 +37,16 @@ class CardActions extends StatelessWidget {
 
 /// A small tappable icon with a tooltip, used for card actions.
 class CardIconButton extends StatelessWidget {
+  /// The icon shown.
   final IconData icon;
 
   /// Shown on hover, e.g. "Edit PDF".
   final String tooltip;
 
+  /// Icon colour.
   final Color color;
+
+  /// Runs when tapped.
   final VoidCallback onTap;
 
   /// Key on the tappable [InkWell] (tests tap through it).
@@ -78,7 +82,11 @@ class CardIconButton extends StatelessWidget {
 class CardEditButton extends StatelessWidget {
   /// Hover text, e.g. "Edit PDF".
   final String tooltip;
+
+  /// Opens the edit screen.
   final VoidCallback onTap;
+
+  /// Key on the tappable [InkWell] (tests tap through it).
   final Key? buttonKey;
 
   const CardEditButton(
@@ -100,7 +108,11 @@ class CardEditButton extends StatelessWidget {
 class CardDeleteButton extends StatelessWidget {
   /// Hover text, e.g. "Delete PDF".
   final String tooltip;
+
+  /// Starts the delete (usually with a confirmation).
   final VoidCallback onTap;
+
+  /// Key on the tappable [InkWell] (tests tap through it).
   final Key? buttonKey;
 
   const CardDeleteButton(

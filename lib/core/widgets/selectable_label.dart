@@ -12,9 +12,16 @@ import 'package:flutter/material.dart';
 /// `TextStyle.overflow` here. That keeps the row height and the ellipsis
 /// identical to the [Text] each call site replaced.
 class SelectableLabel extends StatelessWidget {
+  /// The text.
   final String data;
+
+  /// Text style.
   final TextStyle? style;
+
+  /// Lines before it is cut off.
   final int maxLines;
+
+  /// Horizontal alignment.
   final TextAlign? textAlign;
 
   const SelectableLabel(

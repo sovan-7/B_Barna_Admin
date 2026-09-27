@@ -1,15 +1,12 @@
 import 'package:bbarna/resources/constant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Which Firestore array on the topic document holds a kind of content, and
-/// where the codes in it point.
-///
-/// The four content lists were four copy-pasted blocks in the details
-/// screen, each writing a hard-coded field name through a raw
-/// `FirebaseFirestore.instance` call. Naming them once means the screen,
-/// the view model and the repo cannot drift apart on a spelling.
+/// A kind of content a topic can have attached (video, audio, PDF, quiz),
+/// with the Firestore names for each defined once in [ContentKindData] so
+/// the screen, view model and repo always agree on them.
 enum ContentKind { video, audio, pdf, quiz }
 
+/// Firestore names and UI labels for each [ContentKind].
 extension ContentKindData on ContentKind {
   /// The array field on the topic document.
   String get field => switch (this) {
@@ -44,6 +41,7 @@ extension ContentKindData on ContentKind {
         ContentKind.quiz => "quiz_name",
       };
 
+  /// Capitalised label, e.g. "Video".
   String get label => switch (this) {
         ContentKind.video => "Video",
         ContentKind.audio => "Audio",
@@ -57,24 +55,60 @@ extension ContentKindData on ContentKind {
       this == ContentKind.pdf ? "PDF" : label.toLowerCase();
 }
 
+/// A topic (`topic` collection): sits under a unit (and optionally more,
+/// see [unitCodeList]); videos, audio, PDFs and quizzes are attached to it
+/// by code.
 class TopicModel {
+  /// Firestore document id (not stored inside the document).
   String docId = stringDefault;
+
+  /// Topic code, stored upper-case (`topic_code`).
   String code = stringDefault;
+
+  /// Creation time in epoch milliseconds (`timeStamp`).
   int timeStamp = intDefault;
+
+  /// Display name (`topic_name`).
   String name = stringDefault;
+
+  /// Course name, copied for display (`course_name`).
   String courseName = stringDefault;
+
+  /// Course code (`course_code`).
   String courseCode = stringDefault;
+
+  /// Subject name, copied for display (`subject_name`).
   String subjectName = stringDefault;
+
+  /// Subject code (`subject_code`).
   String subjectCode = stringDefault;
+
+  /// Main unit name, copied for display (`unit_name`).
   String unitName = stringDefault;
+
+  /// Main unit code (`unit_code`).
   String unitCode = stringDefault;
+
+  /// Sort order in the app; lower comes first (`display_priority`).
   int displayPriority = intDefault;
+
+  /// Attached audio codes (`audio_code_list`).
   List<String> audioCodeList = [];
+
+  /// Attached quiz codes (`quiz_code_list`).
   List<String> quizCodeList = [];
+
+  /// Attached video codes (`video_code_list`).
   List<String> videoCodeList = [];
+
+  /// Attached PDF codes (`pdf_code_list`).
   List<String> pdfCodeList = [];
+
+  /// Every unit code the topic appears under, including its main one
+  /// (`unitCodeList`).
   List<String> unitCodeList = [];
 
+  /// Creates a topic from the Add/Edit form values (no attached content).
   TopicModel(
       this.code,
       this.name,
@@ -96,6 +130,7 @@ class TopicModel {
         ContentKind.quiz => quizCodeList,
       };
 
+  /// Replaces the in-memory codes for one kind of content.
   void setContentCodes(ContentKind kind, List<String> codes) {
     switch (kind) {
       case ContentKind.video:
@@ -141,6 +176,8 @@ class TopicModel {
     };
   }
 
+  /// Reads a Firestore document; missing fields fall back to the
+  /// `*Default` placeholders from `constant.dart`.
   TopicModel.fromDocumentSnapshot(DocumentSnapshot<Map<String, dynamic>> doc)
       : docId = doc.id,
         code = doc.data()!["topic_code"] ?? stringDefault,
