@@ -31,6 +31,7 @@ class CourseCard extends StatefulWidget {
 }
 
 class _CourseCardState extends State<CourseCard> {
+  /// Shortcut for the item shown.
   CourseModel get _data => widget.courseData;
 
   @override

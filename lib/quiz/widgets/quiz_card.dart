@@ -28,6 +28,7 @@ class QuizCard extends StatefulWidget {
 }
 
 class _QuizCardState extends State<QuizCard> {
+  /// Shortcut for the item shown.
   QuizModel get _data => widget.quizData;
 
   @override
@@ -245,6 +246,7 @@ String formatDuration(int minutes) {
   return "${hours}h ${rest}m";
 }
 
+/// Accent colour for a quiz status (LIVE / UPCOMING / PENDING).
 Color statusColor(String status) {
   switch (status.toUpperCase()) {
     case "LIVE":
@@ -258,6 +260,7 @@ Color statusColor(String status) {
   }
 }
 
+/// Icon for a quiz status (LIVE / UPCOMING / PENDING).
 IconData statusIcon(String status) {
   switch (status.toUpperCase()) {
     case "LIVE":

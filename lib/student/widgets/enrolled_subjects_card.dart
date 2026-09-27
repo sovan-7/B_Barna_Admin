@@ -36,6 +36,7 @@ class _EnrolledSubjectsCardState extends State<EnrolledSubjectsCard> {
   /// the end date (each row toggles on its own).
   final Set<String> _showingRemaining = {};
 
+  /// Shortcut for the view model.
   StudentViewModel get _viewModel => widget.studentViewModel;
 
   @override
@@ -219,6 +220,7 @@ class _EmptyEnrolments extends StatelessWidget {
 
 /// "3 units" pill; red "No units" when the enrolment covers none.
 class _UnitCountChip extends StatelessWidget {
+  /// Number of units enrolled.
   final int units;
 
   const _UnitCountChip({required this.units});
@@ -259,6 +261,7 @@ class _UnitCountChip extends StatelessWidget {
 /// Validity pill: green end date (or time left), red once expired, grey
 /// "No end date" when there is none. Tapping swaps date ↔ time left.
 class _ValidityChip extends StatelessWidget {
+  /// The enrolled subject.
   final EnrolledCourseModel course;
 
   /// Show the time left instead of the end date.

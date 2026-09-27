@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 ///
 /// Every method throws on failure; [QuizViewModel] catches and reports.
 class QuizRepo {
+  /// Firestore client.
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
 
   /// The `quiz` collection.

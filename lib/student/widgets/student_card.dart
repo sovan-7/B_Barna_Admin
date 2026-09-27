@@ -32,8 +32,10 @@ class StudentCard extends StatefulWidget {
 }
 
 class _StudentCardState extends State<StudentCard> {
+  /// Shortcut for the item shown.
   Student get _data => widget.student;
 
+  /// Device count as an int (the stored value may be a string).
   int get _deviceCount {
     final dynamic count = _data.deviceCount;
     if (count is int) return count;
@@ -148,6 +150,7 @@ class _StudentCardState extends State<StudentCard> {
     );
   }
 
+  /// [value], or [fallback] when it is blank or the "NA" placeholder.
   static String _value(String value, String fallback) =>
       value.trim().isEmpty || value == stringDefault ? fallback : value;
 

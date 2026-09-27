@@ -60,7 +60,10 @@ class CouponNote extends StatelessWidget {
 /// A grey rounded box with an icon and a line of bold grey text, spaced
 /// below the field above it.
 class _NoteBox extends StatelessWidget {
+  /// Leading icon.
   final IconData icon;
+
+  /// The note.
   final String text;
 
   const _NoteBox({required this.icon, required this.text});
@@ -99,6 +102,7 @@ class _NoteBox extends StatelessWidget {
 /// "Valid till" for the coupon: a tappable box showing the chosen date
 /// (or a prompt), with a clear (×) button once a date is set.
 class CouponValidTillField extends StatelessWidget {
+  /// Format of the chosen date.
   static final DateFormat _format = DateFormat("d MMM yyyy");
 
   /// The last day the coupon works, or null.

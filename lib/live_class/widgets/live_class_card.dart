@@ -32,8 +32,10 @@ class LiveClassCard extends StatefulWidget {
 }
 
 class _LiveClassCardState extends State<LiveClassCard> {
+  /// True while the pointer is over it.
   bool _hovered = false;
 
+  /// Shortcut for the item shown.
   LiveClassModel get _data => widget.liveClassData;
 
   @override
@@ -193,6 +195,7 @@ class _LiveClassCardState extends State<LiveClassCard> {
     );
   }
 
+  /// A small grey detail pill (subject, teacher, …).
   Widget _chip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

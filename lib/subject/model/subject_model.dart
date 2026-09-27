@@ -60,7 +60,11 @@ class SubjectModel {
   /// are included in [toMap]; a subject with no coupon writes the NA/-1
   /// defaults for each.
   String couponCode = stringDefault;
+
+  /// Flat rupee discount off [sellingPrice] (`couponDiscount`).
   double couponDiscount = doubleDefault;
+
+  /// Last moment the coupon works, epoch millis (`couponValidTill`).
   int couponValidTill = intDefault;
 
   /// Creates a subject from the Add/Edit form values.

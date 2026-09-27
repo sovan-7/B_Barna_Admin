@@ -8,15 +8,25 @@ class LiveClassDropdownField extends StatelessWidget {
   /// Key on the inner [DropdownButton] (tests open it through this).
   final Key dropdownKey;
 
+  /// Text above the box.
   final String label;
 
   /// Shown while nothing is selected.
   final String hint;
 
+  /// The selected option, or null.
   final String? value;
+
+  /// The options.
   final List<String> items;
+
+  /// Icon shown before every option.
   final IconData icon;
+
+  /// Validation message; turns the border red.
   final String? error;
+
+  /// Called with the chosen option.
   final ValueChanged<String?> onChanged;
 
   const LiveClassDropdownField({
@@ -106,7 +116,10 @@ class LiveClassPickerField extends StatelessWidget {
   /// Key on the tappable box (tests tap it).
   final Key fieldKey;
 
+  /// Text above the box.
   final String label;
+
+  /// Leading icon (calendar or clock).
   final IconData icon;
 
   /// The chosen value, formatted, or a prompt.
@@ -115,7 +128,10 @@ class LiveClassPickerField extends StatelessWidget {
   /// Whether a value has been chosen.
   final bool isSet;
 
+  /// Validation message; turns the border red.
   final String? error;
+
+  /// Opens the picker.
   final VoidCallback onTap;
 
   const LiveClassPickerField({
@@ -192,8 +208,13 @@ class LiveClassPickerField extends StatelessWidget {
 
 /// A rounded quick-pick chip ("Tomorrow", "60 min"), tinted when selected.
 class LiveClassChoiceChip extends StatelessWidget {
+  /// Chip text.
   final String label;
+
+  /// Whether this chip is the current choice.
   final bool selected;
+
+  /// Applies this choice.
   final VoidCallback onTap;
 
   /// False greys the label and ignores taps.
@@ -251,7 +272,10 @@ class LiveClassScheduleSummary extends StatelessWidget {
   /// The class as it would be saved (for its status and schedule text).
   final LiveClassModel preview;
 
+  /// Start date-time.
   final DateTime start;
+
+  /// End date-time.
   final DateTime end;
 
   const LiveClassScheduleSummary({

@@ -32,10 +32,13 @@ class _TeacherCardState extends State<TeacherCard> {
   /// How many module chips to show before collapsing the rest into a count.
   static const int _visibleModules = 4;
 
+  /// Shortcut for the item shown.
   TeacherModel get _data => widget.teacherData;
 
+  /// Whether this teacher has the Admin role.
   bool get _isAdmin => _data.role == roleAdmin;
 
+  /// Amber for Admin, blue for Subadmin.
   Color get _roleColor =>
       _isAdmin ? const Color(0xFFB54708) : const Color(0xFF2563EB);
 

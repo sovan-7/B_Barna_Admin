@@ -43,6 +43,7 @@ extension StudentSortField on StudentSort {
 ///
 /// Every method throws on failure; [StudentViewModel] catches and reports.
 class StudentRepo {
+  /// Firestore client.
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// The paging cursor. It is a Firestore [DocumentSnapshot] — a sealed

@@ -3,16 +3,11 @@ import 'package:bbarna/topic/model/topic_model.dart';
 import 'package:bbarna/utils/formatters.dart';
 import 'package:flutter/material.dart';
 
-/// One kind of content attached to a topic — its codes, and what each one
-/// actually resolves to.
-///
-/// This replaces `TopicTable`, which drew a hand-made table out of nested
-/// `Container` borders: a header strip, a 100px cell holding a 40px delete
-/// icon per row, and a footer with "Add more line" and "Save all". It gave
-/// no indication whether a code pointed at anything, and its save handler
-/// popped the navigator twice — closing the loader *and* the page — after
-/// clearing the on-screen rows.
+/// One kind of content attached to a topic (videos, audio, PDFs or
+/// quizzes): an editable list of codes, each showing what it resolves to
+/// (or a warning when nothing has that code), plus "Add a code" and Save.
 class TopicContentSection extends StatefulWidget {
+  /// Which kind of content this section manages.
   final ContentKind kind;
 
   /// The codes currently stored on the topic.
@@ -38,10 +33,16 @@ class TopicContentSection extends StatefulWidget {
 }
 
 class _TopicContentSectionState extends State<TopicContentSection> {
+  /// One controller per code row.
   final List<TextEditingController> _controllers = [];
+
+  /// True while the save is in flight.
   bool _isSaving = false;
+
+  /// True when the rows differ from what is saved.
   bool _dirty = false;
 
+  /// Icon for each kind of content.
   static const Map<ContentKind, IconData> _icons = {
     ContentKind.video: Icons.play_circle_outline,
     ContentKind.audio: Icons.graphic_eq,
@@ -76,6 +77,7 @@ class _TopicContentSectionState extends State<TopicContentSection> {
     return codes;
   }
 
+  /// Saves the current codes; clears [_dirty] only if the write succeeded.
   Future<void> _save() async {
     setState(() => _isSaving = true);
     final bool ok = await widget.onSave(_codes());
@@ -121,6 +123,7 @@ class _TopicContentSectionState extends State<TopicContentSection> {
     );
   }
 
+  /// Kind icon, title and how many codes are attached.
   Widget _header() {
     final int count = _codes().length;
     return Container(
@@ -161,6 +164,7 @@ class _TopicContentSectionState extends State<TopicContentSection> {
     );
   }
 
+  /// Shown when no codes are attached.
   Widget _empty() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 4),
@@ -171,6 +175,7 @@ class _TopicContentSectionState extends State<TopicContentSection> {
     );
   }
 
+  /// One code box with what it points at and a remove button.
   Widget _row(int index) {
     final String code = _controllers[index].text.trim();
 
@@ -276,6 +281,7 @@ class _TopicContentSectionState extends State<TopicContentSection> {
     );
   }
 
+  /// "Add a code" and Save buttons.
   Widget _footer(bool isNarrow) {
     final Widget add = TextButton.icon(
       key: Key('topic_${widget.kind.name}_add'),

@@ -153,6 +153,7 @@ int columnsFor(double width, double tileMinWidth) =>
 
 /// Grey 16:9 placeholder tiles (two rows) shown while banners load.
 class _SkeletonGrid extends StatelessWidget {
+  /// Narrowest a tile may be (decides the column count).
   final double tileMinWidth;
   const _SkeletonGrid({required this.tileMinWidth});
 

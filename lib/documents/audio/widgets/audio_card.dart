@@ -28,6 +28,7 @@ class AudioCard extends StatefulWidget {
 }
 
 class _AudioCardState extends State<AudioCard> {
+  /// Shortcut for the item shown.
   AudioModel get _data => widget.audioData;
 
   @override

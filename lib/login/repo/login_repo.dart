@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart';
 
 /// Firestore access for signing a teacher / admin in.
 class LoginRepo {
+  /// Firestore client.
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
 
   /// Looks up the teacher whose username and password hash both match.

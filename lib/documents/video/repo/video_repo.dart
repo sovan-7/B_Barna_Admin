@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 ///
 /// Every method throws on failure; [VideoViewModel] catches and reports.
 class VideoRepo {
+  /// Firestore client.
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
 
   /// The `video` collection.

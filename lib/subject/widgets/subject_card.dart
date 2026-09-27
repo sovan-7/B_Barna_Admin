@@ -30,6 +30,7 @@ class SubjectCard extends StatefulWidget {
 }
 
 class _SubjectCardState extends State<SubjectCard> {
+  /// Shortcut for the item shown.
   SubjectModel get _data => widget.subjectData;
 
   @override
@@ -201,6 +202,7 @@ class _SubjectCardState extends State<SubjectCard> {
     );
   }
 
+  /// Rupee amount with two decimals, e.g. "₹450.00".
   static String _money(double value) => "₹${value.toStringAsFixed(2)}";
 
   /// Status chips shown beside (or, when compact, under) the identity.
@@ -315,6 +317,7 @@ class _SubjectCardState extends State<SubjectCard> {
     );
   }
 
+  /// "12 Mar 2026" from epoch milliseconds.
   static String _date(int millis) {
     final DateTime d = DateTime.fromMillisecondsSinceEpoch(millis);
     const List<String> months = [

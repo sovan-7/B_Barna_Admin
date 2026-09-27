@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 /// Edit Subject screen — the shared [SubjectForm] pre-populated with
 /// [subjectData]; also offers Delete.
 class EditSubject extends StatelessWidget {
+  /// The item being edited.
   final SubjectModel subjectData;
   const EditSubject({required this.subjectData, super.key});
 

@@ -30,6 +30,7 @@ class TopicCard extends StatefulWidget {
 }
 
 class _TopicCardState extends State<TopicCard> {
+  /// Shortcut for the item shown.
   TopicModel get _data => widget.topicData;
 
   @override
@@ -182,6 +183,7 @@ class _TopicCardState extends State<TopicCard> {
     );
   }
 
+  /// Icon for each kind of attached content.
   static const Map<ContentKind, IconData> _kindIcons = {
     ContentKind.video: Icons.play_circle_outline,
     ContentKind.audio: Icons.graphic_eq,

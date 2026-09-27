@@ -11,7 +11,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 ///
 /// Every method throws on failure; [SubjectViewModel] catches and reports.
 class SubjectRepo {
+  /// Firestore client.
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  /// Root of Firebase Storage; uploads go under it.
   final Reference storageReference = FirebaseStorage.instance.ref();
 
   /// The `subject` collection.

@@ -28,6 +28,7 @@ class VideoCard extends StatefulWidget {
 }
 
 class _VideoCardState extends State<VideoCard> {
+  /// Shortcut for the item shown.
   VideoModel get _data => widget.videoData;
 
   @override

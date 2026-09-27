@@ -13,31 +13,64 @@ class LiveClassTheme {
   const LiveClassTheme._();
 
   // ---- Spacing scale (4pt) -------------------------------------------
+  /// Tiny gap (icon ↔ text).
   static const double gapXs = 4;
+
+  /// Small gap between related items.
   static const double gapSm = 8;
+
+  /// Default gap between fields.
   static const double gapMd = 14;
+
+  /// Gap between blocks.
   static const double gapLg = 20;
+
+  /// Extra space at the end of a page.
   static const double gapXl = 28;
 
   // ---- Radii ----------------------------------------------------------
+  /// Corner radius for chips and small buttons.
   static const double radiusSm = 8;
+
+  /// Corner radius for fields and cards.
   static const double radiusMd = 12;
+
+  /// Corner radius for form sections.
   static const double radiusLg = 16;
+
+  /// Fully rounded ends.
   static const double radiusPill = 999;
 
   /// Cards stop growing at this width; past it the list adds a column
   /// rather than stretching a card to the full width of a 27" monitor.
   static const double cardMaxWidth = 460;
+
+  /// Narrowest a card may get before the grid drops a column.
   static const double cardMinWidth = 340;
 
   // ---- Neutral ramp ---------------------------------------------------
+  /// Page background.
   static const Color canvas = Color(0xFFF5F7FA);
+
+  /// Card / field background.
   static const Color surface = Color(0xFFFFFFFF);
+
+  /// Subtle grey fill.
   static const Color surfaceMuted = Color(0xFFF7F9FB);
+
+  /// Thin borders and dividers.
   static const Color hairline = Color(0xFFE4E8EE);
+
+  /// Primary text.
   static const Color ink = Color(0xFF15181D);
+
+  /// Secondary text and icons.
   static const Color inkMuted = Color(0xFF667085);
+
+  /// Hints and tertiary icons.
   static const Color inkFaint = Color(0xFF98A2B3);
+
+  /// Errors and destructive actions.
   static const Color danger = Color(0xFFD92D20);
 
   /// Two stacked shadows — a tight contact shadow plus a wide soft one — so
@@ -47,6 +80,7 @@ class LiveClassTheme {
     BoxShadow(color: Color(0x0A101828), blurRadius: 14, offset: Offset(0, 6)),
   ];
 
+  /// Stronger shadow for a hovered card.
   static const List<BoxShadow> raisedShadow = [
     BoxShadow(color: Color(0x14101828), blurRadius: 4, offset: Offset(0, 2)),
     BoxShadow(color: Color(0x14101828), blurRadius: 24, offset: Offset(0, 12)),
@@ -66,12 +100,15 @@ class LiveClassTheme {
     }
   }
 
+  /// Light background tint for [status].
   static Color tintFor(LiveClassStatus status) =>
       accentFor(status).withValues(alpha: .10);
 
+  /// Border colour for [status].
   static Color borderFor(LiveClassStatus status) =>
       accentFor(status).withValues(alpha: .28);
 
+  /// Icon for [status].
   static IconData iconFor(LiveClassStatus status) {
     switch (status) {
       case LiveClassStatus.upcoming:
@@ -136,32 +173,49 @@ class LiveClassTheme {
   }
 
   // ---- Type scale -----------------------------------------------------
+  /// Page title.
   static const TextStyle pageTitle = TextStyle(
       fontSize: 22,
       fontWeight: FontWeight.w700,
       letterSpacing: -0.2,
       color: ink);
+
+  /// Line under the page title.
   static const TextStyle pageSubtitle =
       TextStyle(fontSize: 13, height: 1.35, color: inkMuted);
+
+  /// Upper-case section heading.
   static const TextStyle sectionTitle = TextStyle(
       fontSize: 12,
       fontWeight: FontWeight.w700,
       letterSpacing: 0.8,
       color: inkFaint);
+
+  /// Class title on a card.
   static const TextStyle cardTitle = TextStyle(
       fontSize: 15.5,
       fontWeight: FontWeight.w600,
       height: 1.3,
       letterSpacing: -0.1,
       color: ink);
+
+  /// Body text.
   static const TextStyle body =
       TextStyle(fontSize: 13, height: 1.45, color: inkMuted);
+
+  /// Small secondary text.
   static const TextStyle meta =
       TextStyle(fontSize: 12.5, height: 1.3, color: inkMuted);
+
+  /// Small emphasised text (the schedule line).
   static const TextStyle metaStrong = TextStyle(
       fontSize: 12.5, height: 1.3, fontWeight: FontWeight.w600, color: ink);
+
+  /// Label above a form field.
   static const TextStyle fieldLabel = TextStyle(
       fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF344054));
+
+  /// Inline validation message.
   static const TextStyle errorText =
       TextStyle(fontSize: 11.5, height: 1.3, color: danger);
 }
@@ -171,10 +225,19 @@ class LiveClassTheme {
 class LiveClassFormat {
   const LiveClassFormat._();
 
+  /// "12 Mar 2026".
   static final DateFormat date = DateFormat("d MMM yyyy");
+
+  /// "12 Mar".
   static final DateFormat dateShort = DateFormat("d MMM");
+
+  /// "4:30 PM".
   static final DateFormat time = DateFormat("h:mm a");
+
+  /// "12 Mar 2026, 4:30 PM".
   static final DateFormat full = DateFormat("d MMM yyyy, h:mm a");
+
+  /// "Thursday".
   static final DateFormat weekday = DateFormat("EEEE");
 
   /// "12 Mar, 6:00 – 7:30 PM" on one day; both dates spelled out when the
@@ -231,6 +294,7 @@ class LiveClassFormat {
     }
   }
 
+  /// A rough human length: "45 min", "2h 30m", "3 days", "2 weeks"…
   static String _span(Duration d) {
     if (d.inMinutes < 1) return "under a minute";
     if (d.inMinutes < 60) return "${d.inMinutes} min";

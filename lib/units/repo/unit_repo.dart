@@ -13,7 +13,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 ///
 /// Every method throws on failure; [UnitViewModel] catches and reports.
 class UnitRepo {
+  /// Firestore client.
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
+
+  /// Root of Firebase Storage; uploads go under it.
   final Reference storageReference = FirebaseStorage.instance.ref();
 
   /// The `unit` collection.

@@ -1,5 +1,5 @@
-import 'package:bbarna/core/widgets/app_header.dart';
-import 'package:bbarna/core/widgets/sidebar.dart';
+import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/topic/model/topic_model.dart';
@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 /// Everything attached to one topic: its videos, audio, PDFs and quizzes,
 /// one editable section per kind (see [TopicContentSection]).
 class TopicDetails extends StatefulWidget {
+  /// The topic whose content is managed.
   final TopicModel topicData;
   const TopicDetails({required this.topicData, super.key});
 
@@ -20,8 +21,6 @@ class TopicDetails extends StatefulWidget {
 }
 
 class _TopicDetailsState extends State<TopicDetails> {
-  final GlobalKey<ScaffoldState> key = GlobalKey();
-
   /// `code -> title` per kind, so each row can say what it points at.
   /// Absent means "still loading".
   final Map<ContentKind, Map<String, String>> _titles = {};
@@ -32,12 +31,14 @@ class _TopicDetailsState extends State<TopicDetails> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _resolveAll());
   }
 
+  /// Looks up titles for every kind's codes.
   Future<void> _resolveAll() async {
     for (final ContentKind kind in ContentKind.values) {
       await _resolve(kind, widget.topicData.contentCodes(kind));
     }
   }
 
+  /// Looks up which of [codes] exist and stores their titles.
   Future<void> _resolve(ContentKind kind, List<String> codes) async {
     if (!mounted) return;
     final TopicViewModel topicViewModel =
@@ -48,6 +49,7 @@ class _TopicDetailsState extends State<TopicDetails> {
     setState(() => _titles[kind] = resolved);
   }
 
+  /// Saves one kind's codes, then re-checks what they point at.
   Future<bool> _save(TopicViewModel topicViewModel, ContentKind kind,
       List<String> codes) async {
     final bool ok =
@@ -63,75 +65,38 @@ class _TopicDetailsState extends State<TopicDetails> {
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    final bool isCompact = width < AppTokens.compactBreakpoint;
-
-    return Scaffold(
-      key: key,
-      backgroundColor: AppTokens.canvas,
-      body: PopScope(
-        canPop: true,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-        },
-        child: Column(
-          children: [
-            AppHeader(
-              onTapIcon: () => key.currentState?.openDrawer(),
-              title: "Topics",
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  if (!isCompact)
-                    const Expanded(child: ExtraSideBar(sidebarIndex: 4)),
-                  Expanded(
-                    flex: 5,
-                    child: Consumer<TopicViewModel>(
-                      builder: (context, topicViewModel, child) =>
-                          _page(topicViewModel, width),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return AdminFormScaffold(
+      headerTitle: "Topics",
+      sidebarIndex: 4,
+      body: (context, width) => Consumer<TopicViewModel>(
+        builder: (context, topicViewModel, child) =>
+            _page(topicViewModel, width),
       ),
-      drawer:
-          isCompact ? const Drawer(child: ExtraSideBar(sidebarIndex: 4)) : null,
     );
   }
 
+  /// Header, then one [TopicContentSection] per kind of content.
   Widget _page(TopicViewModel topicViewModel, double width) {
-    return SingleChildScrollView(
-      padding:
-          EdgeInsets.symmetric(horizontal: width < 700 ? 16 : 32, vertical: 24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _pageHeader(),
-              const SizedBox(height: AppTokens.gapLg),
-              for (final ContentKind kind in ContentKind.values)
-                TopicContentSection(
-                  // Keyed by kind so each section keeps its own rows.
-                  key: ValueKey(kind),
-                  kind: kind,
-                  initialCodes: widget.topicData.contentCodes(kind),
-                  titles: _titles[kind],
-                  onSave: (codes) => _save(topicViewModel, kind, codes),
-                ),
-              const SizedBox(height: AppTokens.gapLg),
-            ],
+    return FormPageBody(
+      width: width,
+      children: [
+        _pageHeader(),
+        const SizedBox(height: AppTokens.gapLg),
+        for (final ContentKind kind in ContentKind.values)
+          TopicContentSection(
+            // Keyed by kind so each section keeps its own rows.
+            key: ValueKey(kind),
+            kind: kind,
+            initialCodes: widget.topicData.contentCodes(kind),
+            titles: _titles[kind],
+            onSave: (codes) => _save(topicViewModel, kind, codes),
           ),
-        ),
-      ),
+        const SizedBox(height: AppTokens.gapLg),
+      ],
     );
   }
 
+  /// Back button, title and subtitle at the top of the page.
   Widget _pageHeader() {
     final TopicModel data = widget.topicData;
     String or(String value, String fallback) =>
@@ -140,7 +105,7 @@ class _TopicDetailsState extends State<TopicDetails> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _backButton(),
+        FormBackButton(onTap: () => Navigator.pop(context)),
         const SizedBox(width: AppTokens.gapMd),
         Expanded(
           child: Column(
@@ -188,26 +153,6 @@ class _TopicDetailsState extends State<TopicDetails> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _backButton() {
-    return Material(
-      color: AppTokens.surface,
-      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-      child: InkWell(
-        onTap: () => Navigator.pop(context),
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        child: Container(
-          height: 38,
-          width: 38,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(color: AppTokens.hairline),
-          ),
-          child: const Icon(Icons.arrow_back, size: 18, color: AppTokens.ink),
-        ),
-      ),
     );
   }
 }

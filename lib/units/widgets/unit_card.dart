@@ -29,6 +29,7 @@ class UnitCard extends StatefulWidget {
 }
 
 class _UnitCardState extends State<UnitCard> {
+  /// Shortcut for the item shown.
   UnitModel get _data => widget.unitData;
 
   @override

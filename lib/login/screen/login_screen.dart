@@ -19,19 +19,22 @@ class LoginScreen extends StatefulWidget {
 enum _Field { username, password }
 
 class _LoginScreenState extends State<LoginScreen> {
+  /// Text of the username field.
   final TextEditingController userNameController = TextEditingController();
+
+  /// Text of the password field.
   final TextEditingController passwordController = TextEditingController();
+
+  /// Focus of the username field (Enter moves to the password).
   final FocusNode userNameFocus = FocusNode();
+
+  /// Focus of the password field.
   final FocusNode passwordFocus = FocusNode();
 
-  /// Obscured to begin with.
-  ///
-  /// The shared `CustomTextField` passed this straight to `obscureText`
-  /// under the name `passwordVisible`, so the flag meant the opposite of
-  /// what it read as: the login screen started with the password on show
-  /// in plain text, and the eye button hid it.
+  /// Whether the password is hidden (it starts hidden).
   bool _obscure = true;
 
+  /// Inline error per field.
   final Map<_Field, String> _errors = <_Field, String>{};
 
   @override
@@ -43,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  /// Both fields must be filled in.
   Map<_Field, String> _validate() {
     final Map<_Field, String> errors = <_Field, String>{};
     if (userNameController.text.trim().isEmpty) {
@@ -54,6 +58,8 @@ class _LoginScreenState extends State<LoginScreen> {
     return errors;
   }
 
+  /// Validates, signs in, and on success replaces the login screen with the
+  /// app shell.
   Future<void> _submit(LoginViewModel loginViewModel) async {
     final Map<_Field, String> errors = _validate();
     setState(() {
@@ -105,6 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  /// The scrollable sign-in form: brand, heading, fields, error and button.
   Widget _form(LoginViewModel loginViewModel, bool isCompact) {
     // Always scrollable, so the button stays reachable on short windows.
     return SafeArea(
@@ -160,9 +167,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // ---- Fields ---------------------------------------------------------
 
+  /// Label above each field.
   static const TextStyle _labelStyle = TextStyle(
       fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF344054));
 
+  /// Username box (Enter moves to the password).
   Widget _usernameField(LoginViewModel loginViewModel) {
     return _field(
       key: const Key('login_username'),
@@ -179,6 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  /// Password box with a show/hide button (Enter submits).
   Widget _passwordField(LoginViewModel loginViewModel) {
     return _field(
       key: const Key('login_password'),
@@ -212,12 +222,14 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  /// Clears one field's error and the sign-in error as the user types.
   void _clearError(_Field field, LoginViewModel loginViewModel) {
     loginViewModel.clearError();
     if (!_errors.containsKey(field)) return;
     setState(() => _errors.remove(field));
   }
 
+  /// A labelled text box used by both fields.
   Widget _field({
     required Key key,
     required String label,
@@ -309,6 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  /// "Sign in" button; shows a spinner while signing in.
   Widget _submitButton(LoginViewModel loginViewModel) {
     return SizedBox(
       height: 46,
@@ -394,6 +407,7 @@ class _BrandPanel extends StatelessWidget {
 
 /// The same rounded "B" the app header uses, so the two read as one app.
 class _BrandMark extends StatelessWidget {
+  /// Width and height of the mark.
   final double size;
   const _BrandMark({required this.size});
 

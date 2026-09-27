@@ -7,7 +7,10 @@ import 'package:html_editor_enhanced/html_editor.dart';
 
 /// A labelled rich-text field: the label, the editor, and an error line.
 class QuestionRichField extends StatelessWidget {
+  /// Text above the editor.
   final String label;
+
+  /// The editor's controller (owned by the form).
   final HtmlEditorController controller;
 
   /// The HTML the editor opens with.
@@ -22,7 +25,11 @@ class QuestionRichField extends StatelessWidget {
   /// Shown under the label — what this field is for, when that is not
   /// obvious from two words.
   final String? hint;
+
+  /// Validation message under the editor.
   final String? error;
+
+  /// Editor height in pixels.
   final double height;
 
   /// Marks the field as the correct answer. Only the option fields use it.

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 /// Edit Video screen — the shared [VideoForm] pre-populated with
 /// [videoData]; also offers Delete.
 class EditVideo extends StatelessWidget {
+  /// The item being edited.
   final VideoModel videoData;
   const EditVideo({required this.videoData, super.key});
 

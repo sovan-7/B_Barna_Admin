@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 /// Edit PDF screen — the shared [PdfForm] pre-populated with [pdfData];
 /// also offers Delete.
 class EditPdf extends StatelessWidget {
+  /// The item being edited.
   final PdfModel pdfData;
   const EditPdf({required this.pdfData, super.key});
 

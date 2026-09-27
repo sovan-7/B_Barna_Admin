@@ -549,8 +549,13 @@ class _SkeletonCard extends StatelessWidget {
 /// are different problems, and only one of them is fixed by scheduling a
 /// class — so only that one offers the button.
 class _EmptyState extends StatelessWidget {
+  /// The tab the empty state is for.
   final LiveClassStatus status;
+
+  /// True when a search is active.
   final bool isFiltered;
+
+  /// Opens the Add Class form.
   final VoidCallback onSchedule;
 
   const _EmptyState(

@@ -35,6 +35,7 @@ class LiveClassSubject {
 /// Every method throws on failure; [LiveClassViewModel] catches and
 /// reports.
 class LiveClassRepo {
+  /// Firestore client.
   final FirebaseFirestore _fireStore;
 
   LiveClassRepo({FirebaseFirestore? firestore})

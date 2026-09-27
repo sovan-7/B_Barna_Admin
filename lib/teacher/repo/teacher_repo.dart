@@ -9,6 +9,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 /// Thrown by [TeacherRepo.addTeacher] when a teacher with the same
 /// username (document id) already exists.
 class UsernameTakenException implements Exception {
+  /// The username that was already taken.
   final String username;
   UsernameTakenException(this.username);
 
@@ -22,7 +23,10 @@ class UsernameTakenException implements Exception {
 /// Firestore and Storage are injectable so the repo itself can be unit
 /// tested with fakes.
 class TeacherRepo {
+  /// Firestore client.
   final FirebaseFirestore _firestore;
+
+  /// Firebase Storage client.
   final FirebaseStorage _storage;
 
   TeacherRepo({FirebaseFirestore? firestore, FirebaseStorage? storage})

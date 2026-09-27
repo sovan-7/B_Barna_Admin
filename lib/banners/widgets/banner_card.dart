@@ -13,6 +13,8 @@ class BannerCard extends StatefulWidget {
   /// order the app shows them in, and there is otherwise nothing on screen
   /// that says so.
   final int position;
+
+  /// Asks to delete this banner.
   final VoidCallback onDelete;
 
   const BannerCard({
@@ -27,6 +29,7 @@ class BannerCard extends StatefulWidget {
 }
 
 class _BannerCardState extends State<BannerCard> {
+  /// True while the pointer is over it.
   bool _hovered = false;
 
   @override

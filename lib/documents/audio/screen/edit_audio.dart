@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 /// Edit Audio screen — the shared [AudioForm] pre-populated with
 /// [audioData]; also offers Delete.
 class EditAudio extends StatelessWidget {
+  /// The item being edited.
   final AudioModel audioData;
   const EditAudio({required this.audioData, super.key});
 

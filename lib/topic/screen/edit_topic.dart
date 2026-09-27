@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 /// [topicData]; also offers Delete and a way through to the content it
 /// holds.
 class EditTopic extends StatelessWidget {
+  /// The item being edited.
   final TopicModel topicData;
   const EditTopic({required this.topicData, super.key});
 

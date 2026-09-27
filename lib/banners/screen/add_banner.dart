@@ -1,9 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:bbarna/banners/viewModel/banners_view_model.dart';
-import 'package:bbarna/core/widgets/app_header.dart';
-import 'package:bbarna/core/widgets/sidebar.dart';
+import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/form_action_bar.dart';
+import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/resources/app_tokens.dart';
+import 'package:bbarna/utils/formatters.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -20,13 +22,19 @@ class AddBanner extends StatefulWidget {
 }
 
 class _AddBannerState extends State<AddBanner> {
-  final GlobalKey<ScaffoldState> key = GlobalKey();
-
+  /// The picked image, not uploaded yet.
   Uint8List? selectedImageBytes;
+
+  /// File name of the picked image.
   String imageName = "";
+
+  /// True while uploading; disables every control.
   bool _isSaving = false;
+
+  /// Shown when Save is pressed with no image chosen.
   String? _error;
 
+  /// Opens the file picker for an image.
   Future<void> _pickImage() async {
     final FilePickerResult? picked =
         await FilePicker.platform.pickFiles(type: FileType.image);
@@ -39,6 +47,7 @@ class _AddBannerState extends State<AddBanner> {
     });
   }
 
+  /// Uploads the banner and closes the page on success.
   Future<void> _onSave(BannersViewModel bannersViewModel) async {
     final Uint8List? image = selectedImageBytes;
     if (image == null) {
@@ -68,110 +77,40 @@ class _AddBannerState extends State<AddBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    final bool isCompact = width < AppTokens.compactBreakpoint;
-
-    return Scaffold(
-      key: key,
-      backgroundColor: AppTokens.canvas,
-      body: PopScope(
-        canPop: true,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-        },
-        child: Column(children: [
-          AppHeader(
-            onTapIcon: () => key.currentState?.openDrawer(),
-            title: "Banners",
-          ),
-          Expanded(
-            child: Row(children: [
-              if (!isCompact)
-                const Expanded(child: ExtraSideBar(sidebarIndex: 0)),
-              Expanded(
-                flex: 5,
-                child: Consumer<BannersViewModel>(
-                  builder: (context, bannersViewModel, child) =>
-                      _page(bannersViewModel, width),
-                ),
-              ),
-            ]),
-          ),
-        ]),
+    return AdminFormScaffold(
+      headerTitle: "Banners",
+      sidebarIndex: 0,
+      body: (context, width) => Consumer<BannersViewModel>(
+        builder: (context, bannersViewModel, child) =>
+            _page(bannersViewModel, width),
       ),
-      drawer:
-          isCompact ? const Drawer(child: ExtraSideBar(sidebarIndex: 0)) : null,
     );
   }
 
+  /// Header and the upload card, with the action bar below.
   Widget _page(BannersViewModel bannersViewModel, double width) {
-    return Column(
+    return FormPageBody(
+      width: width,
+      maxWidth: 640,
+      actionBar: _actionBar(bannersViewModel, width),
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: width < 700 ? 16 : 32, vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 640),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _pageHeader(),
-                    const SizedBox(height: AppTokens.gapLg),
-                    _card(),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        _actionBar(bannersViewModel, width),
+        _pageHeader(),
+        const SizedBox(height: AppTokens.gapLg),
+        _card(),
       ],
     );
   }
 
+  /// Back button, title and subtitle at the top of the page.
   Widget _pageHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _backButton(),
-        const SizedBox(width: AppTokens.gapMd),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("Add a banner", style: AppTokens.pageTitle),
-              SizedBox(height: 3),
-              Text("It appears on the app's home screen carousel.",
-                  style: AppTokens.pageSubtitle),
-            ],
-          ),
-        ),
-      ],
+    return FormPageHeader(
+      title: "Add a banner",
+      subtitle: "It appears on the app's home screen carousel.",
+      onBack: _isSaving ? null : () => Navigator.pop(context),
     );
   }
 
-  Widget _backButton() {
-    return Material(
-      color: AppTokens.surface,
-      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-      child: InkWell(
-        onTap: _isSaving ? null : () => Navigator.pop(context),
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        child: Container(
-          height: 38,
-          width: 38,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(color: AppTokens.hairline),
-          ),
-          child: const Icon(Icons.arrow_back, size: 18, color: AppTokens.ink),
-        ),
-      ),
-    );
-  }
-
+  /// The upload card: drop area, file row and error.
   Widget _card() {
     return Container(
       width: double.infinity,
@@ -255,6 +194,7 @@ class _AddBannerState extends State<AddBanner> {
     );
   }
 
+  /// Picked file name and size, with Replace / Remove.
   Widget _fileRow() {
     final int bytes = selectedImageBytes!.lengthInBytes;
 
@@ -281,7 +221,7 @@ class _AddBannerState extends State<AddBanner> {
                       fontWeight: FontWeight.w600,
                       color: AppTokens.ink),
                 ),
-                Text(_readableSize(bytes),
+                Text(readableFileSize(bytes),
                     style: const TextStyle(
                         fontSize: 11.5, color: AppTokens.inkFaint)),
               ],
@@ -311,76 +251,15 @@ class _AddBannerState extends State<AddBanner> {
     );
   }
 
-  static String _readableSize(int bytes) {
-    if (bytes < 1024) return "$bytes B";
-    if (bytes < 1024 * 1024) return "${(bytes / 1024).toStringAsFixed(0)} KB";
-    return "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB";
-  }
-
+  /// Cancel / Upload bar pinned to the bottom of the page.
   Widget _actionBar(BannersViewModel bannersViewModel, double width) {
-    return Container(
-      padding:
-          EdgeInsets.symmetric(horizontal: width < 700 ? 16 : 32, vertical: 14),
-      decoration: const BoxDecoration(
-        color: AppTokens.surface,
-        border: Border(top: BorderSide(color: AppTokens.hairline)),
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: Row(
-            children: [
-              // Below ~560px the two buttons stop fitting side by side, so
-              // Save takes the remaining width — the usual mobile shape,
-              // and it keeps Save the biggest target on the bar.
-              if (width >= 560) const Spacer(),
-              TextButton(
-                onPressed: _isSaving ? null : () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTokens.inkMuted,
-                  padding: EdgeInsets.symmetric(
-                      horizontal: width < 560 ? 12 : 18, vertical: 14),
-                ),
-                child: const Text("Cancel"),
-              ),
-              const SizedBox(width: AppTokens.gapSm),
-              _saveButton(bannersViewModel, expand: width < 560),
-            ],
-          ),
-        ),
-      ),
+    return FormActionBar(
+      width: width,
+      isSaving: _isSaving,
+      saveKey: const Key('banner_save_button'),
+      saveLabel: "Upload banner",
+      onSave: () => _onSave(bannersViewModel),
+      maxWidth: 640,
     );
-  }
-
-  Widget _saveButton(BannersViewModel bannersViewModel,
-      {required bool expand}) {
-    final Widget button = ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 140, minHeight: 42),
-      child: ElevatedButton(
-        key: const Key('banner_save_button'),
-        onPressed: _isSaving ? null : () => _onSave(bannersViewModel),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTokens.ink,
-          disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
-          foregroundColor: Colors.white,
-          disabledForegroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
-        ),
-        child: _isSaving
-            ? const SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.2, color: Colors.white),
-              )
-            : const Text("Upload banner",
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-      ),
-    );
-
-    return expand ? Expanded(child: button) : button;
   }
 }

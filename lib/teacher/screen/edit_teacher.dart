@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 /// Edit Teacher screen — the shared [TeacherForm] pre-populated with
 /// [teacherData].
 class EditTeacher extends StatelessWidget {
+  /// The item being edited.
   final TeacherModel teacherData;
   const EditTeacher({required this.teacherData, super.key});
 

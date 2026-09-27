@@ -11,7 +11,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 ///
 /// Every method throws on failure; [AudioViewModel] catches and reports.
 class AudioRepo {
+  /// Firestore client.
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
+
+  /// Root of Firebase Storage; uploads go under it.
   final Reference storageReference = FirebaseStorage.instance.ref();
 
   /// The `audio` collection.

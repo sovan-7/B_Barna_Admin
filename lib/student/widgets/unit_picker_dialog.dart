@@ -3,14 +3,13 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/units/model/unit_model.dart';
 import 'package:flutter/material.dart';
 
-/// Picks which units of a subject a student can reach.
-///
-/// The add flow and the edit flow each had their own copy of this dialog,
-/// one line apart and both carrying the same defect (see [isSelected]).
-/// They share one widget now; the caller supplies the two lists and the
-/// callbacks that differ.
+/// The unit picker used by both the "enrol" and the "edit units" flows;
+/// the caller supplies the lists and callbacks that differ.
 class UnitPickerDialog extends StatelessWidget {
+  /// Dialog heading.
   final String title;
+
+  /// Optional line under the heading.
   final String? subtitle;
 
   /// The units of the chosen subject.
@@ -20,10 +19,19 @@ class UnitPickerDialog extends StatelessWidget {
   /// an empty string when it is not.
   final List<String> selection;
 
+  /// Ticks / unticks the unit at an index.
   final ValueChanged<int> onToggle;
+
+  /// Select all, or clear all when everything is ticked.
   final VoidCallback onToggleAll;
+
+  /// Saves the selection.
   final VoidCallback onSave;
+
+  /// Text of the save button.
   final String saveLabel;
+
+  /// Shows a spinner instead of the list.
   final bool isLoading;
 
   const UnitPickerDialog({
@@ -39,16 +47,15 @@ class UnitPickerDialog extends StatelessWidget {
     super.key,
   });
 
-  /// Whether the unit at [index] is selected.
-  ///
-  /// Compared, not `contains`ed. Both dialogs did
-  /// `selection[index].contains(unit.code)` — a substring test on a String,
-  /// so a unit coded `U1` read as selected whenever the slot held `U10`.
+  /// Whether the unit at [index] is selected (exact code match, so `U1` is
+  /// not mistaken for `U10`).
   bool isSelected(int index) =>
       index < selection.length && selection[index] == units[index].code;
 
+  /// How many units are ticked.
   int get selectedCount => selection.where((code) => code.isNotEmpty).length;
 
+  /// Whether every unit is ticked.
   bool get allSelected => units.isNotEmpty && selectedCount == units.length;
 
   @override
@@ -81,6 +88,7 @@ class UnitPickerDialog extends StatelessWidget {
     );
   }
 
+  /// Title, subtitle, selected count and Select all.
   Widget _header(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
@@ -128,6 +136,7 @@ class UnitPickerDialog extends StatelessWidget {
     );
   }
 
+  /// Spinner, empty state, or the list of units.
   Widget _body() {
     if (isLoading) {
       return const Padding(
@@ -173,6 +182,7 @@ class UnitPickerDialog extends StatelessWidget {
     );
   }
 
+  /// One unit with its thumbnail and a checkbox.
   Widget _row(int index) {
     final UnitModel unit = units[index];
     final bool selected = isSelected(index);
@@ -258,6 +268,7 @@ class UnitPickerDialog extends StatelessWidget {
     );
   }
 
+  /// Letter tile shown when a unit has no picture.
   Widget _fallback(UnitModel unit) => Container(
         color: AppTokens.surfaceMuted,
         alignment: Alignment.center,
@@ -270,6 +281,7 @@ class UnitPickerDialog extends StatelessWidget {
         ),
       );
 
+  /// Cancel and save buttons.
   Widget _footer(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),

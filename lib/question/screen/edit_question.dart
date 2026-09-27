@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 /// Edit Question screen — the shared [QuestionForm] pre-populated with
 /// [questionData]; also offers Delete.
 class EditQuestion extends StatelessWidget {
+  /// The item being edited.
   final Question questionData;
   const EditQuestion({required this.questionData, super.key});
 

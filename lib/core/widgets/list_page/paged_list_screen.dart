@@ -104,6 +104,7 @@ class PagedListScreen<VM extends PagedListViewModel<T>, T>
   State<PagedListScreen<VM, T>> createState() => _PagedListScreenState<VM, T>();
 }
 
+/// State: owns the search box controller.
 class _PagedListScreenState<VM extends PagedListViewModel<T>, T>
     extends State<PagedListScreen<VM, T>> {
   /// Text in the search box.

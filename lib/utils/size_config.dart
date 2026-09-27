@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 /// Only as fresh as the last rebuild that called [init]; new code should
 /// read `MediaQuery.of(context)` instead.
 class SizeConfig {
+  /// The last MediaQuery read by [init].
   static MediaQueryData? _mediaQueryData;
 
   /// Window width at the last [init].

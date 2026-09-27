@@ -23,6 +23,7 @@ class PdfCard extends StatelessWidget {
 
   const PdfCard({required this.pdfData, required this.onChanged, super.key});
 
+  /// Shortcut for the item shown.
   PdfModel get _data => pdfData;
 
   @override

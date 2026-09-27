@@ -27,7 +27,10 @@ class TeacherPhotoField extends StatelessWidget {
   /// False while saving.
   final bool enabled;
 
+  /// Opens the photo picker.
   final VoidCallback onPick;
+
+  /// Clears the newly picked photo.
   final VoidCallback onRemove;
 
   const TeacherPhotoField({
@@ -158,6 +161,7 @@ class TeacherRoleSelector extends StatelessWidget {
   /// False while saving.
   final bool enabled;
 
+  /// Called with the chosen role.
   final ValueChanged<String> onSelect;
 
   const TeacherRoleSelector({

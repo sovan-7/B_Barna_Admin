@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 /// to act on right now, so it alone gets a solid fill and a pulsing dot;
 /// the movement is what makes it findable in a long list.
 class LiveClassStatusBadge extends StatelessWidget {
+  /// The status to show.
   final LiveClassStatus status;
 
   /// Drops the label and renders just the dot — for tight rows where the
@@ -69,6 +70,7 @@ class LiveClassStatusBadge extends StatelessWidget {
 /// A slow 1.4s breathe. Deliberately opacity-only (no scale) so the badge
 /// never changes size and reflows the row it sits in.
 class _PulsingDot extends StatefulWidget {
+  /// Dot colour.
   final Color color;
   const _PulsingDot({required this.color});
 
@@ -78,6 +80,7 @@ class _PulsingDot extends StatefulWidget {
 
 class _PulsingDotState extends State<_PulsingDot>
     with SingleTickerProviderStateMixin {
+  /// Drives the fade in and out, forever.
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),

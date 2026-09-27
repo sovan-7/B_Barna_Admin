@@ -10,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 ///
 /// Every method throws on failure; [TopicViewModel] catches and reports.
 class TopicRepo {
+  /// Firestore client.
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
 
   /// The `topic` collection.

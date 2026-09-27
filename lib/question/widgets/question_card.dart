@@ -31,6 +31,7 @@ class QuestionCard extends StatefulWidget {
 }
 
 class _QuestionCardState extends State<QuestionCard> {
+  /// Shortcut for the item shown.
   Question get _data => widget.questionData;
 
   @override

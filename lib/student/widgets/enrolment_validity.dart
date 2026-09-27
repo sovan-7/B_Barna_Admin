@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 class EnrolmentValidity {
   const EnrolmentValidity._();
 
+  /// Format of the end date.
   static final DateFormat _date = DateFormat("d MMM yyyy");
 
   /// True for a timestamp this codebase would treat as unset.
@@ -20,6 +21,7 @@ class EnrolmentValidity {
     }
   }
 
+  /// Whether the enrolment ended before [now] (false when unset).
   static bool hasExpired(int millis, {DateTime? now}) {
     if (isUnset(millis)) return false;
     return DateTime.fromMillisecondsSinceEpoch(millis)
