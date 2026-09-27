@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:bbarna/core/repo/storage_upload.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/image_compress.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
@@ -37,14 +38,14 @@ class CourseRepo {
         .toList();
   }
 
-  /// Uploads [image] to `images/img_<courseId>` and stores its download URL
+  /// Shrinks and uploads [image] to `images/img_<courseId>` and stores its download URL
   /// as `course_image`. Keyed by document id because course codes are not
   /// unique.
   Future<void> uploadCourseImage(Uint8List image, String courseId) async {
-    final String url = await uploadToStorage(
+    final String url = await uploadImageToStorage(
       storageReference.child("images").child("img_$courseId"),
       image,
-      contentType: jpegContentType,
+      maxSide: ImageSizes.thumbnail,
     );
     await _collection.doc(courseId).update({"course_image": url});
   }

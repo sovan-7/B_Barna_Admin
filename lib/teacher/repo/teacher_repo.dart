@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:bbarna/core/repo/storage_upload.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/teacher/model/teacher_model.dart';
+import 'package:bbarna/utils/image_compress.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
@@ -38,13 +39,13 @@ class TeacherRepo {
   /// even if their usernames do. Pure client-side generation, no network call.
   String generateStorageKey() => _firestore.collection(teacher).doc().id;
 
-  /// Uploads [image] to `images/teacher_<storageKey>` and returns its
+  /// Shrinks and uploads [image] to `images/teacher_<storageKey>` and returns its
   /// download URL (the caller stores it on the teacher document).
   Future<String> uploadTeacherImage(Uint8List image, String storageKey) {
-    return uploadToStorage(
+    return uploadImageToStorage(
       _storage.ref().child("images").child("teacher_$storageKey"),
       image,
-      contentType: jpegContentType,
+      maxSide: ImageSizes.thumbnail,
     );
   }
 

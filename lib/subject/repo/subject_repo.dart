@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:bbarna/core/repo/storage_upload.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
+import 'package:bbarna/utils/image_compress.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
@@ -37,14 +38,14 @@ class SubjectRepo {
         .toList();
   }
 
-  /// Uploads [image] to `images/img_<subjectId>` and stores its download
+  /// Shrinks and uploads [image] to `images/img_<subjectId>` and stores its download
   /// URL as `subject_image`. Keyed by document id because subject codes are
   /// not unique across courses.
   Future<void> uploadSubjectImage(Uint8List image, String subjectId) async {
-    final String url = await uploadToStorage(
+    final String url = await uploadImageToStorage(
       storageReference.child("images").child("img_$subjectId"),
       image,
-      contentType: jpegContentType,
+      maxSide: ImageSizes.thumbnail,
     );
     await _collection.doc(subjectId).update({"subject_image": url});
   }

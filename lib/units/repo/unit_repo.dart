@@ -5,6 +5,7 @@ import 'package:bbarna/core/repo/storage_upload.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/units/model/unit_model.dart';
+import 'package:bbarna/utils/image_compress.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
@@ -45,14 +46,14 @@ class UnitRepo {
   Future<List<UnitModel>> getNextUnitList(int limit) async =>
       _toModels(await _pager.nextPage(limit));
 
-  /// Uploads [image] to `images/img_unit_<unitId>` and stores its download
+  /// Shrinks and uploads [image] to `images/img_unit_<unitId>` and stores its download
   /// URL as `unit_image`. Keyed by document id because unit codes are not
   /// unique across subjects.
   Future<void> uploadUnitImage(Uint8List image, String unitId) async {
-    final String url = await uploadToStorage(
+    final String url = await uploadImageToStorage(
       storageReference.child("images").child("img_unit_$unitId"),
       image,
-      contentType: jpegContentType,
+      maxSide: ImageSizes.thumbnail,
     );
     await _collection.doc(unitId).update({"unit_image": url});
   }

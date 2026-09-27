@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:bbarna/banners/model/banners_model.dart';
 import 'package:bbarna/core/repo/storage_upload.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/image_compress.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
@@ -37,14 +38,14 @@ class BannersRepo {
         .toList();
   }
 
-  /// Uploads [image] to `images/<timestamp>_img` and stores its download
+  /// Shrinks and uploads [image] to `images/<timestamp>_img` and stores its download
   /// URL as `banner_image` on document [bannerId].
   Future<void> uploadBannerImage(Uint8List image, String bannerId) async {
     final int timeStamp = DateTime.now().millisecondsSinceEpoch;
-    final String url = await uploadToStorage(
+    final String url = await uploadImageToStorage(
       storageReference.child("images").child("${timeStamp}_img"),
       image,
-      contentType: jpegContentType,
+      maxSide: ImageSizes.banner,
     );
     await _collection.doc(bannerId).update({"banner_image": url});
   }
