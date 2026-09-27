@@ -150,28 +150,38 @@ class PdfCard extends StatelessWidget {
           color: typeColor,
           filled: true,
         ),
-        ToggleChip(
-          buttonKey: Key('pdf_downloadable_${_data.docId}'),
-          icon: _data.isDownloadable
-              ? Icons.download_outlined
-              : Icons.visibility_outlined,
-          label: _data.isDownloadable ? "Downloadable" : "View only",
-          on: _data.isDownloadable,
-          onColor: const Color(0xFF2563EB),
-          tooltip:
-              _data.isDownloadable ? "Make it view-only" : "Allow downloads",
-          onTap: () => pdfViewModel.toggleDownloadable(_data),
+        // Rebuilds just this chip while its write is in flight.
+        Selector<PdfViewModel, bool>(
+          selector: (_, vm) => vm.isFlagBusy(_data.docId, "is_downloadable"),
+          builder: (context, busy, _) => ToggleChip(
+            buttonKey: Key('pdf_downloadable_${_data.docId}'),
+            icon: _data.isDownloadable
+                ? Icons.download_outlined
+                : Icons.visibility_outlined,
+            label: _data.isDownloadable ? "Downloadable" : "View only",
+            on: _data.isDownloadable,
+            onColor: const Color(0xFF2563EB),
+            tooltip:
+                _data.isDownloadable ? "Make it view-only" : "Allow downloads",
+            onTap: () => pdfViewModel.toggleDownloadable(_data),
+            busy: busy,
+          ),
         ),
-        ToggleChip(
-          buttonKey: Key('pdf_lock_${_data.docId}'),
-          icon: _data.isLocked
-              ? Icons.lock_outline_rounded
-              : Icons.lock_open_outlined,
-          label: _data.isLocked ? "Locked" : "Unlocked",
-          on: _data.isLocked,
-          onColor: const Color(0xFFB54708),
-          tooltip: _data.isLocked ? "Unlock this PDF" : "Lock this PDF",
-          onTap: () => pdfViewModel.toggleLocked(_data),
+        // Rebuilds just this chip while its write is in flight.
+        Selector<PdfViewModel, bool>(
+          selector: (_, vm) => vm.isFlagBusy(_data.docId, "is_locked"),
+          builder: (context, busy, _) => ToggleChip(
+            buttonKey: Key('pdf_lock_${_data.docId}'),
+            icon: _data.isLocked
+                ? Icons.lock_outline_rounded
+                : Icons.lock_open_outlined,
+            label: _data.isLocked ? "Locked" : "Unlocked",
+            on: _data.isLocked,
+            onColor: const Color(0xFFB54708),
+            tooltip: _data.isLocked ? "Unlock this PDF" : "Lock this PDF",
+            onTap: () => pdfViewModel.toggleLocked(_data),
+            busy: busy,
+          ),
         ),
       ],
     );

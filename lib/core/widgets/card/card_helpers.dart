@@ -8,9 +8,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 /// Asks "Are you sure want to delete ?" about [title], and if confirmed:
 ///
-/// 1. closes the dialog (before deleting, so no second route is in flight),
-/// 2. runs [delete] — a view-model call that returns `true` on success and
-///    shows its own error toast on failure,
+/// 1. runs [delete] — a view-model call that returns `true` on success and
+///    shows its own error toast on failure — while the dialog shows a
+///    spinner on its (now disabled) confirm button,
+/// 2. closes the dialog,
 /// 3. on success shows [successMessage] and then runs [onDeleted] (usually
 ///    a list refresh).
 void confirmDelete({
@@ -23,8 +24,8 @@ void confirmDelete({
     title: title,
     description: "Are you sure want to delete ?",
     onPressYes: () async {
-      Navigator.pop(navigatorKey.currentContext!);
       final bool success = await delete();
+      Navigator.pop(navigatorKey.currentContext!);
       if (success) {
         Helper.showInfoMessage(msg: successMessage);
         await onDeleted?.call();

@@ -288,8 +288,9 @@ class _StudentCardState extends State<StudentCard> {
       description: "Sign this student out of all devices ?",
       confirmLabel: "Sign out",
       onPressYes: () async {
-        Navigator.pop(navigatorKey.currentContext!);
+        // The dialog stays open, its button spinning, until this is done.
         final bool success = await studentViewModel.clearDeviceCount(studentId);
+        Navigator.pop(navigatorKey.currentContext!);
         if (success) {
           Helper.showSnackBarMessage(
               msg: "Signed out of all devices", isSuccess: true);

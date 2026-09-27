@@ -140,11 +140,10 @@ class _BannerListState extends State<BannerList> {
       title: "Banner ${index + 1}",
       description: "Are you sure want to delete ?",
       onPressYes: () async {
-        // RemoveAlert never closes itself, and it is dismissed before the
-        // delete so there is no second route in flight for the refresh to
-        // race with. The grid's own skeletons cover the wait.
-        Navigator.pop(navigatorKey.currentContext!);
+        // RemoveAlert never closes itself. It stays open, its confirm button
+        // spinning, until the delete is done.
         final bool success = await bannersViewModel.deleteBanner(docId);
+        Navigator.pop(navigatorKey.currentContext!);
         if (success) {
           Helper.showInfoMessage(msg: "Banner deleted successfully");
         }

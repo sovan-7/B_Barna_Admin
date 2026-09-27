@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:bbarna/core/widgets/selectable_label.dart';
@@ -285,6 +286,38 @@ void main() {
       verify(() => repo.setPdfFlag('a', 'is_locked', true)).called(1);
       expect(vm.pdfList.firstWhere((p) => p.docId == 'a').isLocked, isTrue);
       expect(find.text('Locked'), findsNWidgets(2));
+    });
+
+    testWidgets('a toggle is busy while saving and ignores a second tap',
+        (tester) async {
+      final Completer<void> saving = Completer<void>();
+      when(() => repo.setPdfFlag(any(), any(), any()))
+          .thenAnswer((_) => saving.future);
+
+      final vm = PdfViewModel(pdfRepo: repo);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: PDFList()), vm);
+      clearInteractions(repo);
+
+      await tester.tap(find.byKey(const Key('pdf_lock_a')));
+      await tester.pump();
+      expect(vm.isFlagBusy('a', 'is_locked'), isTrue);
+      expect(
+          find.descendant(
+              of: find.byKey(const Key('pdf_lock_a')),
+              matching: find.byType(CircularProgressIndicator)),
+          findsOneWidget);
+
+      // A double tap used to write the flag twice, flipping it back.
+      await tester.tap(find.byKey(const Key('pdf_lock_a')));
+      await tester.pump();
+      verify(() => repo.setPdfFlag('a', 'is_locked', true)).called(1);
+
+      saving.complete();
+      await tester.pump();
+      await tester.pump();
+      expect(vm.isFlagBusy('a', 'is_locked'), isFalse);
+      expect(vm.pdfList.firstWhere((p) => p.docId == 'a').isLocked, isTrue);
     });
 
     testWidgets('downloadable toggles too', (tester) async {

@@ -54,7 +54,7 @@ class RemoveAlert {
 
 /// The confirmation card itself: icon, title, description, Cancel and the
 /// red confirm button.
-class _RemoveAlert extends StatelessWidget {
+class _RemoveAlert extends StatefulWidget {
   /// What is being deleted (shown bold).
   final String title;
 
@@ -75,7 +75,35 @@ class _RemoveAlert extends StatelessWidget {
   });
 
   @override
+  State<_RemoveAlert> createState() => _RemoveAlertState();
+}
+
+class _RemoveAlertState extends State<_RemoveAlert> {
+  /// True from the first confirm tap until the action finishes: both
+  /// buttons are disabled so a double tap cannot run it twice.
+  bool _busy = false;
+
+  /// Runs the action once. If it finishes without closing the dialog
+  /// (it failed and already said so), the buttons come back to retry.
+  Future<void> _confirm() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final Object? result = widget.onPressYes();
+      if (result is Future) await result;
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Escape and the barrier do nothing while the action is running.
+    return PopScope(canPop: !_busy, child: _card(context));
+  }
+
+  /// The card: icon, texts and the action bar.
+  Widget _card(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -122,7 +150,7 @@ class _RemoveAlert extends StatelessWidget {
                         _icon(),
                         const SizedBox(height: AppTokens.gapMd),
                         Text(
-                          title,
+                          widget.title,
                           // Not uppercased any more: this is the item's own
                           // name, and shouting a name back at the admin
                           // makes a long one unreadable as well as loud.
@@ -136,7 +164,7 @@ class _RemoveAlert extends StatelessWidget {
                               color: AppTokens.ink),
                         ),
                         const SizedBox(height: 6),
-                        Text(description,
+                        Text(widget.description,
                             textAlign: TextAlign.center, style: AppTokens.body),
                       ],
                     ),
@@ -186,7 +214,7 @@ class _RemoveAlert extends StatelessWidget {
               // the key that is already under the admin's finger should be
               // the one that does nothing.
               autofocus: true,
-              onPressed: () => Navigator.pop(context),
+              onPressed: _busy ? null : () => Navigator.pop(context),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTokens.ink,
                 backgroundColor: AppTokens.surface,
@@ -204,21 +232,31 @@ class _RemoveAlert extends StatelessWidget {
           Expanded(
             child: ElevatedButton(
               key: const Key('remove_alert_confirm'),
-              onPressed: () => onPressYes(),
+              onPressed: _busy ? null : _confirm,
               style: ElevatedButton.styleFrom(
                 // Red is the destructive action, not the way out of it.
                 backgroundColor: AppTokens.danger,
                 foregroundColor: Colors.white,
+                // Stays red while the action runs (only the spinner shows).
+                disabledBackgroundColor: AppTokens.danger,
+                disabledForegroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTokens.radiusSm)),
               ),
-              child: Text(confirmLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 13.5, fontWeight: FontWeight.w600)),
+              child: _busy
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text(widget.confirmLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 13.5, fontWeight: FontWeight.w600)),
             ),
           ),
         ],

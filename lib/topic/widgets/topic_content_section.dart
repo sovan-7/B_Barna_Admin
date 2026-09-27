@@ -17,6 +17,13 @@ class TopicContentSection extends StatefulWidget {
   /// map points at nothing. Null while it is still being fetched.
   final Map<String, String>? titles;
 
+  /// True when looking the codes up failed; rows then say so neutrally
+  /// instead of "Checking…" or a red "no item with this code".
+  final bool checkFailed;
+
+  /// Looks the given codes up again (the Retry on a failed check).
+  final void Function(List<String> codes)? onRecheck;
+
   /// Saves the given codes. Returns true when the write went through.
   final Future<bool> Function(List<String> codes) onSave;
 
@@ -25,6 +32,8 @@ class TopicContentSection extends StatefulWidget {
     required this.initialCodes,
     required this.titles,
     required this.onSave,
+    this.checkFailed = false,
+    this.onRecheck,
     super.key,
   });
 
@@ -244,6 +253,33 @@ class _TopicContentSectionState extends State<TopicContentSection> {
     if (code.isEmpty) {
       return const Text("Empty rows are dropped when you save.",
           style: TextStyle(fontSize: 11.5, color: AppTokens.inkFaint));
+    }
+
+    if (widget.checkFailed) {
+      return Row(
+        children: [
+          const Icon(Icons.help_outline, size: 12, color: AppTokens.inkFaint),
+          const SizedBox(width: 5),
+          const Flexible(
+            child: Text("Couldn't check this code",
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11.5, color: AppTokens.inkFaint)),
+          ),
+          if (widget.onRecheck != null) ...[
+            const SizedBox(width: 6),
+            InkWell(
+              key: Key('topic_${widget.kind.name}_recheck'),
+              onTap: () => widget.onRecheck!(_codes()),
+              child: const Text("Retry",
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppTokens.inkMuted,
+                      decoration: TextDecoration.underline)),
+            ),
+          ],
+        ],
+      );
     }
 
     final Map<String, String>? titles = widget.titles;

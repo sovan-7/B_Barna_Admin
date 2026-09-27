@@ -96,6 +96,10 @@ class ToggleChip extends StatelessWidget {
   /// Key on the tappable [InkWell] (tests tap through it).
   final Key? buttonKey;
 
+  /// True while the flip is being saved: the chip ignores taps and shows
+  /// a small spinner in place of its icon.
+  final bool busy;
+
   const ToggleChip({
     required this.icon,
     required this.label,
@@ -104,6 +108,7 @@ class ToggleChip extends StatelessWidget {
     required this.tooltip,
     required this.onTap,
     this.buttonKey,
+    this.busy = false,
     super.key,
   });
 
@@ -119,7 +124,7 @@ class ToggleChip extends StatelessWidget {
         child: InkWell(
           key: buttonKey,
           borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-          onTap: onTap,
+          onTap: busy ? null : onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
@@ -129,7 +134,8 @@ class ToggleChip extends StatelessWidget {
                   color:
                       on ? color.withValues(alpha: .28) : AppTokens.hairline),
             ),
-            child: _ChipContent(icon: icon, label: label, color: color),
+            child: _ChipContent(
+                icon: icon, label: label, color: color, busy: busy),
           ),
         ),
       ),
@@ -148,15 +154,28 @@ class _ChipContent extends StatelessWidget {
   /// Icon and text colour.
   final Color color;
 
+  /// Shows a spinner in place of the icon.
+  final bool busy;
+
   const _ChipContent(
-      {required this.icon, required this.label, required this.color});
+      {required this.icon,
+      required this.label,
+      required this.color,
+      this.busy = false});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: color),
+        if (busy)
+          SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(strokeWidth: 1.6, color: color),
+          )
+        else
+          Icon(icon, size: 12, color: color),
         const SizedBox(width: 5),
         Text(label,
             style: TextStyle(

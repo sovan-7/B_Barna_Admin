@@ -230,27 +230,39 @@ class _SubjectCardState extends State<SubjectCard> {
               _data.willDisplay ? const Color(0xFF108460) : AppTokens.inkFaint,
           filled: _data.willDisplay,
         ),
-        ToggleChip(
-          buttonKey: Key('subject_popular_${_data.docId}'),
-          icon: _data.isPopular ? Icons.star : Icons.star_border,
-          label: "Popular",
-          on: _data.isPopular,
-          onColor: const Color(0xFFB54708),
-          tooltip: _data.isPopular ? "Remove from popular" : "Mark as popular",
-          onTap: () => Provider.of<SubjectViewModel>(context, listen: false)
-              .togglePopular(_data),
+        // Rebuilds just this chip while its write is in flight.
+        Selector<SubjectViewModel, bool>(
+          selector: (_, vm) => vm.isFlagBusy(_data.docId, "isPopular"),
+          builder: (context, busy, _) => ToggleChip(
+            buttonKey: Key('subject_popular_${_data.docId}'),
+            icon: _data.isPopular ? Icons.star : Icons.star_border,
+            label: "Popular",
+            on: _data.isPopular,
+            onColor: const Color(0xFFB54708),
+            tooltip:
+                _data.isPopular ? "Remove from popular" : "Mark as popular",
+            onTap: () => Provider.of<SubjectViewModel>(context, listen: false)
+                .togglePopular(_data),
+            busy: busy,
+          ),
         ),
-        ToggleChip(
-          buttonKey: Key('subject_lock_${_data.docId}'),
-          icon: _data.isLocked
-              ? Icons.lock_outline_rounded
-              : Icons.lock_open_outlined,
-          label: _data.isLocked ? "Locked" : "Unlocked",
-          on: _data.isLocked,
-          onColor: const Color(0xFFB54708),
-          tooltip: _data.isLocked ? "Unlock this subject" : "Lock this subject",
-          onTap: () => Provider.of<SubjectViewModel>(context, listen: false)
-              .toggleLocked(_data),
+        // Rebuilds just this chip while its write is in flight.
+        Selector<SubjectViewModel, bool>(
+          selector: (_, vm) => vm.isFlagBusy(_data.docId, "isLocked"),
+          builder: (context, busy, _) => ToggleChip(
+            buttonKey: Key('subject_lock_${_data.docId}'),
+            icon: _data.isLocked
+                ? Icons.lock_outline_rounded
+                : Icons.lock_open_outlined,
+            label: _data.isLocked ? "Locked" : "Unlocked",
+            on: _data.isLocked,
+            onColor: const Color(0xFFB54708),
+            tooltip:
+                _data.isLocked ? "Unlock this subject" : "Lock this subject",
+            onTap: () => Provider.of<SubjectViewModel>(context, listen: false)
+                .toggleLocked(_data),
+            busy: busy,
+          ),
         ),
       ],
     );

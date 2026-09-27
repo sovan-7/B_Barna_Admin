@@ -25,6 +25,10 @@ class _TopicDetailsState extends State<TopicDetails> {
   /// Absent means "still loading".
   final Map<ContentKind, Map<String, String>> _titles = {};
 
+  /// Kinds whose lookup failed: their rows say the code couldn't be
+  /// checked, rather than that it points at nothing.
+  final Set<ContentKind> _checkFailed = {};
+
   @override
   void initState() {
     super.initState();
@@ -44,10 +48,18 @@ class _TopicDetailsState extends State<TopicDetails> {
     if (!mounted) return;
     final TopicViewModel topicViewModel =
         Provider.of<TopicViewModel>(context, listen: false);
-    final Map<String, String> resolved =
+    setState(() => _checkFailed.remove(kind));
+    final Map<String, String>? resolved =
         await topicViewModel.resolveContentTitles(kind, codes);
     if (!mounted) return;
-    setState(() => _titles[kind] = resolved);
+    setState(() {
+      if (resolved == null) {
+        _titles.remove(kind);
+        _checkFailed.add(kind);
+      } else {
+        _titles[kind] = resolved;
+      }
+    });
   }
 
   /// Saves one kind's codes, then re-checks what they point at.
@@ -90,6 +102,8 @@ class _TopicDetailsState extends State<TopicDetails> {
             kind: kind,
             initialCodes: widget.topicData.contentCodes(kind),
             titles: _titles[kind],
+            checkFailed: _checkFailed.contains(kind),
+            onRecheck: (codes) => _resolve(kind, codes),
             onSave: (codes) => _save(topicViewModel, kind, codes),
           ),
         const SizedBox(height: AppTokens.gapLg),

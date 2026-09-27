@@ -500,6 +500,30 @@ void main() {
       expect(find.text('No video with this code'), findsOneWidget);
     });
 
+    testWidgets('a failed lookup is not reported as a bad code',
+        (tester) async {
+      when(() => repo.resolveContentTitles(ContentKind.video, any()))
+          .thenThrow(Exception('offline'));
+
+      final vm = TopicViewModel(topicRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          TopicDetails(topicData: _fixture().first), vm);
+      await tester.pump();
+
+      // Every code used to turn red when the lookup itself failed.
+      expect(find.text('No video with this code'), findsNothing);
+      expect(find.text("Couldn't check this code"), findsNWidgets(2));
+
+      when(() => repo.resolveContentTitles(ContentKind.video, any()))
+          .thenAnswer((_) async => {'VID-1': 'Intro to inertia'});
+      await tester.tap(find.byKey(const Key('topic_video_recheck')).first);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Intro to inertia'), findsOneWidget);
+      expect(find.text("Couldn't check this code"), findsNothing);
+    });
+
     testWidgets('save is disabled until something changes', (tester) async {
       final vm = TopicViewModel(topicRepo: repo);
       await _pump(tester, const Size(1024, 900),

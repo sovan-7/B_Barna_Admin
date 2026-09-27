@@ -155,13 +155,14 @@ class TopicViewModel extends PagedListViewModel<TopicModel> {
 
   /// Looks up which of [codes] exist in their own collection, returned as
   /// `code -> title`. A code missing from the result points at nothing.
-  /// Returns an empty map on failure.
-  Future<Map<String, String>> resolveContentTitles(
+  /// Returns null when the lookup failed, so a failure is never mistaken
+  /// for "no item has this code".
+  Future<Map<String, String>?> resolveContentTitles(
       ContentKind kind, List<String> codes) async {
     try {
       return await _topicRepo.resolveContentTitles(kind, codes);
     } catch (e) {
-      return <String, String>{};
+      return null;
     }
   }
 }

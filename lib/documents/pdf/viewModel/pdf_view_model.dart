@@ -132,9 +132,20 @@ class PdfViewModel extends PagedListViewModel<PdfModel> {
     return ok;
   }
 
+  /// `docId/field` of the flag writes still in flight, so a card can show
+  /// the toggle as busy and a second tap is ignored.
+  final Set<String> _flagsInFlight = <String>{};
+
+  /// True while [field] on [docId] is being saved.
+  bool isFlagBusy(String docId, String field) =>
+      _flagsInFlight.contains("$docId/$field");
+
   /// Writes one boolean [field] on the document; toasts and returns
   /// `false` on failure.
   Future<bool> _setFlag(String docId, String field, bool value) async {
+    final String key = "$docId/$field";
+    if (!_flagsInFlight.add(key)) return false;
+    notifyListeners();
     try {
       await _pdfRepo.setPdfFlag(docId, field, value);
       return true;
@@ -142,6 +153,9 @@ class PdfViewModel extends PagedListViewModel<PdfModel> {
       Helper.showSnackBarMessage(
           msg: "Error while updating the PDF", isSuccess: false);
       return false;
+    } finally {
+      _flagsInFlight.remove(key);
+      notifyListeners();
     }
   }
 }

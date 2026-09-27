@@ -4,7 +4,6 @@ import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/login/screen/login_screen.dart';
 import 'package:bbarna/resources/app_colors.dart';
 import 'package:bbarna/resources/app_tokens.dart';
-import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/session.dart';
 import 'package:flutter/material.dart';
 
@@ -156,13 +155,13 @@ class AppHeader extends StatelessWidget {
       description: "Are you sure want to sign out ?",
       confirmLabel: "Sign out",
       onPressYes: () async {
-        // RemoveAlert never closes itself.
-        Navigator.pop(navigatorKey.currentContext!);
+        // RemoveAlert never closes itself: it stays open, its button
+        // spinning, while signing out, and goes with everything else below.
         await Session.signOut();
 
         // pushAndRemoveUntil, not push: everything the signed-out admin was
-        // looking at has to come off the stack, or the browser's back
-        // button walks straight back into it.
+        // looking at (this dialog included) has to come off the stack, or
+        // the browser's back button walks straight back into it.
         await navigator.pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
           (Route<dynamic> route) => false,
