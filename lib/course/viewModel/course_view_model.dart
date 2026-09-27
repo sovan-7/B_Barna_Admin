@@ -26,7 +26,9 @@ class CourseViewModel extends ChangeNotifier with SafeNotifier {
 
   /// Loads every course, sorts newest first and re-applies the search.
   Future<void> getCourseList() async {
-    isLoading = true;
+    // Skeleton only when nothing is on screen yet; otherwise keep the
+    // current rows visible while refreshing.
+    isLoading = copyCourseList.isEmpty;
     notifyListeners();
     try {
       courseList = await _courseRepo.getCourseList();
@@ -84,6 +86,11 @@ class CourseViewModel extends ChangeNotifier with SafeNotifier {
   Future<bool> deleteCourse(String courseId) async {
     try {
       await _courseRepo.deleteCourse(courseId);
+      // Drop it from both lists instead of refetching every course.
+      courseList = courseList.where((c) => c.docId != courseId).toList();
+      copyCourseList =
+          copyCourseList.where((c) => c.docId != courseId).toList();
+      notifyListeners();
       return true;
     } catch (e) {
       Helper.showSnackBarMessage(

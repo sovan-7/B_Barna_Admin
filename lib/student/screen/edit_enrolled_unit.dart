@@ -33,8 +33,10 @@ class EditEnrolledUnit extends StatelessWidget {
             return;
           }
 
-          await studentVM.updateEditUnitCourse(subjectCode);
-          await studentVM.getEnrolledCourseList(studentId);
+          // The enrolment is updated in place; reload only if the save
+          // failed, to put back what is actually stored.
+          final bool saved = await studentVM.updateEditUnitCourse(subjectCode);
+          if (!saved) await studentVM.getEnrolledCourseList(studentId);
           if (context.mounted) Navigator.pop(context);
         },
       );

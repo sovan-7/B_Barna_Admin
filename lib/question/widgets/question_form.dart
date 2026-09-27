@@ -161,7 +161,7 @@ class _QuestionFormState extends State<QuestionForm> {
               ? "Question updated successfully"
               : "Question added successfully",
           isSuccess: true);
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
   }
 
@@ -180,7 +180,7 @@ class _QuestionFormState extends State<QuestionForm> {
         setState(() => _isSaving = false);
         if (success) {
           Helper.showInfoMessage(msg: "Question deleted successfully");
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       },
     );

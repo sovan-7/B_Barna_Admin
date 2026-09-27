@@ -263,7 +263,8 @@ class _StudentCardState extends State<StudentCard> {
     );
   }
 
-  /// Opens the student's enrolled-courses (settings) screen.
+  /// Opens the student's enrolled-courses (settings) screen. The list is
+  /// not reloaded afterwards: enrolments do not change this row.
   void _openSettings() {
     Navigator.push(
       context,
@@ -273,7 +274,7 @@ class _StudentCardState extends State<StudentCard> {
           studentName: _data.studentName,
         ),
       ),
-    ).whenComplete(widget.onChanged);
+    );
   }
 
   /// Asks for confirmation, then signs the student out of every device.

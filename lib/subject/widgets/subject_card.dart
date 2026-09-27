@@ -9,6 +9,7 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/subject/screen/edit_subject.dart';
 import 'package:bbarna/subject/viewModel/subject_view_model.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -357,12 +358,13 @@ class _SubjectCardState extends State<SubjectCard> {
     );
   }
 
-  /// Opens the edit screen; the list reloads when it closes.
+  /// Opens the edit screen; the list reloads if it saved or deleted
+  /// something.
   void _openEdit() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EditSubject(subjectData: _data)),
-    ).whenComplete(widget.onChanged);
+    ).ifSaved(widget.onChanged);
   }
 
   /// Asks for confirmation, then deletes this item.
@@ -375,7 +377,6 @@ class _SubjectCardState extends State<SubjectCard> {
       title: _data.name,
       delete: () => subjectViewModel.deleteSubject(docId),
       successMessage: "Subject deleted successfully",
-      onDeleted: () => subjectViewModel.getSubjectList(),
     );
   }
 }

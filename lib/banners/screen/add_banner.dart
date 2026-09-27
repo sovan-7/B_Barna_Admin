@@ -69,7 +69,7 @@ class _AddBannerState extends State<AddBanner> {
     if (success) {
       Helper.showSnackBarMessage(
           msg: "Banner uploaded successfully", isSuccess: true);
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
     // On failure the view model has already said so, and the page stays put
     // with the chosen image still in place to retry.

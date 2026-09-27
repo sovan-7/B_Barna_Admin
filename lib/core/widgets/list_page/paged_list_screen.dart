@@ -7,6 +7,7 @@ import 'package:bbarna/core/widgets/list_page/list_search_field.dart';
 import 'package:bbarna/core/widgets/list_page/list_skeleton.dart';
 import 'package:bbarna/core/widgets/paged_list_footer.dart';
 import 'package:bbarna/resources/app_tokens.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -182,12 +183,13 @@ class _PagedListScreenState<VM extends PagedListViewModel<T>, T>
     });
   }
 
-  /// Opens the Add screen and reloads the list when it closes.
+  /// Opens the Add screen and reloads the list if something was
+  /// saved.
   void _openAdd(VM viewModel) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: widget.addScreenBuilder),
-    ).whenComplete(() {
+    ).ifSaved(() {
       viewModel.refresh();
     });
   }

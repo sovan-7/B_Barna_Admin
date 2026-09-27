@@ -139,7 +139,9 @@ class TeacherViewModel extends ChangeNotifier with SafeNotifier {
 
   /// Loads every teacher and re-applies the search.
   Future<void> getTeacherList() async {
-    isLoading = true;
+    // Skeleton only when nothing is on screen yet; otherwise keep the
+    // current rows visible while refreshing.
+    isLoading = copyTeacherList.isEmpty;
     notifyListeners();
     try {
       teacherList = await _teacherRepo.getTeacherList();

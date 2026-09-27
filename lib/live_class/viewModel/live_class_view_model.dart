@@ -36,7 +36,9 @@ class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
 
   /// Loads every class and re-applies the search.
   Future<void> getLiveClassList() async {
-    isLoading = true;
+    // Skeleton only when nothing is on screen yet; otherwise keep the
+    // current rows visible while refreshing.
+    isLoading = copyLiveClassList.isEmpty;
     notifyListeners();
     try {
       copyLiveClassList = await _liveClassRepo.getLiveClassList();
@@ -81,9 +83,9 @@ class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
   /// Rewrites every class still in the old shape so the student app can read
   /// it.
   ///
-  /// One at a time rather than a batch: a class that fails should not take
-  /// the others with it, and the count reported afterwards is then the count
-  /// that actually landed. Returns how many were rewritten.
+  /// Each class is written separately (in parallel, not as one batch) so a
+  /// failing class does not take the others with it, and the count reported
+  /// is the count that actually landed. Returns how many were rewritten.
   Future<int> syncClassesForApp() async {
     final List<LiveClassModel> pending = classesNeedingAppSync;
     if (pending.isEmpty || isSyncingForApp) return 0;
@@ -91,16 +93,20 @@ class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
     isSyncingForApp = true;
     notifyListeners();
 
-    int migrated = 0;
-    for (final LiveClassModel liveClass in pending) {
-      try {
-        await _liveClassRepo.migrateToAppSchema(liveClass);
-        liveClass.needsAppSync = false;
-        migrated++;
-      } catch (e) {
-        // Keep going; the banner stays up for whatever is left.
-      }
-    }
+    // Rewrite them all at once; each one succeeds or fails on its own, so
+    // the count reported is the count that actually landed.
+    final List<bool> results = await Future.wait([
+      for (final LiveClassModel liveClass in pending)
+        Future.sync(() => _liveClassRepo.migrateToAppSchema(liveClass)).then(
+          (_) {
+            liveClass.needsAppSync = false;
+            return true;
+          },
+          // The banner stays up for whatever failed.
+          onError: (Object e) => false,
+        ),
+    ]);
+    final int migrated = results.where((ok) => ok).length;
 
     isSyncingForApp = false;
     notifyListeners();
@@ -166,6 +172,11 @@ class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
   Future<bool> deleteLiveClass(String docId) async {
     try {
       await _liveClassRepo.deleteLiveClass(docId);
+      // Drop it locally instead of refetching every class.
+      copyLiveClassList =
+          copyLiveClassList.where((c) => c.docId != docId).toList();
+      _applySearch();
+      notifyListeners();
       return true;
     } catch (e) {
       Helper.showSnackBarMessage(

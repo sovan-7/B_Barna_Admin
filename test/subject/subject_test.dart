@@ -208,7 +208,8 @@ void main() {
 
       await tester.tap(find.text('NEW SUBJECT'));
       await tester.pumpAndSettle();
-      navigatorKey.currentState!.pop();
+      // Close it the way a successful save does (Cancel no longer reloads).
+      navigatorKey.currentState!.pop(true);
       await tester.pumpAndSettle();
 
       // The list refetched on the way back, and the search is still applied

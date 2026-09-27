@@ -187,7 +187,7 @@ class _CourseFormState extends State<CourseForm> {
               ? "Course updated successfully"
               : "Course added successfully",
           isSuccess: true);
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
   }
 
@@ -205,7 +205,7 @@ class _CourseFormState extends State<CourseForm> {
         setState(() => _isSaving = false);
         if (success) {
           Helper.showInfoMessage(msg: "Course deleted successfully");
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       },
     );

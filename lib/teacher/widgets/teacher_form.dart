@@ -259,7 +259,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
               ? "Teacher updated successfully"
               : "Teacher added successfully",
           isSuccess: true);
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
   }
 

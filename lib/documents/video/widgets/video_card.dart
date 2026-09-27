@@ -8,6 +8,7 @@ import 'package:bbarna/documents/video/screen/edit_video.dart';
 import 'package:bbarna/documents/video/viewModel/video_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -214,12 +215,13 @@ class _VideoCardState extends State<VideoCard> {
     );
   }
 
-  /// Opens the edit screen; the list reloads when it closes.
+  /// Opens the edit screen; the list reloads if it saved or deleted
+  /// something.
   void _openEdit() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EditVideo(videoData: _data)),
-    ).whenComplete(widget.onChanged);
+    ).ifSaved(widget.onChanged);
   }
 
   /// Asks for confirmation, then deletes this item.
@@ -232,7 +234,6 @@ class _VideoCardState extends State<VideoCard> {
       title: _data.title,
       delete: () => videoViewModel.deleteVideo(docId),
       successMessage: "Video deleted successfully",
-      onDeleted: widget.onChanged,
     );
   }
 }

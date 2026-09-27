@@ -37,7 +37,7 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   int studentListLength = 0;
 
   /// Students fetched per page.
-  final int limit = 300;
+  final int limit = 50;
 
   /// True while the first page is loading (drives the skeleton rows).
   bool isLoading = true;
@@ -88,25 +88,34 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   Future<void> setSort(StudentSort next) async {
     if (sort == next) return;
     sort = next;
-    notifyListeners();
+    // fetchFirstStudentList notifies straight away, which also updates the
+    // sort toggle.
     await fetchFirstStudentList();
   }
 
   /// Loads the first page in the current [sort] order, re-applies the
   /// search, and refreshes the counts.
   Future<void> fetchFirstStudentList() async {
-    isLoading = true;
+    // Skeleton only when nothing is on screen yet.
+    isLoading = copyStudentList.isEmpty;
     isSearching = false;
     notifyListeners();
+    // The page and the counts are independent queries: run them together.
+    // Future.sync turns a synchronous throw into a failed future.
+    final Future<List<Student>> page =
+        Future.sync(() => _studentRepo.getFirstStudentList(limit, sort: sort));
+    final Future<int> total = Future.sync(_studentRepo.getStudentListLength);
+    final Future<int>? signedIn = sort == StudentSort.lastActive
+        ? Future.sync(_studentRepo.getSignedInStudentCount)
+        : null;
     try {
-      copyStudentList =
-          await _studentRepo.getFirstStudentList(limit, sort: sort);
+      copyStudentList = await page;
       _applySearch();
-      studentListLength = await _studentRepo.getStudentListLength();
-      if (sort == StudentSort.lastActive) {
-        signedInStudentCount = await _studentRepo.getSignedInStudentCount();
-      }
+      studentListLength = await total;
+      if (signedIn != null) signedInStudentCount = await signedIn;
     } catch (e) {
+      total.ignore();
+      signedIn?.ignore();
       Helper.showSnackBarMessage(
           msg: "Error while fetching students", isSuccess: false);
     } finally {
@@ -380,11 +389,14 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
     }
   }
 
+  /// Returns true when the change was saved (the local state already
+  /// matches); false means the caller should reload the enrolment.
+  ///
   /// Removes enrolled subject [courseId]. If it was the last one, the whole
   /// enrolment document is deleted. Pops the open confirmation dialog.
-  Future<void> removeCourse(String courseId) async {
+  Future<bool> removeCourse(String courseId) async {
     final EnrolledCourseBaseModel? enrolment = enrolledCourseBaseModel;
-    if (enrolment == null) return;
+    if (enrolment == null) return false;
 
     enrolment.enrolledCourseList
         .removeWhere((element) => element.subjectCode == courseId);
@@ -399,10 +411,12 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
         enrolledCourseBaseModel = null;
       }
       notifyListeners();
+      return true;
     } catch (e) {
       Navigator.pop(navigatorKey.currentContext!);
       Helper.showSnackBarMessage(
           msg: "Sorry something went wrong", isSuccess: false);
+      return false;
     }
   }
 
@@ -460,18 +474,21 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
     notifyListeners();
   }
 
+  /// Returns true when saved (local state already matches); false means
+  /// the caller should reload the enrolment.
+  ///
   /// Saves the edit dialog: replaces enrolled subject [courseId]'s unit
   /// list with the ticked units. Shows the global loader dialog.
-  Future<void> updateEditUnitCourse(String courseId) async {
+  Future<bool> updateEditUnitCourse(String courseId) async {
     final EnrolledCourseBaseModel? enrolment = enrolledCourseBaseModel;
-    if (enrolment == null) return;
+    if (enrolment == null) return false;
 
     LoaderDialogs.showLoadingDialog();
     final int courseIndex = enrolment.enrolledCourseList
         .indexWhere((element) => element.subjectCode == courseId);
     if (courseIndex == -1) {
       Navigator.pop(navigatorKey.currentContext!);
-      return;
+      return false;
     }
     enrolment.enrolledCourseList[courseIndex].unitCodeList =
         editedUnitList.where((element) => element != "").toList();
@@ -482,10 +499,12 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
       Helper.showSnackBarMessage(
           msg: "Course updated successfully", isSuccess: true);
       notifyListeners();
+      return true;
     } catch (e) {
       Navigator.pop(navigatorKey.currentContext!);
       Helper.showSnackBarMessage(
           msg: "Sorry something went wrong", isSuccess: false);
+      return false;
     }
   }
 }

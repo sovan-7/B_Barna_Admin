@@ -31,11 +31,12 @@ class _TopicDetailsState extends State<TopicDetails> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _resolveAll());
   }
 
-  /// Looks up titles for every kind's codes.
+  /// Looks up titles for every kind's codes (all kinds at once).
   Future<void> _resolveAll() async {
-    for (final ContentKind kind in ContentKind.values) {
-      await _resolve(kind, widget.topicData.contentCodes(kind));
-    }
+    await Future.wait([
+      for (final ContentKind kind in ContentKind.values)
+        _resolve(kind, widget.topicData.contentCodes(kind)),
+    ]);
   }
 
   /// Looks up which of [codes] exist and stores their titles.

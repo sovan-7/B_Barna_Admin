@@ -234,7 +234,7 @@ class _TopicFormState extends State<TopicForm> {
               ? "Topic updated successfully"
               : "Topic added successfully",
           isSuccess: true);
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
   }
 
@@ -252,7 +252,7 @@ class _TopicFormState extends State<TopicForm> {
         setState(() => _isSaving = false);
         if (success) {
           Helper.showInfoMessage(msg: "Topic deleted successfully");
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       },
     );

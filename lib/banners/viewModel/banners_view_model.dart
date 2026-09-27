@@ -24,7 +24,9 @@ class BannersViewModel extends ChangeNotifier with SafeNotifier {
 
   /// Loads every banner into [bannersList].
   Future<void> getBannerList() async {
-    isLoading = true;
+    // Skeleton only when nothing is on screen yet; otherwise keep the
+    // current rows visible while refreshing.
+    isLoading = bannersList.isEmpty;
     notifyListeners();
     try {
       bannersList = await _bannersRepo.getBannersList();
@@ -67,6 +69,9 @@ class BannersViewModel extends ChangeNotifier with SafeNotifier {
   Future<bool> deleteBanner(String docId) async {
     try {
       await _bannersRepo.deleteBanner(docId);
+      // Drop it locally instead of refetching every banner.
+      bannersList = bannersList.where((b) => b.docId != docId).toList();
+      notifyListeners();
       return true;
     } catch (e) {
       Helper.showSnackBarMessage(

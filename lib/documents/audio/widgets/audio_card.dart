@@ -8,6 +8,7 @@ import 'package:bbarna/documents/audio/screen/edit_audio.dart';
 import 'package:bbarna/documents/audio/viewModel/audio_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -189,12 +190,13 @@ class _AudioCardState extends State<AudioCard> {
     );
   }
 
-  /// Opens the edit screen; the list reloads when it closes.
+  /// Opens the edit screen; the list reloads if it saved or deleted
+  /// something.
   void _openEdit() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EditAudio(audioData: _data)),
-    ).whenComplete(widget.onChanged);
+    ).ifSaved(widget.onChanged);
   }
 
   /// Asks for confirmation, then deletes this item.
@@ -207,7 +209,6 @@ class _AudioCardState extends State<AudioCard> {
       title: _data.title,
       delete: () => audioViewModel.deleteAudio(docId),
       successMessage: "Audio deleted successfully",
-      onDeleted: widget.onChanged,
     );
   }
 }

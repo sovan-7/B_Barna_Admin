@@ -98,6 +98,7 @@ class PdfViewModel extends PagedListViewModel<PdfModel> {
   Future<bool> deletePdf(String docId) async {
     try {
       await _pdfRepo.deletePdf(docId);
+      removeLocally((item) => item.docId == docId);
       return true;
     } catch (e) {
       Helper.showSnackBarMessage(

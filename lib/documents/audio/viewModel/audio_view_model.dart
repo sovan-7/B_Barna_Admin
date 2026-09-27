@@ -98,6 +98,7 @@ class AudioViewModel extends PagedListViewModel<AudioModel> {
   Future<bool> deleteAudio(String docId) async {
     try {
       await _audioRepo.deleteAudio(docId);
+      removeLocally((item) => item.docId == docId);
       return true;
     } catch (e) {
       Helper.showSnackBarMessage(

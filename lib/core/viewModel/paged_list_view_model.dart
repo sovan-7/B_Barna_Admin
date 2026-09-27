@@ -78,16 +78,35 @@ abstract class PagedListViewModel<T> extends ChangeNotifier with SafeNotifier {
 
   // ---- Paging -------------------------------------------------------------
 
+  /// The first-page load currently running, so overlapping calls (e.g. the
+  /// first-frame refresh and a save landing at the same time) share it
+  /// instead of each querying Firestore.
+  Future<void>? _firstPageInFlight;
+
   /// Loads the first page and the total count together. Clears any search
   /// state so the full list shows again.
-  Future<void> loadFirstPage() async {
-    isLoading = true;
+  ///
+  /// The skeleton ([isLoading]) is only shown when nothing is on screen yet;
+  /// otherwise the current rows stay visible while the refresh runs.
+  Future<void> loadFirstPage() =>
+      _firstPageInFlight ??= _loadFirstPage().whenComplete(() {
+        _firstPageInFlight = null;
+      });
+
+  Future<void> _loadFirstPage() async {
+    isLoading = items.isEmpty;
     isSearching = false;
     notifyListeners();
+    // Page and count are independent queries, so run them at the same time.
+    // Future.sync turns a synchronous throw into a failed future.
+    final Future<List<T>> page = Future.sync(() => fetchFirstPage(limit));
+    final Future<int> count = Future.sync(fetchTotalCount);
     try {
-      items = await fetchFirstPage(limit);
-      totalCount = await fetchTotalCount();
+      items = await page;
+      totalCount = await count;
     } catch (e) {
+      // The count may still fail after the page did; that is handled here.
+      count.ignore();
       Helper.showSnackBarMessage(
           msg: "Error while fetching $itemsLabel", isSuccess: false);
     } finally {
@@ -112,6 +131,18 @@ abstract class PagedListViewModel<T> extends ChangeNotifier with SafeNotifier {
       isLoadingMore = false;
       notifyListeners();
     }
+  }
+
+  /// Drops the rows matching [test] (after a successful delete) and lowers
+  /// the total, so the list updates without another Firestore query.
+  void removeLocally(bool Function(T item) test) {
+    final int before = items.length;
+    items = items.where((item) => !test(item)).toList();
+    final int removed = before - items.length;
+    if (removed > 0 && totalCount > 0) {
+      totalCount = (totalCount - removed).clamp(0, totalCount);
+    }
+    notifyListeners();
   }
 
   // ---- Search -------------------------------------------------------------

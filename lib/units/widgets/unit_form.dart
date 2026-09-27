@@ -254,7 +254,7 @@ class _UnitFormState extends State<UnitForm> {
               ? "Unit updated successfully"
               : "Unit added successfully",
           isSuccess: true);
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
   }
 
@@ -272,7 +272,7 @@ class _UnitFormState extends State<UnitForm> {
         setState(() => _isSaving = false);
         if (success) {
           Helper.showInfoMessage(msg: "Unit deleted successfully");
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       },
     );

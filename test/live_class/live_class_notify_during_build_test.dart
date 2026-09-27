@@ -145,7 +145,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AddLiveClass), findsOneWidget);
 
-    navigatorKey.currentState!.pop();
+    // Close it the way a successful save does, which is what triggers the
+    // refresh (a plain Cancel no longer reloads the list).
+    navigatorKey.currentState!.pop(true);
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);

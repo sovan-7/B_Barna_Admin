@@ -62,7 +62,12 @@ Future<int> countDocuments(
   return countSnapshot.count ?? 0;
 }
 
-/// Documents in [collection] whose [field] starts with [prefix].
+/// Most documents one prefix search returns. Codes are short, so a one- or
+/// two-letter search could otherwise read a large part of a collection.
+const int searchResultLimit = 50;
+
+/// Documents in [collection] whose [field] starts with [prefix] (at most
+/// [limit], in code order).
 ///
 /// Firestore has no "starts with", so this asks for
 /// `prefix <= field < prefix + 'z'`. Run server-side because the paged
@@ -70,11 +75,13 @@ Future<int> countDocuments(
 Future<List<FirestoreDoc>> prefixSearch(
   CollectionReference<Map<String, dynamic>> collection,
   String field,
-  String prefix,
-) async {
+  String prefix, {
+  int limit = searchResultLimit,
+}) async {
   final QuerySnapshot<Map<String, dynamic>> snapshot = await collection
       .where(field, isGreaterThanOrEqualTo: prefix)
       .where(field, isLessThan: '${prefix}z')
+      .limit(limit)
       .get();
   return snapshot.docs;
 }

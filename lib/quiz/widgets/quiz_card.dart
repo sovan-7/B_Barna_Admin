@@ -8,6 +8,7 @@ import 'package:bbarna/quiz/screen/edit_quiz.dart';
 import 'package:bbarna/quiz/viewModel/quiz_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -212,12 +213,13 @@ class _QuizCardState extends State<QuizCard> {
     );
   }
 
-  /// Opens the edit screen; the list reloads when it closes.
+  /// Opens the edit screen; the list reloads if it saved or deleted
+  /// something.
   void _openEdit() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EditQuiz(quizData: _data)),
-    ).whenComplete(widget.onChanged);
+    ).ifSaved(widget.onChanged);
   }
 
   /// Asks for confirmation, then deletes this item.
@@ -230,7 +232,6 @@ class _QuizCardState extends State<QuizCard> {
       title: _data.name,
       delete: () => quizViewModel.deleteQuiz(docId),
       successMessage: "Quiz deleted successfully",
-      onDeleted: widget.onChanged,
     );
   }
 }

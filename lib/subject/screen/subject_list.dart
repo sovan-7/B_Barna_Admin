@@ -10,6 +10,7 @@ import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/subject/screen/add_subject.dart';
 import 'package:bbarna/subject/viewModel/subject_view_model.dart';
 import 'package:bbarna/subject/widgets/subject_card.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -91,12 +92,13 @@ class _SubjectListState extends State<SubjectList> {
     setState(() {});
   }
 
-  /// Opens Add Subject and reloads the list when it closes.
+  /// Opens Add Subject and reloads the list if something was
+  /// saved.
   void _openAdd(SubjectViewModel subjectViewModel) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AddSubject()),
-    ).whenComplete(() {
+    ).ifSaved(() {
       subjectViewModel.getSubjectList();
     });
   }

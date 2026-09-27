@@ -9,6 +9,7 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/units/model/unit_model.dart';
 import 'package:bbarna/units/screen/edit_unit.dart';
 import 'package:bbarna/units/viewModel/unit_view_model.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -224,12 +225,13 @@ class _UnitCardState extends State<UnitCard> {
     );
   }
 
-  /// Opens the edit screen; the list reloads when it closes.
+  /// Opens the edit screen; the list reloads if it saved or deleted
+  /// something.
   void _openEdit() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EditUnit(unitData: _data)),
-    ).whenComplete(widget.onChanged);
+    ).ifSaved(widget.onChanged);
   }
 
   /// Asks for confirmation, then deletes this item.
@@ -242,7 +244,6 @@ class _UnitCardState extends State<UnitCard> {
       title: _data.name,
       delete: () => unitViewModel.deleteUnit(docId),
       successMessage: "Unit deleted successfully",
-      onDeleted: widget.onChanged,
     );
   }
 }

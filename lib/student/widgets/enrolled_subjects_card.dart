@@ -179,8 +179,11 @@ class _EnrolledSubjectsCardState extends State<EnrolledSubjectsCard> {
       title: course.subjectName,
       description: "Are you sure want to delete ?",
       onPressYes: () async {
-        await _viewModel.removeCourse(subjectCode);
-        await _viewModel.getEnrolledCourseList(widget.studentId);
+        // Removed in place; reload only if the write failed.
+        final bool removed = await _viewModel.removeCourse(subjectCode);
+        if (!removed) {
+          await _viewModel.getEnrolledCourseList(widget.studentId);
+        }
       },
     );
   }

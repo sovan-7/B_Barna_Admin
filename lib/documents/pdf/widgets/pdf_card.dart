@@ -8,6 +8,7 @@ import 'package:bbarna/documents/pdf/screen/edit_pdf.dart';
 import 'package:bbarna/documents/pdf/viewModel/pdf_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -195,12 +196,12 @@ class PdfCard extends StatelessWidget {
     );
   }
 
-  /// Opens Edit PDF; the list reloads when it closes.
+  /// Opens Edit PDF; the list reloads if it saved or deleted something.
   void _openEdit(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EditPdf(pdfData: _data)),
-    ).whenComplete(onChanged);
+    ).ifSaved(onChanged);
   }
 
   /// Asks for confirmation, deletes, then reloads the list.
@@ -213,7 +214,6 @@ class PdfCard extends StatelessWidget {
       title: _data.title,
       delete: () => pdfViewModel.deletePdf(docId),
       successMessage: "PDF deleted successfully",
-      onDeleted: onChanged,
     );
   }
 }

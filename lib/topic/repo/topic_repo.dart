@@ -68,14 +68,19 @@ class TopicRepo {
         codes.map((c) => c.trim()).where((c) => c.isNotEmpty).toSet().toList();
     if (unique.isEmpty) return <String, String>{};
 
+    // Chunks are independent, so query them all at once.
+    final List<QuerySnapshot<Map<String, dynamic>>> snapshots =
+        await Future.wait([
+      for (int i = 0; i < unique.length; i += 30)
+        _fireStore
+            .collection(kind.collection)
+            .where(kind.codeField,
+                whereIn: unique.sublist(
+                    i, i + 30 > unique.length ? unique.length : i + 30))
+            .get(),
+    ]);
     final Map<String, String> titles = <String, String>{};
-    for (int i = 0; i < unique.length; i += 30) {
-      final List<String> chunk =
-          unique.sublist(i, i + 30 > unique.length ? unique.length : i + 30);
-      final QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-          .collection(kind.collection)
-          .where(kind.codeField, whereIn: chunk)
-          .get();
+    for (final QuerySnapshot<Map<String, dynamic>> snapshot in snapshots) {
       for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
           in snapshot.docs) {
         final Object? code = doc.data()[kind.codeField];

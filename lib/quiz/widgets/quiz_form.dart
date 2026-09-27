@@ -221,7 +221,7 @@ class _QuizFormState extends State<QuizForm> {
               ? "Quiz updated successfully"
               : "Quiz added successfully",
           isSuccess: true);
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
   }
 
@@ -239,7 +239,7 @@ class _QuizFormState extends State<QuizForm> {
         setState(() => _isSaving = false);
         if (success) {
           Helper.showInfoMessage(msg: "Quiz deleted successfully");
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       },
     );

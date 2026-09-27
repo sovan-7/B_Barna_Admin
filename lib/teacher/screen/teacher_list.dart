@@ -9,6 +9,7 @@ import 'package:bbarna/teacher/model/teacher_model.dart';
 import 'package:bbarna/teacher/screen/add_teacher.dart';
 import 'package:bbarna/teacher/viewModel/teacher_view_model.dart';
 import 'package:bbarna/teacher/widgets/teacher_card.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -84,12 +85,13 @@ class _TeacherListState extends State<TeacherList> {
     setState(() {});
   }
 
-  /// Opens Add Teacher and reloads the list when it closes.
+  /// Opens Add Teacher and reloads the list if something was
+  /// saved.
   void _openAdd(TeacherViewModel teacherViewModel) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AddTeacher()),
-    ).whenComplete(() {
+    ).ifSaved(() {
       teacherViewModel.getTeacherList();
     });
   }

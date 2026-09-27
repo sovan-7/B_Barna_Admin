@@ -165,7 +165,7 @@ class _AudioFormState extends State<AudioForm> {
               ? "Audio updated successfully"
               : "Audio added successfully",
           isSuccess: true);
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
   }
 
@@ -183,7 +183,7 @@ class _AudioFormState extends State<AudioForm> {
         setState(() => _isSaving = false);
         if (success) {
           Helper.showInfoMessage(msg: "Audio deleted successfully");
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       },
     );

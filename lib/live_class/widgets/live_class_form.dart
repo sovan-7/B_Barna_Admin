@@ -239,7 +239,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
               ? "Class updated successfully"
               : "Class added successfully",
           isSuccess: true);
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
   }
 
@@ -261,7 +261,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
         if (success) {
           Helper.showInfoMessage(msg: "Class deleted successfully");
           // Back to the list.
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       },
     );

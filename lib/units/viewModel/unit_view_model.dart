@@ -116,6 +116,7 @@ class UnitViewModel extends PagedListViewModel<UnitModel> {
   Future<bool> deleteUnit(String unitId) async {
     try {
       await _unitRepo.deleteUnit(unitId);
+      removeLocally((item) => item.id == unitId);
       return true;
     } catch (e) {
       Helper.showSnackBarMessage(

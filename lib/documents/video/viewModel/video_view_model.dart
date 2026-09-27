@@ -83,6 +83,7 @@ class VideoViewModel extends PagedListViewModel<VideoModel> {
   Future<bool> deleteVideo(String docId) async {
     try {
       await _videoRepo.deleteVideo(docId);
+      removeLocally((item) => item.docId == docId);
       return true;
     } catch (e) {
       Helper.showSnackBarMessage(

@@ -167,7 +167,8 @@ void main() {
 
       await tester.tap(find.text('NEW PDF'));
       await tester.pumpAndSettle();
-      navigatorKey.currentState!.pop();
+      // Close it the way a successful save does (Cancel no longer reloads).
+      navigatorKey.currentState!.pop(true);
       await tester.pumpAndSettle();
 
       // Coming back re-runs the search rather than loading the first page
@@ -176,6 +177,22 @@ void main() {
       verify(() => repo.getFirstPdfList(any())).called(1);
       expect(find.widgetWithText(TextField, 'notes-01'), findsOneWidget);
       expect(find.byType(PdfCard), findsOneWidget);
+    });
+
+    testWidgets('closing Add without saving does not reload the list',
+        (tester) async {
+      final vm = PdfViewModel(pdfRepo: repo);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: PDFList()), vm);
+      clearInteractions(repo);
+
+      await tester.tap(find.text('NEW PDF'));
+      await tester.pumpAndSettle();
+      navigatorKey.currentState!.pop();
+      await tester.pumpAndSettle();
+
+      verifyNever(() => repo.getFirstPdfList(any()));
+      verifyNever(() => repo.getPdfListLength());
     });
 
     testWidgets('a search result that arrives late does not replace a newer one',

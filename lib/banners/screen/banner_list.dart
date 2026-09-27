@@ -10,6 +10,7 @@ import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/helper.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -82,12 +83,13 @@ class _BannerListState extends State<BannerList> {
     return _grid(bannersViewModel);
   }
 
-  /// Opens Add Banner and reloads the grid when it closes.
+  /// Opens Add Banner and reloads the grid if a banner was
+  /// uploaded.
   void _openAdd(BannersViewModel bannersViewModel) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AddBanner()),
-    ).whenComplete(() => bannersViewModel.getBannerList());
+    ).ifSaved(() => bannersViewModel.getBannerList());
   }
 
   /// The banners as a wrap of 16:9 tiles, as many columns as fit.
@@ -139,7 +141,6 @@ class _BannerListState extends State<BannerList> {
         final bool success = await bannersViewModel.deleteBanner(docId);
         if (success) {
           Helper.showInfoMessage(msg: "Banner deleted successfully");
-          await bannersViewModel.getBannerList();
         }
       },
     );

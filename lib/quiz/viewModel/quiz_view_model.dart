@@ -87,6 +87,7 @@ class QuizViewModel extends PagedListViewModel<QuizModel> {
   Future<bool> deleteQuiz(String docId) async {
     try {
       await _quizRepo.deleteQuiz(docId);
+      removeLocally((item) => item.docId == docId);
       return true;
     } catch (e) {
       Helper.showSnackBarMessage(

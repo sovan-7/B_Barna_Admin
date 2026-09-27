@@ -167,7 +167,7 @@ class _VideoFormState extends State<VideoForm> {
               ? "Video updated successfully"
               : "Video added successfully",
           isSuccess: true);
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
   }
 
@@ -185,7 +185,7 @@ class _VideoFormState extends State<VideoForm> {
         setState(() => _isSaving = false);
         if (success) {
           Helper.showInfoMessage(msg: "Video deleted successfully");
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       },
     );

@@ -9,6 +9,7 @@ import 'package:bbarna/course/screen/edit_course.dart';
 import 'package:bbarna/course/viewModel/course_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -201,7 +202,7 @@ class _CourseCardState extends State<CourseCard> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EditCourse(courseData: _data)),
-    ).whenComplete(widget.onChanged);
+    ).ifSaved(widget.onChanged);
   }
 
   /// Asks for confirmation, then deletes this item.
@@ -214,7 +215,6 @@ class _CourseCardState extends State<CourseCard> {
       title: _data.name,
       delete: () => courseViewModel.deleteCourse(docId),
       successMessage: "Course deleted successfully",
-      onDeleted: () => courseViewModel.getCourseList(),
     );
   }
 }

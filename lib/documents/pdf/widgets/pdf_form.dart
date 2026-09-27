@@ -175,7 +175,7 @@ class _PdfFormState extends State<PdfForm> {
               ? "PDF updated successfully"
               : "PDF added successfully",
           isSuccess: true);
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
   }
 
@@ -193,7 +193,7 @@ class _PdfFormState extends State<PdfForm> {
         setState(() => _isSaving = false);
         if (success) {
           Helper.showInfoMessage(msg: "PDF deleted successfully");
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       },
     );

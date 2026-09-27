@@ -26,7 +26,9 @@ class SubjectViewModel extends ChangeNotifier with SafeNotifier {
 
   /// Loads every subject, sorts newest first and re-applies the search.
   Future<void> getSubjectList() async {
-    isLoading = true;
+    // Skeleton only when nothing is on screen yet; otherwise keep the
+    // current rows visible while refreshing.
+    isLoading = copySubjectList.isEmpty;
     notifyListeners();
     try {
       subjectList = await _subjectRepo.getSubjectList();
@@ -84,6 +86,11 @@ class SubjectViewModel extends ChangeNotifier with SafeNotifier {
   Future<bool> deleteSubject(String subjectId) async {
     try {
       await _subjectRepo.deleteSubject(subjectId);
+      // Drop it from both lists instead of refetching every subject.
+      subjectList = subjectList.where((s) => s.docId != subjectId).toList();
+      copySubjectList =
+          copySubjectList.where((s) => s.docId != subjectId).toList();
+      notifyListeners();
       return true;
     } catch (e) {
       Helper.showSnackBarMessage(

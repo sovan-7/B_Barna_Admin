@@ -4,6 +4,7 @@ import 'package:bbarna/live_class/screen/add_live_class.dart';
 import 'package:bbarna/live_class/viewModel/live_class_view_model.dart';
 import 'package:bbarna/live_class/widgets/live_class_card.dart';
 import 'package:bbarna/live_class/widgets/live_class_theme.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -232,12 +233,13 @@ class _LiveClassListState extends State<LiveClassList> {
     );
   }
 
-  /// Opens the Add Class form and reloads the list when it closes.
+  /// Opens the Add Class form and reloads the list if something was
+  /// saved.
   void _openAdd(LiveClassViewModel liveClassViewModel) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AddLiveClass()),
-    ).whenComplete(() => liveClassViewModel.getLiveClassList());
+    ).ifSaved(() => liveClassViewModel.getLiveClassList());
   }
 
   // ---- Toolbar --------------------------------------------------------

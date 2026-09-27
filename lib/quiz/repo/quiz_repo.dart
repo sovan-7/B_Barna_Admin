@@ -78,17 +78,22 @@ class QuizRepo {
   /// queried in chunks of 25 and the results concatenated.
   Future<List<Question>> getQuestionsByCodes(List<String> codes) async {
     const int chunkSize = 25;
-    final List<Question> questions = [];
+    final List<List<String>> chunks = [
+      for (int i = 0; i < codes.length; i += chunkSize)
+        codes.sublist(
+            i, i + chunkSize > codes.length ? codes.length : i + chunkSize),
+    ];
 
-    for (int i = 0; i < codes.length; i += chunkSize) {
-      final List<String> chunk = codes.sublist(
-          i, i + chunkSize > codes.length ? codes.length : i + chunkSize);
-      if (chunk.isEmpty) continue;
-
-      final QuerySnapshot<Map<String, dynamic>> snapshot =
-          await _questions.where("question_code", whereIn: chunk).get();
-      questions.addAll(_toQuestions(snapshot.docs));
-    }
-    return questions;
+    // The chunks are independent, so query them all at once; results are
+    // concatenated in chunk order.
+    final List<QuerySnapshot<Map<String, dynamic>>> snapshots =
+        await Future.wait([
+      for (final List<String> chunk in chunks)
+        _questions.where("question_code", whereIn: chunk).get(),
+    ]);
+    return [
+      for (final QuerySnapshot<Map<String, dynamic>> snapshot in snapshots)
+        ..._toQuestions(snapshot.docs),
+    ];
   }
 }

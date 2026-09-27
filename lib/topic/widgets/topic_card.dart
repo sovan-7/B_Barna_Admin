@@ -9,6 +9,7 @@ import 'package:bbarna/topic/model/topic_model.dart';
 import 'package:bbarna/topic/screen/edit_topic.dart';
 import 'package:bbarna/topic/screen/topic_details.dart';
 import 'package:bbarna/topic/viewModel/topic_view_model.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -241,20 +242,22 @@ class _TopicCardState extends State<TopicCard> {
     );
   }
 
-  /// Opens the topic details screen to manage attached content.
+  /// Opens the topic details screen to manage attached content. No reload
+  /// afterwards: content saves update this topic in place.
   void _openContent() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => TopicDetails(topicData: _data)),
-    ).whenComplete(widget.onChanged);
+    );
   }
 
-  /// Opens the edit screen; the list reloads when it closes.
+  /// Opens the edit screen; the list reloads if it saved or deleted
+  /// something.
   void _openEdit() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EditTopic(topicData: _data)),
-    ).whenComplete(widget.onChanged);
+    ).ifSaved(widget.onChanged);
   }
 
   /// Asks for confirmation, then deletes this item.
@@ -267,7 +270,6 @@ class _TopicCardState extends State<TopicCard> {
       title: _data.name,
       delete: () => topicViewModel.deleteTopic(docId),
       successMessage: "Topic deleted successfully",
-      onDeleted: widget.onChanged,
     );
   }
 }

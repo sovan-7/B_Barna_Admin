@@ -365,7 +365,7 @@ class _SubjectFormState extends State<SubjectForm> {
               ? "Subject updated successfully"
               : "Subject added successfully",
           isSuccess: true);
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
   }
 
@@ -384,7 +384,7 @@ class _SubjectFormState extends State<SubjectForm> {
         setState(() => _isSaving = false);
         if (success) {
           Helper.showInfoMessage(msg: "Subject deleted successfully");
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       },
     );

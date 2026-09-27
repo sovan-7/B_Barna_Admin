@@ -9,6 +9,7 @@ import 'package:bbarna/course/screen/add_course.dart';
 import 'package:bbarna/course/viewModel/course_view_model.dart';
 import 'package:bbarna/course/widgets/course_card.dart';
 import 'package:bbarna/resources/app_tokens.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -86,12 +87,13 @@ class _CourseListState extends State<CourseList> {
     setState(() {});
   }
 
-  /// Opens Add Course and reloads the list when it closes.
+  /// Opens Add Course and reloads the list if something was
+  /// saved.
   void _openAdd(CourseViewModel courseViewModel) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AddCourse()),
-    ).whenComplete(() {
+    ).ifSaved(() {
       courseViewModel.getCourseList();
     });
   }

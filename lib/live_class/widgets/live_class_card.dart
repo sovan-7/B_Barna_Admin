@@ -7,6 +7,7 @@ import 'package:bbarna/live_class/widgets/live_class_status_badge.dart';
 import 'package:bbarna/live_class/widgets/live_class_theme.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/helper.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -309,14 +310,15 @@ class _LiveClassCardState extends State<LiveClassCard> {
     );
   }
 
-  /// Opens the edit screen; the list reloads when it closes.
+  /// Opens the edit screen; the list reloads if it saved or deleted
+  /// something.
   void _openEdit() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => EditLiveClass(liveClassData: _data),
       ),
-    ).whenComplete(() => widget.onChanged());
+    ).ifSaved(() => widget.onChanged());
   }
 
   /// Asks for confirmation, then deletes this item.
@@ -327,15 +329,13 @@ class _LiveClassCardState extends State<LiveClassCard> {
       title: _data.title,
       description: "Are you sure want to delete ?",
       onPressYes: () async {
-        // RemoveAlert never closes itself — and it is dismissed *before* the
-        // delete so there is no second route in flight for the refresh
-        // below to race with. The list's own inline spinner covers the wait.
+        // RemoveAlert never closes itself, so close it before deleting.
+        // The view model removes the class from the list on success.
         Navigator.pop(navigatorKey.currentContext!);
         final bool success =
             await liveClassViewModel.deleteLiveClass(_data.docId);
         if (success) {
           Helper.showInfoMessage(msg: "Class deleted successfully");
-          await liveClassViewModel.getLiveClassList();
         }
       },
     );
