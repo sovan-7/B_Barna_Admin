@@ -1,22 +1,23 @@
-import 'package:bbarna/core/widgets/remove_alert.dart';
+import 'package:bbarna/core/widgets/card/admin_card_shell.dart';
+import 'package:bbarna/core/widgets/card/card_actions.dart';
+import 'package:bbarna/core/widgets/card/card_chips.dart';
+import 'package:bbarna/core/widgets/card/card_helpers.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/documents/video/model/video_model.dart';
 import 'package:bbarna/documents/video/screen/edit_video.dart';
 import 'package:bbarna/documents/video/viewModel/video_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-/// One video row.
-///
-/// The old row was a `Row` of un-flexed `Row`s wrapped in a `FittedBox`
-/// below 900px, which "fixed" overflow by shrinking every row, text and
-/// all, until it fit. This row flexes and reflows.
+/// One row of the video list: play icon, title, code, description and the
+/// video link; FREE/PAID chip; edit / delete buttons.
 class VideoCard extends StatefulWidget {
+  /// The item shown in this row.
   final VideoModel videoData;
+
+  /// Called after an edit or delete so the list can reload.
   final VoidCallback onChanged;
 
   const VideoCard(
@@ -27,32 +28,15 @@ class VideoCard extends StatefulWidget {
 }
 
 class _VideoCardState extends State<VideoCard> {
-  bool _hovered = false;
-
   VideoModel get _data => widget.videoData;
 
   @override
   Widget build(BuildContext context) {
-    final bool isCompact = MediaQuery.of(context).size.width < 900;
-    final bool showActions = _hovered || isCompact;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        margin: const EdgeInsets.only(bottom: AppTokens.gapSm),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: AppTokens.surface,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(
-              color: _hovered
-                  ? AppTokens.inkFaint.withValues(alpha: .5)
-                  : AppTokens.hairline),
-          boxShadow: AppTokens.cardShadow,
-        ),
-        child: isCompact
+    return AdminCardShell(
+      builder: (context, layout) {
+        final bool isCompact = layout.isCompact;
+        final bool showActions = layout.showActions;
+        return isCompact
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -73,11 +57,12 @@ class _VideoCardState extends State<VideoCard> {
                   const SizedBox(width: AppTokens.gapSm),
                   _actions(showActions),
                 ],
-              ),
-      ),
+              );
+      },
     );
   }
 
+  /// Left part of the row: picture or icon, name, code and details.
   Widget _identity() {
     final bool hasDescription = _data.description.trim().isNotEmpty &&
         _data.description != stringDefault;
@@ -115,7 +100,7 @@ class _VideoCardState extends State<VideoCard> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _codeChip(),
+                  CodeChip(_data.code),
                 ],
               ),
               if (hasDescription) ...[
@@ -134,25 +119,8 @@ class _VideoCardState extends State<VideoCard> {
     );
   }
 
-  Widget _codeChip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        border: Border.all(color: AppTokens.hairline),
-      ),
-      child: SelectableLabel(_data.code,
-          style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.4,
-              color: AppTokens.inkMuted)),
-    );
-  }
-
-  /// The link, trimmed of its scheme, and openable. The old row showed the
-  /// raw URL as plain grey text with no way to check it.
+  /// The video link without its `https://www.` prefix, with a button that
+  /// opens it.
   Widget _linkRow() {
     final String link = _data.link.trim();
     if (link.isEmpty || link == stringDefault) {
@@ -178,12 +146,13 @@ class _VideoCardState extends State<VideoCard> {
           message: "Open the video",
           child: InkWell(
             key: Key('video_open_${_data.docId}'),
-            onTap: () => _open(link),
+            onTap: () => openExternalUrl(link,
+                failureMessage: "Could not open that link"),
             borderRadius: BorderRadius.circular(AppTokens.radiusSm),
             child: const Padding(
               padding: EdgeInsets.all(2),
-              child: Icon(Icons.open_in_new,
-                  size: 13, color: AppTokens.inkFaint),
+              child:
+                  Icon(Icons.open_in_new, size: 13, color: AppTokens.inkFaint),
             ),
           ),
         ),
@@ -191,23 +160,15 @@ class _VideoCardState extends State<VideoCard> {
     );
   }
 
-  Future<void> _open(String url) async {
-    final Uri? uri = Uri.tryParse(url);
-    if (uri == null || !await launchUrl(uri)) {
-      Helper.showSnackBarMessage(
-          msg: "Could not open that link", isSuccess: false);
-    }
-  }
-
-  /// FREE / PAID. It used to be an unlabelled coloured box.
+  /// Green FREE / amber PAID chip.
   Widget _typeChip() {
     final bool isFree = _data.videoType.toUpperCase() == "FREE";
     final Color color =
         isFree ? const Color(0xFF108460) : const Color(0xFFB54708);
-    final String label = _data.videoType.isEmpty ||
-            _data.videoType == stringDefault
-        ? "No type"
-        : _data.videoType.toUpperCase();
+    final String label =
+        _data.videoType.isEmpty || _data.videoType == stringDefault
+            ? "No type"
+            : _data.videoType.toUpperCase();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
@@ -233,57 +194,26 @@ class _VideoCardState extends State<VideoCard> {
     );
   }
 
+  /// Row buttons; faded in on hover, always shown on compact screens.
   Widget _actions(bool visible) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 140),
-      opacity: visible ? 1 : 0,
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _iconButton(
-              key: Key('video_edit_${_data.docId}'),
-              icon: Icons.edit_outlined,
-              tooltip: "Edit video",
-              color: AppTokens.inkMuted,
-              onTap: _openEdit,
-            ),
-            const SizedBox(width: 2),
-            _iconButton(
-              key: Key('video_delete_${_data.docId}'),
-              icon: Icons.delete_outline,
-              tooltip: "Delete video",
-              color: AppTokens.danger,
-              onTap: _confirmDelete,
-            ),
-          ],
+    return CardActions(
+      visible: visible,
+      buttons: [
+        CardEditButton(
+          buttonKey: Key('video_edit_${_data.docId}'),
+          tooltip: "Edit video",
+          onTap: _openEdit,
         ),
-      ),
+        CardDeleteButton(
+          buttonKey: Key('video_delete_${_data.docId}'),
+          tooltip: "Delete video",
+          onTap: _confirmDelete,
+        ),
+      ],
     );
   }
 
-  Widget _iconButton({
-    required Key key,
-    required IconData icon,
-    required String tooltip,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        key: key,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(icon, size: 17, color: color),
-        ),
-      ),
-    );
-  }
-
+  /// Opens the edit screen; the list reloads when it closes.
   void _openEdit() {
     Navigator.push(
       context,
@@ -291,22 +221,17 @@ class _VideoCardState extends State<VideoCard> {
     ).whenComplete(widget.onChanged);
   }
 
+  /// Asks for confirmation, then deletes this item.
   void _confirmDelete() {
     final VideoViewModel videoViewModel =
         Provider.of<VideoViewModel>(context, listen: false);
     final String docId = _data.docId;
 
-    RemoveAlert.showRemoveAlert(
+    confirmDelete(
       title: _data.title,
-      description: "Are you sure want to delete ?",
-      onPressYes: () async {
-        Navigator.pop(navigatorKey.currentContext!);
-        final bool success = await videoViewModel.deleteVideo(docId);
-        if (success) {
-          Helper.showInfoMessage(msg: "Video deleted successfully");
-          widget.onChanged();
-        }
-      },
+      delete: () => videoViewModel.deleteVideo(docId),
+      successMessage: "Video deleted successfully",
+      onDeleted: widget.onChanged,
     );
   }
 }

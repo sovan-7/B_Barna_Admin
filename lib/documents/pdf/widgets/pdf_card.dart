@@ -1,84 +1,44 @@
-import 'package:bbarna/core/widgets/remove_alert.dart';
+import 'package:bbarna/core/widgets/card/admin_card_shell.dart';
+import 'package:bbarna/core/widgets/card/card_actions.dart';
+import 'package:bbarna/core/widgets/card/card_chips.dart';
+import 'package:bbarna/core/widgets/card/card_helpers.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/documents/pdf/model/pdf_model.dart';
 import 'package:bbarna/documents/pdf/screen/edit_pdf.dart';
 import 'package:bbarna/documents/pdf/viewModel/pdf_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-/// One PDF row.
-///
-/// The old row was a `Row` of un-flexed `Row`s wrapped in a `FittedBox`
-/// below 900px, which "fixed" overflow by shrinking every row, text and
-/// all, until it fit. This row flexes and reflows.
-class PdfCard extends StatefulWidget {
+/// One row of the PDF list: file icon, title, code, description and an
+/// "Open the file" link; FREE/PAID, downloadable and lock chips (the last
+/// two are tappable toggles); and edit / delete buttons.
+class PdfCard extends StatelessWidget {
+  /// The PDF shown in this row.
   final PdfModel pdfData;
+
+  /// Called after an edit or delete so the list can reload.
   final VoidCallback onChanged;
 
   const PdfCard({required this.pdfData, required this.onChanged, super.key});
 
-  @override
-  State<PdfCard> createState() => _PdfCardState();
-}
-
-class _PdfCardState extends State<PdfCard> {
-  bool _hovered = false;
-
-  PdfModel get _data => widget.pdfData;
+  PdfModel get _data => pdfData;
 
   @override
   Widget build(BuildContext context) {
-    final bool isCompact = MediaQuery.of(context).size.width < 900;
-    final bool showActions = _hovered || isCompact;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        margin: const EdgeInsets.only(bottom: AppTokens.gapSm),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: AppTokens.surface,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(
-              color: _hovered
-                  ? AppTokens.inkFaint.withValues(alpha: .5)
-                  : AppTokens.hairline),
-          boxShadow: AppTokens.cardShadow,
-        ),
-        child: isCompact
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _identity(),
-                  const SizedBox(height: 10),
-                  _chips(),
-                  const SizedBox(height: 6),
-                  Align(
-                      alignment: Alignment.centerRight,
-                      child: _actions(showActions)),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(flex: 5, child: _identity()),
-                  const SizedBox(width: AppTokens.gapMd),
-                  // Flexible, not bare: an unbounded Wrap here takes its
-                  // whole intrinsic width and starves the title column.
-                  Flexible(flex: 4, child: _chips()),
-                  const SizedBox(width: AppTokens.gapSm),
-                  _actions(showActions),
-                ],
-              ),
+    return AdminCardShell(
+      builder: (context, layout) => CardRowLayout(
+        layout: layout,
+        identity: _identity(),
+        chips: _chips(context),
+        actions: _actions(context, layout.showActions),
       ),
     );
   }
 
+  /// File icon (red when a file is attached), title + code, description,
+  /// and the "Open the file" link or a "No file uploaded" warning.
   Widget _identity() {
     final bool hasDescription = _data.description.trim().isNotEmpty &&
         _data.description != stringDefault;
@@ -117,7 +77,7 @@ class _PdfCardState extends State<PdfCard> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _codeChip(),
+                  CodeChip(_data.code),
                 ],
               ),
               if (hasDescription) ...[
@@ -128,8 +88,6 @@ class _PdfCardState extends State<PdfCard> {
                     style: AppTokens.body),
               ],
               const SizedBox(height: 6),
-              // The title itself used to be the link — blue text with no
-              // affordance, and nothing at all when the file was missing.
               if (hasFile)
                 Row(
                   children: [
@@ -138,7 +96,8 @@ class _PdfCardState extends State<PdfCard> {
                     const SizedBox(width: 5),
                     InkWell(
                       key: Key('pdf_open_${_data.docId}'),
-                      onTap: () => _open(_data.pdfLink),
+                      onTap: () => openExternalUrl(_data.pdfLink,
+                          failureMessage: "Could not open that file"),
                       borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                       child: const Padding(
                         padding: EdgeInsets.symmetric(vertical: 2),
@@ -160,8 +119,7 @@ class _PdfCardState extends State<PdfCard> {
                 )
               else
                 const Text("No file uploaded",
-                    style:
-                        TextStyle(fontSize: 11.5, color: AppTokens.danger)),
+                    style: TextStyle(fontSize: 11.5, color: AppTokens.danger)),
             ],
           ),
         ),
@@ -169,42 +127,20 @@ class _PdfCardState extends State<PdfCard> {
     );
   }
 
-  Future<void> _open(String url) async {
-    final Uri? uri = Uri.tryParse(url);
-    if (uri == null || !await launchUrl(uri)) {
-      Helper.showSnackBarMessage(
-          msg: "Could not open that file", isSuccess: false);
-    }
-  }
-
-  Widget _codeChip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        border: Border.all(color: AppTokens.hairline),
-      ),
-      child: SelectableLabel(_data.code,
-          style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.4,
-              color: AppTokens.inkMuted)),
-    );
-  }
-
-  Widget _chips() {
+  /// FREE/PAID status, plus the downloadable and lock toggles.
+  Widget _chips(BuildContext context) {
     final bool isFree = _data.pdfType.toUpperCase() == "FREE";
     final Color typeColor =
         isFree ? const Color(0xFF108460) : const Color(0xFFB54708);
+    final PdfViewModel pdfViewModel =
+        Provider.of<PdfViewModel>(context, listen: false);
 
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        _statusChip(
+        StatusChip(
           icon: isFree ? Icons.lock_open_outlined : Icons.paid_outlined,
           label: _data.pdfType.isEmpty || _data.pdfType == stringDefault
               ? "No type"
@@ -212,22 +148,20 @@ class _PdfCardState extends State<PdfCard> {
           color: typeColor,
           filled: true,
         ),
-        _toggleChip(
-          key: Key('pdf_downloadable_${_data.docId}'),
+        ToggleChip(
+          buttonKey: Key('pdf_downloadable_${_data.docId}'),
           icon: _data.isDownloadable
               ? Icons.download_outlined
               : Icons.visibility_outlined,
           label: _data.isDownloadable ? "Downloadable" : "View only",
           on: _data.isDownloadable,
           onColor: const Color(0xFF2563EB),
-          tooltip: _data.isDownloadable
-              ? "Make it view-only"
-              : "Allow downloads",
-          onTap: () => Provider.of<PdfViewModel>(context, listen: false)
-              .toggleDownloadable(_data),
+          tooltip:
+              _data.isDownloadable ? "Make it view-only" : "Allow downloads",
+          onTap: () => pdfViewModel.toggleDownloadable(_data),
         ),
-        _toggleChip(
-          key: Key('pdf_lock_${_data.docId}'),
+        ToggleChip(
+          buttonKey: Key('pdf_lock_${_data.docId}'),
           icon: _data.isLocked
               ? Icons.lock_outline_rounded
               : Icons.lock_open_outlined,
@@ -235,163 +169,50 @@ class _PdfCardState extends State<PdfCard> {
           on: _data.isLocked,
           onColor: const Color(0xFFB54708),
           tooltip: _data.isLocked ? "Unlock this PDF" : "Lock this PDF",
-          onTap: () => Provider.of<PdfViewModel>(context, listen: false)
-              .toggleLocked(_data),
+          onTap: () => pdfViewModel.toggleLocked(_data),
         ),
       ],
     );
   }
 
-  Widget _statusChip({
-    required IconData icon,
-    required String label,
-    required Color color,
-    bool filled = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: filled ? color.withValues(alpha: .10) : AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        border: Border.all(
-            color: filled ? color.withValues(alpha: .28) : AppTokens.hairline),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 5),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 11.5, fontWeight: FontWeight.w600, color: color)),
-        ],
-      ),
-    );
-  }
-
-  /// A chip that is also a control, so the two flags say what they mean and
-  /// what tapping them will do. They were a bare padlock and nothing at all.
-  Widget _toggleChip({
-    required Key key,
-    required IconData icon,
-    required String label,
-    required bool on,
-    required Color onColor,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    final Color color = on ? onColor : AppTokens.inkFaint;
-
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        child: InkWell(
-          key: key,
-          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: on ? color.withValues(alpha: .10) : AppTokens.surfaceMuted,
-              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-              border: Border.all(
-                  color:
-                      on ? color.withValues(alpha: .28) : AppTokens.hairline),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 12, color: color),
-                const SizedBox(width: 5),
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: color)),
-              ],
-            ),
-          ),
+  /// Edit and delete buttons.
+  Widget _actions(BuildContext context, bool visible) {
+    return CardActions(
+      visible: visible,
+      buttons: [
+        CardEditButton(
+          buttonKey: Key('pdf_edit_${_data.docId}'),
+          tooltip: "Edit PDF",
+          onTap: () => _openEdit(context),
         ),
-      ),
-    );
-  }
-
-  Widget _actions(bool visible) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 140),
-      opacity: visible ? 1 : 0,
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _iconButton(
-              key: Key('pdf_edit_${_data.docId}'),
-              icon: Icons.edit_outlined,
-              tooltip: "Edit PDF",
-              color: AppTokens.inkMuted,
-              onTap: _openEdit,
-            ),
-            const SizedBox(width: 2),
-            _iconButton(
-              key: Key('pdf_delete_${_data.docId}'),
-              icon: Icons.delete_outline,
-              tooltip: "Delete PDF",
-              color: AppTokens.danger,
-              onTap: _confirmDelete,
-            ),
-          ],
+        CardDeleteButton(
+          buttonKey: Key('pdf_delete_${_data.docId}'),
+          tooltip: "Delete PDF",
+          onTap: () => _confirmDelete(context),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _iconButton({
-    required Key key,
-    required IconData icon,
-    required String tooltip,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        key: key,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(icon, size: 17, color: color),
-        ),
-      ),
-    );
-  }
-
-  void _openEdit() {
+  /// Opens Edit PDF; the list reloads when it closes.
+  void _openEdit(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EditPdf(pdfData: _data)),
-    ).whenComplete(widget.onChanged);
+    ).whenComplete(onChanged);
   }
 
-  void _confirmDelete() {
+  /// Asks for confirmation, deletes, then reloads the list.
+  void _confirmDelete(BuildContext context) {
     final PdfViewModel pdfViewModel =
         Provider.of<PdfViewModel>(context, listen: false);
     final String docId = _data.docId;
 
-    RemoveAlert.showRemoveAlert(
+    confirmDelete(
       title: _data.title,
-      description: "Are you sure want to delete ?",
-      onPressYes: () async {
-        Navigator.pop(navigatorKey.currentContext!);
-        final bool success = await pdfViewModel.deletePdf(docId);
-        if (success) {
-          Helper.showInfoMessage(msg: "PDF deleted successfully");
-          widget.onChanged();
-        }
-      },
+      delete: () => pdfViewModel.deletePdf(docId),
+      successMessage: "PDF deleted successfully",
+      onDeleted: onChanged,
     );
   }
 }

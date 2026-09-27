@@ -1,4 +1,7 @@
-import 'package:bbarna/core/widgets/remove_alert.dart';
+import 'package:bbarna/core/widgets/card/admin_card_shell.dart';
+import 'package:bbarna/core/widgets/card/card_actions.dart';
+import 'package:bbarna/core/widgets/card/card_chips.dart';
+import 'package:bbarna/core/widgets/card/card_helpers.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
@@ -6,84 +9,42 @@ import 'package:bbarna/topic/model/topic_model.dart';
 import 'package:bbarna/topic/screen/edit_topic.dart';
 import 'package:bbarna/topic/screen/topic_details.dart';
 import 'package:bbarna/topic/viewModel/topic_view_model.dart';
-import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// One topic row.
-///
-/// The old row was three stacked `Row`s of coloured "Course Name:" /
-/// "Subject Name:" / "Unit Name:" boxes beside a fixed-width strip of four
-/// counters and five icons, none of it flexed — a long topic name pushed
-/// the buttons off the edge, and below 900px the list wrapped the whole
-/// thing in a `FittedBox`, which "fixed" that by shrinking every row, text
-/// and all, until it fit. This row flexes and reflows.
+/// One row of the topic list: name, code and its course › subject › unit
+/// breadcrumb; priority and counts of attached videos / audio / PDFs /
+/// quizzes; buttons to manage content, edit and delete.
 class TopicCard extends StatefulWidget {
+  /// The item shown in this row.
   final TopicModel topicData;
 
   /// Called after something changed, so the list can refresh.
   final VoidCallback onChanged;
 
-  const TopicCard({required this.topicData, required this.onChanged, super.key});
+  const TopicCard(
+      {required this.topicData, required this.onChanged, super.key});
 
   @override
   State<TopicCard> createState() => _TopicCardState();
 }
 
 class _TopicCardState extends State<TopicCard> {
-  bool _hovered = false;
-
   TopicModel get _data => widget.topicData;
 
   @override
   Widget build(BuildContext context) {
-    final bool isCompact = MediaQuery.of(context).size.width < 900;
-    final bool showActions = _hovered || isCompact;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        margin: const EdgeInsets.only(bottom: AppTokens.gapSm),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: AppTokens.surface,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(
-              color: _hovered
-                  ? AppTokens.inkFaint.withValues(alpha: .5)
-                  : AppTokens.hairline),
-          boxShadow: AppTokens.cardShadow,
-        ),
-        child: isCompact
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _identity(),
-                  const SizedBox(height: 10),
-                  _chips(),
-                  const SizedBox(height: 6),
-                  Align(
-                      alignment: Alignment.centerRight,
-                      child: _actions(showActions)),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(flex: 5, child: _identity()),
-                  const SizedBox(width: AppTokens.gapMd),
-                  // Flexible, not bare: an unbounded Wrap here takes its
-                  // whole intrinsic width and starves the name column.
-                  Flexible(flex: 4, child: _chips()),
-                  const SizedBox(width: AppTokens.gapSm),
-                  _actions(showActions),
-                ],
-              ),
+    return AdminCardShell(
+      builder: (context, layout) => CardRowLayout(
+        layout: layout,
+        identity: _identity(),
+        chips: _chips(),
+        actions: _actions(layout.showActions),
       ),
     );
   }
 
+  /// Left part of the row: picture or icon, name, code and details.
   Widget _identity() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -106,14 +67,12 @@ class _TopicCardState extends State<TopicCard> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _codeChip(),
+                  CodeChip(_data.code),
                 ],
               ),
               const SizedBox(height: 4),
-              // Where the topic sits: course, then subject, then unit.
-              // Three labelled boxes reading "Course Name:", "Subject
-              // Name:" and "   Unit Name:   " used to take a whole line
-              // each for what is really one breadcrumb.
+              // Where the topic sits: course › subject › unit, as one
+              // breadcrumb line.
               Row(
                 children: [
                   const Icon(Icons.account_tree_outlined,
@@ -132,8 +91,7 @@ class _TopicCardState extends State<TopicCard> {
               if (_data.unitCodeList.length > 1) ...[
                 const SizedBox(height: 4),
                 Text(
-                  // A topic can be shared across several units; nothing in
-                  // the old row said so.
+                  // A topic can be shared across several units.
                   "Also in ${_data.unitCodeList.length - 1} more unit"
                   "${_data.unitCodeList.length - 1 == 1 ? '' : 's'}",
                   style: const TextStyle(
@@ -147,6 +105,7 @@ class _TopicCardState extends State<TopicCard> {
     );
   }
 
+  /// "Course › Subject" style path of where this item sits.
   String _breadcrumb() {
     String or(String value, String fallback) =>
         value.isEmpty || value == stringDefault ? fallback : value;
@@ -155,8 +114,7 @@ class _TopicCardState extends State<TopicCard> {
         "  ›  ${or(_data.unitName, 'No unit')}";
   }
 
-  /// Display priority, read at a glance. It used to be a `PriorityButton`
-  /// crammed into the same row as the code chip and five icons.
+  /// Display priority, shown as a number in a square badge.
   Widget _priorityBadge() {
     return Container(
       height: 46,
@@ -186,29 +144,8 @@ class _TopicCardState extends State<TopicCard> {
     );
   }
 
-  Widget _codeChip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        border: Border.all(color: AppTokens.hairline),
-      ),
-      child: SelectableLabel(
-        _data.code,
-        style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.4,
-            color: AppTokens.inkMuted),
-      ),
-    );
-  }
-
-  /// What is attached. The old strip printed all four counters at a fixed
-  /// 80px each whether they were zero or not, so a topic with nothing on
-  /// it looked exactly as busy as a full one. Empty kinds are dropped, and
-  /// a topic with nothing attached says so instead.
+  /// What is attached: one chip per content kind that has items (empty
+  /// kinds are left out), or a "Nothing attached" note.
   Widget _chips() {
     final List<Widget> chips = <Widget>[];
     for (final ContentKind kind in ContentKind.values) {
@@ -252,6 +189,7 @@ class _TopicCardState extends State<TopicCard> {
     ContentKind.quiz: Icons.quiz_outlined,
   };
 
+  /// How many items of [kind] are attached to the topic.
   Widget _countChip(ContentKind kind, int count) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -275,67 +213,33 @@ class _TopicCardState extends State<TopicCard> {
     );
   }
 
+  /// Row buttons; faded in on hover, always shown on compact screens.
   Widget _actions(bool visible) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 140),
-      opacity: visible ? 1 : 0,
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _iconButton(
-              key: Key('topic_content_${_data.docId}'),
-              // A bare `+` used to open this. Nothing said it led to the
-              // videos, audio, PDFs and quizzes on the topic.
-              icon: Icons.playlist_add,
-              tooltip: "Manage content",
-              color: AppTokens.inkMuted,
-              onTap: _openContent,
-            ),
-            const SizedBox(width: 2),
-            _iconButton(
-              key: Key('topic_edit_${_data.docId}'),
-              icon: Icons.edit_outlined,
-              tooltip: "Edit topic",
-              color: AppTokens.inkMuted,
-              onTap: _openEdit,
-            ),
-            const SizedBox(width: 2),
-            _iconButton(
-              key: Key('topic_delete_${_data.docId}'),
-              icon: Icons.delete_outline,
-              tooltip: "Delete topic",
-              color: AppTokens.danger,
-              onTap: _confirmDelete,
-            ),
-          ],
+    return CardActions(
+      visible: visible,
+      buttons: [
+        CardIconButton(
+          buttonKey: Key('topic_content_${_data.docId}'),
+          icon: Icons.playlist_add,
+          tooltip: "Manage content",
+          color: AppTokens.inkMuted,
+          onTap: _openContent,
         ),
-      ),
+        CardEditButton(
+          buttonKey: Key('topic_edit_${_data.docId}'),
+          tooltip: "Edit topic",
+          onTap: _openEdit,
+        ),
+        CardDeleteButton(
+          buttonKey: Key('topic_delete_${_data.docId}'),
+          tooltip: "Delete topic",
+          onTap: _confirmDelete,
+        ),
+      ],
     );
   }
 
-  Widget _iconButton({
-    required Key key,
-    required IconData icon,
-    required String tooltip,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        key: key,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(icon, size: 17, color: color),
-        ),
-      ),
-    );
-  }
-
+  /// Opens the topic details screen to manage attached content.
   void _openContent() {
     Navigator.push(
       context,
@@ -343,6 +247,7 @@ class _TopicCardState extends State<TopicCard> {
     ).whenComplete(widget.onChanged);
   }
 
+  /// Opens the edit screen; the list reloads when it closes.
   void _openEdit() {
     Navigator.push(
       context,
@@ -350,26 +255,17 @@ class _TopicCardState extends State<TopicCard> {
     ).whenComplete(widget.onChanged);
   }
 
+  /// Asks for confirmation, then deletes this item.
   void _confirmDelete() {
     final TopicViewModel topicViewModel =
         Provider.of<TopicViewModel>(context, listen: false);
     final String docId = _data.docId;
 
-    RemoveAlert.showRemoveAlert(
+    confirmDelete(
       title: _data.name,
-      description: "Are you sure want to delete ?",
-      onPressYes: () async {
-        // RemoveAlert never closes itself, and it is dismissed before the
-        // delete so there is no second route in flight for the refresh to
-        // race with. The old handler popped twice afterwards, which took
-        // the alert *and* whatever was under it off the navigator.
-        Navigator.pop(navigatorKey.currentContext!);
-        final bool success = await topicViewModel.deleteTopic(docId);
-        if (success) {
-          Helper.showInfoMessage(msg: "Topic deleted successfully");
-          widget.onChanged();
-        }
-      },
+      delete: () => topicViewModel.deleteTopic(docId),
+      successMessage: "Topic deleted successfully",
+      onDeleted: widget.onChanged,
     );
   }
 }

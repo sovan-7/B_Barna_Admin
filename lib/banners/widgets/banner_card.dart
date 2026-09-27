@@ -2,14 +2,11 @@ import 'package:bbarna/banners/model/banners_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 
-/// One banner tile.
-///
-/// The old grid painted each image as a `DecorationImage` with
-/// `BoxFit.fill` into a square cell, so every wide banner was squashed into
-/// a different shape than it will have in the app. Tiles are 16:9 here and
-/// the image is cropped to fit rather than stretched, which is what the
-/// carousel actually does with it.
+/// One banner tile in the banner grid: the image (16:9, cropped to fit —
+/// the same way the app's home carousel shows it), its position badge,
+/// and a delete button on hover.
 class BannerCard extends StatefulWidget {
+  /// The item shown in this row.
   final BannersModel banner;
 
   /// 1-based position, shown as a corner badge — the grid order is the
@@ -103,6 +100,7 @@ class _BannerCardState extends State<BannerCard> {
     );
   }
 
+  /// Grey placeholder shown instead of a missing / broken image.
   Widget _unavailable(String message) {
     return Container(
       color: AppTokens.surfaceMuted,
@@ -114,13 +112,14 @@ class _BannerCardState extends State<BannerCard> {
               size: 26, color: AppTokens.inkFaint),
           const SizedBox(height: 6),
           Text(message,
-              style: const TextStyle(
-                  fontSize: 11.5, color: AppTokens.inkFaint)),
+              style:
+                  const TextStyle(fontSize: 11.5, color: AppTokens.inkFaint)),
         ],
       ),
     );
   }
 
+  /// The banner's position number in the carousel.
   Widget _badge() {
     return Positioned(
       left: 8,
@@ -142,6 +141,7 @@ class _BannerCardState extends State<BannerCard> {
     );
   }
 
+  /// Round delete button in the corner; shown on hover.
   Widget _deleteButton(bool visible) {
     return Positioned(
       right: 8,
@@ -161,8 +161,8 @@ class _BannerCardState extends State<BannerCard> {
                 borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                 child: const Padding(
                   padding: EdgeInsets.all(7),
-                  child: Icon(Icons.delete_outline,
-                      size: 17, color: Colors.white),
+                  child:
+                      Icon(Icons.delete_outline, size: 17, color: Colors.white),
                 ),
               ),
             ),

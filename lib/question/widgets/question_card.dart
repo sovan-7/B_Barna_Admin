@@ -1,4 +1,6 @@
-import 'package:bbarna/core/widgets/remove_alert.dart';
+import 'package:bbarna/core/widgets/card/admin_card_shell.dart';
+import 'package:bbarna/core/widgets/card/card_actions.dart';
+import 'package:bbarna/core/widgets/card/card_helpers.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/question/model/question.dart';
 import 'package:bbarna/question/model/question_draft.dart';
@@ -6,19 +8,19 @@ import 'package:bbarna/question/question_viewmodel/question_viewmodel.dart';
 import 'package:bbarna/question/screen/edit_question.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// One question row.
+/// One row of the question list.
 ///
-/// The old row rendered the question's stored HTML with `HtmlWidget`, so a
-/// row was as tall as the question's formatting and a list of twenty was
-/// unscannable. This shows the question as one line of plain text and says
-/// the two things you actually want at a glance: whether all four options
-/// are filled in, and which one is marked correct.
+/// Shows the question as one line of plain text (not rendered HTML, so
+/// every row is the same height), plus whether all four options are
+/// filled in and which one is marked correct.
 class QuestionCard extends StatefulWidget {
+  /// The item shown in this row.
   final Question questionData;
+
+  /// Called after an edit or delete so the list can reload.
   final VoidCallback onChanged;
 
   const QuestionCard(
@@ -29,59 +31,22 @@ class QuestionCard extends StatefulWidget {
 }
 
 class _QuestionCardState extends State<QuestionCard> {
-  bool _hovered = false;
-
   Question get _data => widget.questionData;
 
   @override
   Widget build(BuildContext context) {
-    final bool isCompact = MediaQuery.of(context).size.width < 900;
-    final bool showActions = _hovered || isCompact;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        margin: const EdgeInsets.only(bottom: AppTokens.gapSm),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: AppTokens.surface,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(
-              color: _hovered
-                  ? AppTokens.inkFaint.withValues(alpha: .5)
-                  : AppTokens.hairline),
-          boxShadow: AppTokens.cardShadow,
-        ),
-        child: isCompact
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _identity(),
-                  const SizedBox(height: 10),
-                  _chips(),
-                  const SizedBox(height: 6),
-                  Align(
-                      alignment: Alignment.centerRight,
-                      child: _actions(showActions)),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(flex: 5, child: _identity()),
-                  const SizedBox(width: AppTokens.gapMd),
-                  // Flexible, not bare: an unbounded Wrap here takes its
-                  // whole intrinsic width and starves the question column.
-                  Flexible(flex: 3, child: _chips()),
-                  const SizedBox(width: AppTokens.gapSm),
-                  _actions(showActions),
-                ],
-              ),
+    return AdminCardShell(
+      builder: (context, layout) => CardRowLayout(
+        layout: layout,
+        identity: _identity(),
+        chips: _chips(),
+        actions: _actions(layout.showActions),
+        chipsFlex: 3,
       ),
     );
   }
 
+  /// Left part of the row: picture or icon, name, code and details.
   Widget _identity() {
     final String text = QuestionDraft.plainText(_data.question);
 
@@ -123,8 +88,7 @@ class _QuestionCardState extends State<QuestionCard> {
                     fontSize: 13.5,
                     height: 1.35,
                     fontWeight: FontWeight.w500,
-                    color:
-                        text.isEmpty ? AppTokens.danger : AppTokens.ink),
+                    color: text.isEmpty ? AppTokens.danger : AppTokens.ink),
               ),
             ],
           ),
@@ -133,6 +97,7 @@ class _QuestionCardState extends State<QuestionCard> {
     );
   }
 
+  /// Status chips shown beside (or, when compact, under) the identity.
   Widget _chips() {
     final QuestionOption? answer = QuestionDraft.answerOf(_data);
     final int filled = QuestionOption.values
@@ -141,7 +106,8 @@ class _QuestionCardState extends State<QuestionCard> {
               QuestionOption.b => _data.option2,
               QuestionOption.c => _data.option3,
               QuestionOption.d => _data.option4,
-            }).isNotEmpty)
+            })
+                .isNotEmpty)
         .length;
 
     return Wrap(
@@ -155,23 +121,20 @@ class _QuestionCardState extends State<QuestionCard> {
           color: filled == 4 ? AppTokens.inkMuted : const Color(0xFFB54708),
           filled: filled != 4,
         ),
-        // A question with no answer marked is one no student can get right.
-        // Nothing in the old row said so — and the old lookup would have
-        // claimed option D was correct.
+        // A question with no answer marked is one no student can get right,
+        // so say so.
         _chip(
-          icon: answer == null
-              ? Icons.error_outline
-              : Icons.check_circle_outline,
+          icon:
+              answer == null ? Icons.error_outline : Icons.check_circle_outline,
           label: answer == null ? "No answer set" : "Answer ${answer.label}",
-          color: answer == null
-              ? AppTokens.danger
-              : const Color(0xFF108460),
+          color: answer == null ? AppTokens.danger : const Color(0xFF108460),
           filled: true,
         ),
       ],
     );
   }
 
+  /// A small pill with an icon and label.
   Widget _chip({
     required IconData icon,
     required String label,
@@ -199,57 +162,26 @@ class _QuestionCardState extends State<QuestionCard> {
     );
   }
 
+  /// Row buttons; faded in on hover, always shown on compact screens.
   Widget _actions(bool visible) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 140),
-      opacity: visible ? 1 : 0,
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _iconButton(
-              key: Key('question_edit_${_data.docId}'),
-              icon: Icons.edit_outlined,
-              tooltip: "Edit question",
-              color: AppTokens.inkMuted,
-              onTap: _openEdit,
-            ),
-            const SizedBox(width: 2),
-            _iconButton(
-              key: Key('question_delete_${_data.docId}'),
-              icon: Icons.delete_outline,
-              tooltip: "Delete question",
-              color: AppTokens.danger,
-              onTap: _confirmDelete,
-            ),
-          ],
+    return CardActions(
+      visible: visible,
+      buttons: [
+        CardEditButton(
+          buttonKey: Key('question_edit_${_data.docId}'),
+          tooltip: "Edit question",
+          onTap: _openEdit,
         ),
-      ),
+        CardDeleteButton(
+          buttonKey: Key('question_delete_${_data.docId}'),
+          tooltip: "Delete question",
+          onTap: _confirmDelete,
+        ),
+      ],
     );
   }
 
-  Widget _iconButton({
-    required Key key,
-    required IconData icon,
-    required String tooltip,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        key: key,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(icon, size: 17, color: color),
-        ),
-      ),
-    );
-  }
-
+  /// Opens the edit screen; the list reloads when it closes.
   void _openEdit() {
     Navigator.push(
       context,
@@ -258,23 +190,18 @@ class _QuestionCardState extends State<QuestionCard> {
     ).whenComplete(widget.onChanged);
   }
 
+  /// Asks for confirmation, then deletes this item.
   void _confirmDelete() {
     final QuestionViewModel questionViewModel =
         Provider.of<QuestionViewModel>(context, listen: false);
-    // Captured up front: the delete used to be issued by list *index*, so
-    // confirming after a refresh removed whichever row now sat there.
+    // Captured up front (by id, not list position) so a refresh while the
+    // dialog is open cannot change which question gets deleted.
     final String docId = _data.docId;
 
-    RemoveAlert.showRemoveAlert(
+    confirmDelete(
       title: _data.questionCode,
-      description: "Are you sure want to delete ?",
-      onPressYes: () async {
-        Navigator.pop(navigatorKey.currentContext!);
-        final bool success = await questionViewModel.deleteQuestion(docId);
-        if (success) {
-          Helper.showInfoMessage(msg: "Question deleted successfully");
-        }
-      },
+      delete: () => questionViewModel.deleteQuestion(docId),
+      successMessage: "Question deleted successfully",
     );
   }
 }

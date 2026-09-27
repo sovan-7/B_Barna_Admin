@@ -1,23 +1,24 @@
-import 'package:bbarna/core/widgets/remove_alert.dart';
+import 'package:bbarna/core/widgets/card/admin_card_shell.dart';
+import 'package:bbarna/core/widgets/card/card_actions.dart';
+import 'package:bbarna/core/widgets/card/card_chips.dart';
+import 'package:bbarna/core/widgets/card/card_helpers.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/quiz/model/quiz_model.dart';
 import 'package:bbarna/quiz/screen/edit_quiz.dart';
 import 'package:bbarna/quiz/viewModel/quiz_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// One quiz row.
-///
-/// The old row was a fixed 60px `Row` wrapped in a `FittedBox` below 900px,
-/// which "fixed" overflow by shrinking every row, text and all, until it
-/// fit. This row flexes and reflows, and it shows the numbers that actually
-/// define a quiz — length, marks, question count — which the old row left
-/// only in the edit form.
+/// One row of the quiz list: name, code and the numbers that define a
+/// quiz (length, marks, question count); status and FREE/PAID chips;
+/// edit / delete buttons.
 class QuizCard extends StatefulWidget {
+  /// The item shown in this row.
   final QuizModel quizData;
+
+  /// Called after an edit or delete so the list can reload.
   final VoidCallback onChanged;
 
   const QuizCard({required this.quizData, required this.onChanged, super.key});
@@ -27,59 +28,21 @@ class QuizCard extends StatefulWidget {
 }
 
 class _QuizCardState extends State<QuizCard> {
-  bool _hovered = false;
-
   QuizModel get _data => widget.quizData;
 
   @override
   Widget build(BuildContext context) {
-    final bool isCompact = MediaQuery.of(context).size.width < 900;
-    final bool showActions = _hovered || isCompact;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        margin: const EdgeInsets.only(bottom: AppTokens.gapSm),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: AppTokens.surface,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(
-              color: _hovered
-                  ? AppTokens.inkFaint.withValues(alpha: .5)
-                  : AppTokens.hairline),
-          boxShadow: AppTokens.cardShadow,
-        ),
-        child: isCompact
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _identity(),
-                  const SizedBox(height: 10),
-                  _chips(),
-                  const SizedBox(height: 6),
-                  Align(
-                      alignment: Alignment.centerRight,
-                      child: _actions(showActions)),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(flex: 5, child: _identity()),
-                  const SizedBox(width: AppTokens.gapMd),
-                  // Flexible, not bare: an unbounded Wrap here takes its
-                  // whole intrinsic width and starves the name column.
-                  Flexible(flex: 4, child: _chips()),
-                  const SizedBox(width: AppTokens.gapSm),
-                  _actions(showActions),
-                ],
-              ),
+    return AdminCardShell(
+      builder: (context, layout) => CardRowLayout(
+        layout: layout,
+        identity: _identity(),
+        chips: _chips(),
+        actions: _actions(layout.showActions),
       ),
     );
   }
 
+  /// Left part of the row: picture or icon, name, code and details.
   Widget _identity() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,12 +75,11 @@ class _QuizCardState extends State<QuizCard> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _codeChip(),
+                  CodeChip(_data.code),
                 ],
               ),
               const SizedBox(height: 5),
-              // The shape of the quiz in one line. None of this was on the
-              // old row.
+              // The shape of the quiz in one line: time, marks, questions.
               Wrap(
                 spacing: 12,
                 runSpacing: 3,
@@ -149,9 +111,11 @@ class _QuizCardState extends State<QuizCard> {
     return "$attached question${attached == 1 ? '' : 's'}";
   }
 
+  /// Marks, plus the negative marking if any, e.g. "100 marks · −1".
   String _marksLabel() =>
       _data.totalMarks > 0 ? "${_data.totalMarks} marks" : "No marks set";
 
+  /// A small grey icon + text pair (e.g. "90 min").
   Widget _fact(IconData icon, String label) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -171,23 +135,7 @@ class _QuizCardState extends State<QuizCard> {
     );
   }
 
-  Widget _codeChip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        border: Border.all(color: AppTokens.hairline),
-      ),
-      child: SelectableLabel(_data.code,
-          style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.4,
-              color: AppTokens.inkMuted)),
-    );
-  }
-
+  /// Status chips shown beside (or, when compact, under) the identity.
   Widget _chips() {
     final bool isFree = _data.type.toUpperCase() == "FREE";
     final Color typeColor =
@@ -216,6 +164,7 @@ class _QuizCardState extends State<QuizCard> {
     );
   }
 
+  /// A small pill with an icon and label.
   Widget _chip({
     required IconData icon,
     required String label,
@@ -244,57 +193,26 @@ class _QuizCardState extends State<QuizCard> {
     );
   }
 
+  /// Row buttons; faded in on hover, always shown on compact screens.
   Widget _actions(bool visible) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 140),
-      opacity: visible ? 1 : 0,
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _iconButton(
-              key: Key('quiz_edit_${_data.docId}'),
-              icon: Icons.edit_outlined,
-              tooltip: "Edit quiz",
-              color: AppTokens.inkMuted,
-              onTap: _openEdit,
-            ),
-            const SizedBox(width: 2),
-            _iconButton(
-              key: Key('quiz_delete_${_data.docId}'),
-              icon: Icons.delete_outline,
-              tooltip: "Delete quiz",
-              color: AppTokens.danger,
-              onTap: _confirmDelete,
-            ),
-          ],
+    return CardActions(
+      visible: visible,
+      buttons: [
+        CardEditButton(
+          buttonKey: Key('quiz_edit_${_data.docId}'),
+          tooltip: "Edit quiz",
+          onTap: _openEdit,
         ),
-      ),
+        CardDeleteButton(
+          buttonKey: Key('quiz_delete_${_data.docId}'),
+          tooltip: "Delete quiz",
+          onTap: _confirmDelete,
+        ),
+      ],
     );
   }
 
-  Widget _iconButton({
-    required Key key,
-    required IconData icon,
-    required String tooltip,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        key: key,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(icon, size: 17, color: color),
-        ),
-      ),
-    );
-  }
-
+  /// Opens the edit screen; the list reloads when it closes.
   void _openEdit() {
     Navigator.push(
       context,
@@ -302,22 +220,17 @@ class _QuizCardState extends State<QuizCard> {
     ).whenComplete(widget.onChanged);
   }
 
+  /// Asks for confirmation, then deletes this item.
   void _confirmDelete() {
     final QuizViewModel quizViewModel =
         Provider.of<QuizViewModel>(context, listen: false);
     final String docId = _data.docId;
 
-    RemoveAlert.showRemoveAlert(
+    confirmDelete(
       title: _data.name,
-      description: "Are you sure want to delete ?",
-      onPressYes: () async {
-        Navigator.pop(navigatorKey.currentContext!);
-        final bool success = await quizViewModel.deleteQuiz(docId);
-        if (success) {
-          Helper.showInfoMessage(msg: "Quiz deleted successfully");
-          widget.onChanged();
-        }
-      },
+      delete: () => quizViewModel.deleteQuiz(docId),
+      successMessage: "Quiz deleted successfully",
+      onDeleted: widget.onChanged,
     );
   }
 }

@@ -1,22 +1,24 @@
-import 'package:bbarna/core/widgets/remove_alert.dart';
+import 'package:bbarna/core/widgets/card/admin_card_shell.dart';
+import 'package:bbarna/core/widgets/card/card_actions.dart';
+import 'package:bbarna/core/widgets/card/card_helpers.dart';
+import 'package:bbarna/core/widgets/card/image_or_initial.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/teacher/model/teacher_model.dart';
 import 'package:bbarna/teacher/screen/edit_teacher.dart';
 import 'package:bbarna/teacher/viewModel/teacher_view_model.dart';
-import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// One teacher row.
-///
-/// The module chips used to list every granted module by its stored,
-/// upper-case constant — thirteen shouting pills for an admin. They are
-/// human labels now, capped at four with the rest counted, and a teacher
-/// with everything just says so.
+/// One row of the teacher list: photo, name, role, username and phone,
+/// with the modules they can access underneath (human labels, capped at
+/// four with the rest counted; "All modules" when they have everything).
 class TeacherCard extends StatefulWidget {
+  /// The item shown in this row.
   final TeacherModel teacherData;
+
+  /// Called after an edit or delete so the list can reload.
   final VoidCallback onChanged;
 
   const TeacherCard(
@@ -30,8 +32,6 @@ class _TeacherCardState extends State<TeacherCard> {
   /// How many module chips to show before collapsing the rest into a count.
   static const int _visibleModules = 4;
 
-  bool _hovered = false;
-
   TeacherModel get _data => widget.teacherData;
 
   bool get _isAdmin => _data.role == roleAdmin;
@@ -41,26 +41,10 @@ class _TeacherCardState extends State<TeacherCard> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isCompact = MediaQuery.of(context).size.width < 900;
-    final bool showActions = _hovered || isCompact;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        margin: const EdgeInsets.only(bottom: AppTokens.gapSm),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: AppTokens.surface,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(
-              color: _hovered
-                  ? AppTokens.inkFaint.withValues(alpha: .5)
-                  : AppTokens.hairline),
-          boxShadow: AppTokens.cardShadow,
-        ),
-        child: Column(
+    return AdminCardShell(
+      builder: (context, layout) {
+        final bool showActions = layout.showActions;
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -96,8 +80,7 @@ class _TeacherCardState extends State<TeacherCard> {
                           Flexible(
                             child: SelectableLabel(_data.username,
                                 style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppTokens.inkMuted)),
+                                    fontSize: 12, color: AppTokens.inkMuted)),
                           ),
                         ],
                       ),
@@ -113,8 +96,7 @@ class _TeacherCardState extends State<TeacherCard> {
                                     ? "No phone"
                                     : _data.phoneNumber,
                                 style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppTokens.inkMuted)),
+                                    fontSize: 12, color: AppTokens.inkMuted)),
                           ),
                         ],
                       ),
@@ -128,41 +110,23 @@ class _TeacherCardState extends State<TeacherCard> {
             const SizedBox(height: 12),
             _moduleAccess(),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
+  /// Round profile photo, or the first letter of the name.
   Widget _avatar() {
-    final String initial =
-        _data.name.trim().isEmpty ? "?" : _data.name.trim().characters.first;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-      child: SizedBox(
-        height: 44,
-        width: 44,
-        child: _data.imageUrl.trim().isEmpty
-            ? _initialAvatar(initial)
-            // The fallback used to be the app logo — a white badge, so a
-            // broken photo left a white circle on a white card.
-            : Image.network(_data.imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => _initialAvatar(initial)),
-      ),
+    return ImageOrInitial(
+      imageUrl: _data.imageUrl,
+      initial:
+          _data.name.trim().isEmpty ? "?" : _data.name.trim().characters.first,
+      size: 44,
+      radius: AppTokens.radiusPill,
     );
   }
 
-  Widget _initialAvatar(String initial) => Container(
-        color: AppTokens.surfaceMuted,
-        alignment: Alignment.center,
-        child: Text(initial.toUpperCase(),
-            style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppTokens.inkFaint)),
-      );
-
+  /// "Admin" / "Subadmin" pill.
   Widget _roleChip() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
@@ -188,6 +152,7 @@ class _TeacherCardState extends State<TeacherCard> {
     );
   }
 
+  /// The modules this teacher can open, as chips.
   Widget _moduleAccess() {
     // Positions in moduleList, so the chips keep the sidebar's order rather
     // than whatever order the access list happens to be stored in.
@@ -200,8 +165,8 @@ class _TeacherCardState extends State<TeacherCard> {
       return _accessLine(Icons.block, "No module access", AppTokens.danger);
     }
     if (granted.length == moduleList.length) {
-      return _accessLine(Icons.all_inclusive, "Every module",
-          const Color(0xFF108460));
+      return _accessLine(
+          Icons.all_inclusive, "Every module", const Color(0xFF108460));
     }
 
     final List<int> shown = granted.take(_visibleModules).toList();
@@ -250,6 +215,7 @@ class _TeacherCardState extends State<TeacherCard> {
     );
   }
 
+  /// One icon + label line used by [_moduleAccess].
   Widget _accessLine(IconData icon, String label, Color color) {
     return Row(
       children: [
@@ -262,59 +228,26 @@ class _TeacherCardState extends State<TeacherCard> {
     );
   }
 
+  /// Row buttons; faded in on hover, always shown on compact screens.
   Widget _actions(bool visible) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 140),
-      opacity: visible ? 1 : 0,
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _iconButton(
-              key: Key('teacher_edit_${_data.username}'),
-              icon: Icons.edit_outlined,
-              tooltip: "Edit teacher",
-              color: AppTokens.inkMuted,
-              onTap: _openEdit,
-            ),
-            const SizedBox(width: 2),
-            _iconButton(
-              // The delete control had no key at all, so nothing could
-              // reach it in a test.
-              key: Key('teacher_delete_${_data.username}'),
-              icon: Icons.delete_outline,
-              tooltip: "Delete teacher",
-              color: AppTokens.danger,
-              onTap: _confirmDelete,
-            ),
-          ],
+    return CardActions(
+      visible: visible,
+      buttons: [
+        CardEditButton(
+          buttonKey: Key('teacher_edit_${_data.username}'),
+          tooltip: "Edit teacher",
+          onTap: _openEdit,
         ),
-      ),
+        CardDeleteButton(
+          buttonKey: Key('teacher_delete_${_data.username}'),
+          tooltip: "Delete teacher",
+          onTap: _confirmDelete,
+        ),
+      ],
     );
   }
 
-  Widget _iconButton({
-    required Key key,
-    required IconData icon,
-    required String tooltip,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        key: key,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(icon, size: 17, color: color),
-        ),
-      ),
-    );
-  }
-
+  /// Opens the edit screen; the list reloads when it closes.
   void _openEdit() {
     Navigator.push(
       context,
@@ -322,24 +255,16 @@ class _TeacherCardState extends State<TeacherCard> {
     ).whenComplete(widget.onChanged);
   }
 
+  /// Asks for confirmation, then deletes this item.
   void _confirmDelete() {
     final TeacherViewModel teacherViewModel =
         Provider.of<TeacherViewModel>(context, listen: false);
     final String username = _data.username;
 
-    RemoveAlert.showRemoveAlert(
+    confirmDelete(
       title: _data.name,
-      description: "Are you sure want to delete ?",
-      onPressYes: () async {
-        // RemoveAlert never closes itself, and it is dismissed before the
-        // delete so there is no second route in flight. The old flow pushed
-        // a loader on top of the alert and then popped twice.
-        Navigator.pop(navigatorKey.currentContext!);
-        final bool success = await teacherViewModel.deleteTeacher(username);
-        if (success) {
-          Helper.showInfoMessage(msg: "Teacher deleted successfully");
-        }
-      },
+      delete: () => teacherViewModel.deleteTeacher(username),
+      successMessage: "Teacher deleted successfully",
     );
   }
 }

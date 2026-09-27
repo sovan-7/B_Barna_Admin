@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 /// a screen of twenty classes isn't a screen of forty icons — on touch,
 /// where there is no hover, they are always shown.
 class LiveClassCard extends StatefulWidget {
+  /// The item shown in this row.
   final LiveClassModel liveClassData;
 
   /// Called after the card's Edit page pops, so the list can refresh.
@@ -59,8 +60,9 @@ class _LiveClassCardState extends State<LiveClassCard> {
                     ? LiveClassTheme.inkFaint.withValues(alpha: .5)
                     : LiveClassTheme.hairline,
           ),
-          boxShadow:
-              _hovered ? LiveClassTheme.raisedShadow : LiveClassTheme.cardShadow,
+          boxShadow: _hovered
+              ? LiveClassTheme.raisedShadow
+              : LiveClassTheme.cardShadow,
         ),
         child: Material(
           color: Colors.transparent,
@@ -97,11 +99,12 @@ class _LiveClassCardState extends State<LiveClassCard> {
     );
   }
 
+  /// The card's body: status line, title, schedule and details.
   Widget _content(LiveClassStatus status, Color accent, bool showActions) {
     final bool hasDescription = _data.description.trim().isNotEmpty &&
         _data.description != stringDefault;
-    final bool hasLink =
-        _data.youtubeLink.trim().isNotEmpty && _data.youtubeLink != stringDefault;
+    final bool hasLink = _data.youtubeLink.trim().isNotEmpty &&
+        _data.youtubeLink != stringDefault;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,8 +144,10 @@ class _LiveClassCardState extends State<LiveClassCard> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             _chip(Icons.person_outline, _data.teacherName),
-            _chip(Icons.timelapse_outlined,
-                LiveClassFormat.duration(_data.startDateTime, _data.endDateTime)),
+            _chip(
+                Icons.timelapse_outlined,
+                LiveClassFormat.duration(
+                    _data.startDateTime, _data.endDateTime)),
           ],
         ),
         if (hasDescription) ...[
@@ -167,6 +172,7 @@ class _LiveClassCardState extends State<LiveClassCard> {
     );
   }
 
+  /// Date and start–end time of the class.
   Widget _scheduleRow() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,6 +253,7 @@ class _LiveClassCardState extends State<LiveClassCard> {
     );
   }
 
+  /// Row buttons; faded in on hover, always shown on compact screens.
   Widget _actions(bool visible) {
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 140),
@@ -277,6 +284,7 @@ class _LiveClassCardState extends State<LiveClassCard> {
     );
   }
 
+  /// A small tappable icon with a tooltip.
   Widget _iconButton({
     required Key key,
     required IconData icon,
@@ -298,6 +306,7 @@ class _LiveClassCardState extends State<LiveClassCard> {
     );
   }
 
+  /// Opens the edit screen; the list reloads when it closes.
   void _openEdit() {
     Navigator.push(
       context,
@@ -307,6 +316,7 @@ class _LiveClassCardState extends State<LiveClassCard> {
     ).whenComplete(() => widget.onChanged());
   }
 
+  /// Asks for confirmation, then deletes this item.
   void _confirmDelete(BuildContext context) {
     final LiveClassViewModel liveClassViewModel =
         Provider.of<LiveClassViewModel>(context, listen: false);

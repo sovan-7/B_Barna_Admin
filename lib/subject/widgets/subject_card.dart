@@ -1,22 +1,22 @@
-import 'package:bbarna/core/widgets/remove_alert.dart';
+import 'package:bbarna/core/widgets/card/admin_card_shell.dart';
+import 'package:bbarna/core/widgets/card/card_actions.dart';
+import 'package:bbarna/core/widgets/card/card_chips.dart';
+import 'package:bbarna/core/widgets/card/card_helpers.dart';
+import 'package:bbarna/core/widgets/card/image_or_initial.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/subject/screen/edit_subject.dart';
 import 'package:bbarna/subject/viewModel/subject_view_model.dart';
-import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// One subject row.
-///
-/// The old row was a fixed-height `Row` of two un-flexed `Row`s, so a long
-/// subject name pushed the price and the buttons off the edge — and below
-/// 900px the whole thing was wrapped in a `FittedBox`, which "fixed" that
-/// by shrinking every row, text and all, until it fit. This row flexes and
-/// reflows instead.
+/// One row of the subject list: thumbnail, name, code and course; price
+/// (with discount / coupon); visibility, lock and "popular" chips; edit /
+/// delete buttons.
 class SubjectCard extends StatefulWidget {
+  /// The item shown in this row.
   final SubjectModel subjectData;
 
   /// Called after something changed, so the list can refresh.
@@ -30,32 +30,15 @@ class SubjectCard extends StatefulWidget {
 }
 
 class _SubjectCardState extends State<SubjectCard> {
-  bool _hovered = false;
-
   SubjectModel get _data => widget.subjectData;
 
   @override
   Widget build(BuildContext context) {
-    final bool isCompact = MediaQuery.of(context).size.width < 900;
-    final bool showActions = _hovered || isCompact;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        margin: const EdgeInsets.only(bottom: AppTokens.gapSm),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: AppTokens.surface,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(
-              color: _hovered
-                  ? AppTokens.inkFaint.withValues(alpha: .5)
-                  : AppTokens.hairline),
-          boxShadow: AppTokens.cardShadow,
-        ),
-        child: isCompact
+    return AdminCardShell(
+      builder: (context, layout) {
+        final bool isCompact = layout.isCompact;
+        final bool showActions = layout.showActions;
+        return isCompact
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -85,11 +68,12 @@ class _SubjectCardState extends State<SubjectCard> {
                   const SizedBox(width: AppTokens.gapSm),
                   _actions(showActions),
                 ],
-              ),
-      ),
+              );
+      },
     );
   }
 
+  /// Left part of the row: picture or icon, name, code and details.
   Widget _identity() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,7 +96,7 @@ class _SubjectCardState extends State<SubjectCard> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _codeChip(),
+                  CodeChip(_data.code),
                 ],
               ),
               const SizedBox(height: 4),
@@ -125,7 +109,8 @@ class _SubjectCardState extends State<SubjectCard> {
                   const SizedBox(width: 5),
                   Flexible(
                     child: Text(
-                      _data.courseName.isEmpty || _data.courseName == stringDefault
+                      _data.courseName.isEmpty ||
+                              _data.courseName == stringDefault
                           ? "No course"
                           : _data.courseName,
                       overflow: TextOverflow.ellipsis,
@@ -159,60 +144,19 @@ class _SubjectCardState extends State<SubjectCard> {
     );
   }
 
-  /// A rounded square, cropped to fit. The old avatar was a 50px circle
-  /// with `BoxFit.fill`, so every non-square subject image was squashed.
+  /// The item's picture, or the first letter of its code when there is
+  /// none (or it fails to load).
   Widget _thumbnail() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-      child: SizedBox(
-        height: 42,
-        width: 42,
-        child: _data.image.trim().isEmpty
-            ? _fallback()
-            : Image.network(
-                _data.image,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stack) => _fallback(),
-              ),
-      ),
+    return ImageOrInitial(
+      imageUrl: _data.image,
+      initial: _data.code.isEmpty ? "?" : _data.code.characters.first,
+      size: 42,
     );
   }
 
-  Widget _fallback() => Container(
-        color: AppTokens.surfaceMuted,
-        alignment: Alignment.center,
-        child: Text(
-          _data.code.isEmpty ? "?" : _data.code.characters.first.toUpperCase(),
-          style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppTokens.inkFaint),
-        ),
-      );
-
-  Widget _codeChip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        border: Border.all(color: AppTokens.hairline),
-      ),
-      child: SelectableLabel(
-        _data.code,
-        style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.4,
-            color: AppTokens.inkMuted),
-      ),
-    );
-  }
-
-  /// What a student actually pays, with the list price struck through and
-  /// the saving named when there is one. The card used to show only
-  /// `subject_price` — so a discounted subject displayed the number nobody
-  /// is charged, and `selling_price` appeared nowhere in the module at all.
+  /// What a student actually pays (`selling_price`), with the list price
+  /// (`subject_price`) struck through and the saving named when there is a
+  /// discount.
   Widget _price() {
     final double list = _data.price;
     final double selling = _data.sellingPrice;
@@ -226,9 +170,7 @@ class _SubjectCardState extends State<SubjectCard> {
         Text(
           _money(headline),
           style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppTokens.ink),
+              fontSize: 15, fontWeight: FontWeight.w700, color: AppTokens.ink),
         ),
         if (discounted) ...[
           const SizedBox(height: 2),
@@ -262,6 +204,7 @@ class _SubjectCardState extends State<SubjectCard> {
 
   static String _money(double value) => "₹${value.toStringAsFixed(2)}";
 
+  /// Status chips shown beside (or, when compact, under) the identity.
   Widget _chips() {
     final Widget? coupon = _couponChip();
 
@@ -271,12 +214,12 @@ class _SubjectCardState extends State<SubjectCard> {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         if (coupon != null) coupon,
-        _statusChip(
+        StatusChip(
           icon: Icons.low_priority,
           label: "Priority ${_data.displayPriority}",
           color: AppTokens.inkMuted,
         ),
-        _statusChip(
+        StatusChip(
           icon: _data.willDisplay
               ? Icons.visibility_outlined
               : Icons.visibility_off_outlined,
@@ -285,20 +228,18 @@ class _SubjectCardState extends State<SubjectCard> {
               _data.willDisplay ? const Color(0xFF108460) : AppTokens.inkFaint,
           filled: _data.willDisplay,
         ),
-        _toggleChip(
-          key: Key('subject_popular_${_data.docId}'),
+        ToggleChip(
+          buttonKey: Key('subject_popular_${_data.docId}'),
           icon: _data.isPopular ? Icons.star : Icons.star_border,
           label: "Popular",
           on: _data.isPopular,
           onColor: const Color(0xFFB54708),
-          tooltip: _data.isPopular
-              ? "Remove from popular"
-              : "Mark as popular",
+          tooltip: _data.isPopular ? "Remove from popular" : "Mark as popular",
           onTap: () => Provider.of<SubjectViewModel>(context, listen: false)
               .togglePopular(_data),
         ),
-        _toggleChip(
-          key: Key('subject_lock_${_data.docId}'),
+        ToggleChip(
+          buttonKey: Key('subject_lock_${_data.docId}'),
           icon: _data.isLocked
               ? Icons.lock_outline_rounded
               : Icons.lock_open_outlined,
@@ -326,8 +267,7 @@ class _SubjectCardState extends State<SubjectCard> {
 
     final bool expired = _data.couponValidTill > 0 &&
         _data.couponValidTill < DateTime.now().millisecondsSinceEpoch;
-    final Color color =
-        expired ? AppTokens.inkFaint : const Color(0xFFB54708);
+    final Color color = expired ? AppTokens.inkFaint : const Color(0xFFB54708);
     // A flat rupee amount off the selling price, not a percentage — that is
     // how the student app applies it at checkout.
     final double off = _data.couponDiscount;
@@ -341,14 +281,12 @@ class _SubjectCardState extends State<SubjectCard> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: expired
-              ? AppTokens.surfaceMuted
-              : color.withValues(alpha: .10),
+          color:
+              expired ? AppTokens.surfaceMuted : color.withValues(alpha: .10),
           borderRadius: BorderRadius.circular(AppTokens.radiusPill),
           border: Border.all(
-              color: expired
-                  ? AppTokens.hairline
-                  : color.withValues(alpha: .28)),
+              color:
+                  expired ? AppTokens.hairline : color.withValues(alpha: .28)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -384,142 +322,43 @@ class _SubjectCardState extends State<SubjectCard> {
   static String _date(int millis) {
     final DateTime d = DateTime.fromMillisecondsSinceEpoch(millis);
     const List<String> months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${d.day} ${months[d.month]} ${d.year}';
   }
 
-  Widget _statusChip({
-    required IconData icon,
-    required String label,
-    required Color color,
-    bool filled = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: filled ? color.withValues(alpha: .10) : AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        border: Border.all(
-            color: filled ? color.withValues(alpha: .28) : AppTokens.hairline),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 5),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 11.5, fontWeight: FontWeight.w600, color: color)),
-        ],
-      ),
-    );
-  }
-
-  /// A chip that is also a control. Popular used to be a bare heart icon
-  /// and lock a bare padlock — neither said what it meant or what tapping
-  /// it would do.
-  Widget _toggleChip({
-    required Key key,
-    required IconData icon,
-    required String label,
-    required bool on,
-    required Color onColor,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    final Color color = on ? onColor : AppTokens.inkFaint;
-
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        child: InkWell(
-          key: key,
-          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color:
-                  on ? color.withValues(alpha: .10) : AppTokens.surfaceMuted,
-              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-              border: Border.all(
-                  color: on
-                      ? color.withValues(alpha: .28)
-                      : AppTokens.hairline),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 12, color: color),
-                const SizedBox(width: 5),
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: color)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
+  /// Row buttons; faded in on hover, always shown on compact screens.
   Widget _actions(bool visible) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 140),
-      opacity: visible ? 1 : 0,
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _iconButton(
-              key: Key('subject_edit_${_data.docId}'),
-              icon: Icons.edit_outlined,
-              tooltip: "Edit subject",
-              color: AppTokens.inkMuted,
-              onTap: _openEdit,
-            ),
-            const SizedBox(width: 2),
-            _iconButton(
-              key: Key('subject_delete_${_data.docId}'),
-              icon: Icons.delete_outline,
-              tooltip: "Delete subject",
-              color: AppTokens.danger,
-              onTap: _confirmDelete,
-            ),
-          ],
+    return CardActions(
+      visible: visible,
+      buttons: [
+        CardEditButton(
+          buttonKey: Key('subject_edit_${_data.docId}'),
+          tooltip: "Edit subject",
+          onTap: _openEdit,
         ),
-      ),
+        CardDeleteButton(
+          buttonKey: Key('subject_delete_${_data.docId}'),
+          tooltip: "Delete subject",
+          onTap: _confirmDelete,
+        ),
+      ],
     );
   }
 
-  Widget _iconButton({
-    required Key key,
-    required IconData icon,
-    required String tooltip,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        key: key,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(icon, size: 17, color: color),
-        ),
-      ),
-    );
-  }
-
+  /// Opens the edit screen; the list reloads when it closes.
   void _openEdit() {
     Navigator.push(
       context,
@@ -527,25 +366,17 @@ class _SubjectCardState extends State<SubjectCard> {
     ).whenComplete(widget.onChanged);
   }
 
+  /// Asks for confirmation, then deletes this item.
   void _confirmDelete() {
     final SubjectViewModel subjectViewModel =
         Provider.of<SubjectViewModel>(context, listen: false);
     final String docId = _data.docId;
 
-    RemoveAlert.showRemoveAlert(
+    confirmDelete(
       title: _data.name,
-      description: "Are you sure want to delete ?",
-      onPressYes: () async {
-        // RemoveAlert never closes itself, and it is dismissed before the
-        // delete so there is no second route in flight for the refresh to
-        // race with.
-        Navigator.pop(navigatorKey.currentContext!);
-        final bool success = await subjectViewModel.deleteSubject(docId);
-        if (success) {
-          Helper.showInfoMessage(msg: "Subject deleted successfully");
-          await subjectViewModel.getSubjectList();
-        }
-      },
+      delete: () => subjectViewModel.deleteSubject(docId),
+      successMessage: "Subject deleted successfully",
+      onDeleted: () => subjectViewModel.getSubjectList(),
     );
   }
 }

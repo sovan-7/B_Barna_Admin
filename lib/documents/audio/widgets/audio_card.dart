@@ -1,57 +1,42 @@
-import 'package:bbarna/core/widgets/remove_alert.dart';
+import 'package:bbarna/core/widgets/card/admin_card_shell.dart';
+import 'package:bbarna/core/widgets/card/card_actions.dart';
+import 'package:bbarna/core/widgets/card/card_chips.dart';
+import 'package:bbarna/core/widgets/card/card_helpers.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/documents/audio/model/audio_model.dart';
 import 'package:bbarna/documents/audio/screen/edit_audio.dart';
 import 'package:bbarna/documents/audio/viewModel/audio_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-/// One audio row.
-///
-/// The old row was a `Row` of un-flexed `Row`s wrapped in a `FittedBox`
-/// below 900px, which "fixed" overflow by shrinking every row, text and
-/// all, until it fit. This row flexes and reflows.
+/// One row of the audio list: icon, title, code, description and a
+/// "Play the file" link; FREE/PAID chip; edit / delete buttons.
 class AudioCard extends StatefulWidget {
+  /// The item shown in this row.
   final AudioModel audioData;
+
+  /// Called after an edit or delete so the list can reload.
   final VoidCallback onChanged;
 
-  const AudioCard({required this.audioData, required this.onChanged, super.key});
+  const AudioCard(
+      {required this.audioData, required this.onChanged, super.key});
 
   @override
   State<AudioCard> createState() => _AudioCardState();
 }
 
 class _AudioCardState extends State<AudioCard> {
-  bool _hovered = false;
-
   AudioModel get _data => widget.audioData;
 
   @override
   Widget build(BuildContext context) {
-    final bool isCompact = MediaQuery.of(context).size.width < 900;
-    final bool showActions = _hovered || isCompact;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        margin: const EdgeInsets.only(bottom: AppTokens.gapSm),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: AppTokens.surface,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(
-              color: _hovered
-                  ? AppTokens.inkFaint.withValues(alpha: .5)
-                  : AppTokens.hairline),
-          boxShadow: AppTokens.cardShadow,
-        ),
-        child: isCompact
+    return AdminCardShell(
+      builder: (context, layout) {
+        final bool isCompact = layout.isCompact;
+        final bool showActions = layout.showActions;
+        return isCompact
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -72,11 +57,12 @@ class _AudioCardState extends State<AudioCard> {
                   const SizedBox(width: AppTokens.gapSm),
                   _actions(showActions),
                 ],
-              ),
-      ),
+              );
+      },
     );
   }
 
+  /// Left part of the row: picture or icon, name, code and details.
   Widget _identity() {
     final bool hasDescription = _data.description.trim().isNotEmpty &&
         _data.description != stringDefault;
@@ -115,7 +101,7 @@ class _AudioCardState extends State<AudioCard> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _codeChip(),
+                  CodeChip(_data.code),
                 ],
               ),
               if (hasDescription) ...[
@@ -126,8 +112,8 @@ class _AudioCardState extends State<AudioCard> {
                     style: AppTokens.body),
               ],
               const SizedBox(height: 6),
-              // The title itself used to be the link — blue text with no
-              // affordance, and nothing at all when the file was missing.
+              // An explicit link to the file, or a warning when there is
+              // none.
               if (hasFile)
                 Row(
                   children: [
@@ -136,7 +122,8 @@ class _AudioCardState extends State<AudioCard> {
                     const SizedBox(width: 5),
                     InkWell(
                       key: Key('audio_open_${_data.docId}'),
-                      onTap: () => _open(_data.link),
+                      onTap: () => openExternalUrl(_data.link,
+                          failureMessage: "Could not open that clip"),
                       borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                       child: const Padding(
                         padding: EdgeInsets.symmetric(vertical: 2),
@@ -158,8 +145,7 @@ class _AudioCardState extends State<AudioCard> {
                 )
               else
                 const Text("No file uploaded",
-                    style:
-                        TextStyle(fontSize: 11.5, color: AppTokens.danger)),
+                    style: TextStyle(fontSize: 11.5, color: AppTokens.danger)),
             ],
           ),
         ),
@@ -167,37 +153,13 @@ class _AudioCardState extends State<AudioCard> {
     );
   }
 
-  Future<void> _open(String url) async {
-    final Uri? uri = Uri.tryParse(url);
-    if (uri == null || !await launchUrl(uri)) {
-      Helper.showSnackBarMessage(
-          msg: "Could not open that clip", isSuccess: false);
-    }
-  }
-
-  Widget _codeChip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        border: Border.all(color: AppTokens.hairline),
-      ),
-      child: SelectableLabel(_data.code,
-          style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.4,
-              color: AppTokens.inkMuted)),
-    );
-  }
-
+  /// Status chips shown beside (or, when compact, under) the identity.
   Widget _chips() {
     final bool isFree = _data.audioType.toUpperCase() == "FREE";
     final Color typeColor =
         isFree ? const Color(0xFF108460) : const Color(0xFFB54708);
 
-    return _statusChip(
+    return StatusChip(
       icon: isFree ? Icons.lock_open_outlined : Icons.paid_outlined,
       label: _data.audioType.isEmpty || _data.audioType == stringDefault
           ? "No type"
@@ -207,84 +169,26 @@ class _AudioCardState extends State<AudioCard> {
     );
   }
 
-  Widget _statusChip({
-    required IconData icon,
-    required String label,
-    required Color color,
-    bool filled = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: filled ? color.withValues(alpha: .10) : AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        border: Border.all(
-            color: filled ? color.withValues(alpha: .28) : AppTokens.hairline),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 5),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 11.5, fontWeight: FontWeight.w600, color: color)),
-        ],
-      ),
-    );
-  }
-
+  /// Row buttons; faded in on hover, always shown on compact screens.
   Widget _actions(bool visible) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 140),
-      opacity: visible ? 1 : 0,
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _iconButton(
-              key: Key('audio_edit_${_data.docId}'),
-              icon: Icons.edit_outlined,
-              tooltip: "Edit audio",
-              color: AppTokens.inkMuted,
-              onTap: _openEdit,
-            ),
-            const SizedBox(width: 2),
-            _iconButton(
-              key: Key('audio_delete_${_data.docId}'),
-              icon: Icons.delete_outline,
-              tooltip: "Delete audio",
-              color: AppTokens.danger,
-              onTap: _confirmDelete,
-            ),
-          ],
+    return CardActions(
+      visible: visible,
+      buttons: [
+        CardEditButton(
+          buttonKey: Key('audio_edit_${_data.docId}'),
+          tooltip: "Edit audio",
+          onTap: _openEdit,
         ),
-      ),
+        CardDeleteButton(
+          buttonKey: Key('audio_delete_${_data.docId}'),
+          tooltip: "Delete audio",
+          onTap: _confirmDelete,
+        ),
+      ],
     );
   }
 
-  Widget _iconButton({
-    required Key key,
-    required IconData icon,
-    required String tooltip,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        key: key,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(icon, size: 17, color: color),
-        ),
-      ),
-    );
-  }
-
+  /// Opens the edit screen; the list reloads when it closes.
   void _openEdit() {
     Navigator.push(
       context,
@@ -292,22 +196,17 @@ class _AudioCardState extends State<AudioCard> {
     ).whenComplete(widget.onChanged);
   }
 
+  /// Asks for confirmation, then deletes this item.
   void _confirmDelete() {
     final AudioViewModel audioViewModel =
         Provider.of<AudioViewModel>(context, listen: false);
     final String docId = _data.docId;
 
-    RemoveAlert.showRemoveAlert(
+    confirmDelete(
       title: _data.title,
-      description: "Are you sure want to delete ?",
-      onPressYes: () async {
-        Navigator.pop(navigatorKey.currentContext!);
-        final bool success = await audioViewModel.deleteAudio(docId);
-        if (success) {
-          Helper.showInfoMessage(msg: "Audio deleted successfully");
-          widget.onChanged();
-        }
-      },
+      delete: () => audioViewModel.deleteAudio(docId),
+      successMessage: "Audio deleted successfully",
+      onDeleted: widget.onChanged,
     );
   }
 }

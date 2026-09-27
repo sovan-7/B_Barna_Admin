@@ -1,33 +1,37 @@
+import 'package:bbarna/core/widgets/card/admin_card_shell.dart';
+import 'package:bbarna/core/widgets/card/card_actions.dart';
+import 'package:bbarna/core/widgets/card/card_helpers.dart';
+import 'package:bbarna/core/widgets/card/image_or_initial.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/student/model/student_model.dart';
 import 'package:bbarna/student/screen/settings_student.dart';
-import 'package:bbarna/student/widgets/student_activity.dart';
 import 'package:bbarna/student/viewModel/student_viewmodel.dart';
+import 'package:bbarna/student/widgets/student_activity.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// One student row.
-///
-/// The old row was a fixed-height `Row` of un-flexed `Row`s wrapped in a
-/// `FittedBox` below 900px, which "fixed" overflow by shrinking every row,
-/// text and all, until it fit. This row flexes and reflows.
+/// One row of the student list: avatar, name, contact details and last
+/// sign-in; a device chip that signs the student out of every device; and
+/// buttons for their enrolled courses and for deleting them.
 class StudentCard extends StatefulWidget {
+  /// The item shown in this row.
   final Student student;
+
+  /// Called after an edit or delete so the list can reload.
   final VoidCallback onChanged;
 
-  const StudentCard({required this.student, required this.onChanged, super.key});
+  const StudentCard(
+      {required this.student, required this.onChanged, super.key});
 
   @override
   State<StudentCard> createState() => _StudentCardState();
 }
 
 class _StudentCardState extends State<StudentCard> {
-  bool _hovered = false;
-
   Student get _data => widget.student;
 
   int get _deviceCount {
@@ -38,26 +42,11 @@ class _StudentCardState extends State<StudentCard> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isCompact = MediaQuery.of(context).size.width < 900;
-    final bool showActions = _hovered || isCompact;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        margin: const EdgeInsets.only(bottom: AppTokens.gapSm),
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: AppTokens.surface,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(
-              color: _hovered
-                  ? AppTokens.inkFaint.withValues(alpha: .5)
-                  : AppTokens.hairline),
-          boxShadow: AppTokens.cardShadow,
-        ),
-        child: isCompact
+    return AdminCardShell(
+      builder: (context, layout) {
+        final bool isCompact = layout.isCompact;
+        final bool showActions = layout.showActions;
+        return isCompact
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -78,11 +67,12 @@ class _StudentCardState extends State<StudentCard> {
                   const SizedBox(width: AppTokens.gapSm),
                   _actions(showActions),
                 ],
-              ),
-      ),
+              );
+      },
     );
   }
 
+  /// Left part of the row: picture or icon, name, code and details.
   Widget _identity() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,8 +130,7 @@ class _StudentCardState extends State<StudentCard> {
   /// model and displayed nowhere, so there was no way to tell an active
   /// student from one who signed up and never came back.
   Widget _lastActive() {
-    final String? label =
-        StudentActivity.lastActiveLabel(_data.lastLoginAt);
+    final String? label = StudentActivity.lastActiveLabel(_data.lastLoginAt);
     final bool never = label == null;
 
     return Row(
@@ -165,6 +154,7 @@ class _StudentCardState extends State<StudentCard> {
   static String _value(String value, String fallback) =>
       value.trim().isEmpty || value == stringDefault ? fallback : value;
 
+  /// A small grey icon + text pair (e.g. "90 min").
   Widget _fact(IconData icon, String label) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -183,41 +173,25 @@ class _StudentCardState extends State<StudentCard> {
     );
   }
 
+  /// Round profile photo, or the first letter of the name.
   Widget _avatar() {
     final String url = _data.studentProfileImage;
-    final String initial = _value(_data.studentName, "?").characters.first;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-      child: SizedBox(
-        height: 40,
-        width: 40,
-        child: url.trim().isEmpty || url == stringDefault
-            ? _initialAvatar(initial)
-            : Image.network(url,
-                fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => _initialAvatar(initial)),
-      ),
+    return ImageOrInitial(
+      // The default placeholder string counts as "no photo".
+      imageUrl: url == stringDefault ? "" : url,
+      initial: _value(_data.studentName, "?").characters.first,
+      size: 40,
+      radius: AppTokens.radiusPill,
+      fontSize: 15,
     );
   }
 
-  Widget _initialAvatar(String initial) => Container(
-        color: AppTokens.surfaceMuted,
-        alignment: Alignment.center,
-        child: Text(initial.toUpperCase(),
-            style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppTokens.inkFaint)),
-      );
-
-  /// How many devices the student is signed in on, and a way to sign them
-  /// out. It used to be a bare logout icon with " - 3" beside it.
+  /// How many devices the student is signed in on; tapping it signs them
+  /// out of all of them.
   Widget _deviceChip() {
     final int count = _deviceCount;
     final bool signedIn = count > 0;
-    final Color color =
-        signedIn ? const Color(0xFF2563EB) : AppTokens.inkFaint;
+    final Color color = signedIn ? const Color(0xFF2563EB) : AppTokens.inkFaint;
 
     return Tooltip(
       message: signedIn
@@ -268,57 +242,28 @@ class _StudentCardState extends State<StudentCard> {
     );
   }
 
+  /// Row buttons; faded in on hover, always shown on compact screens.
   Widget _actions(bool visible) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 140),
-      opacity: visible ? 1 : 0,
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _iconButton(
-              key: Key('student_courses_${_data.studentId}'),
-              icon: Icons.school_outlined,
-              tooltip: "Enrolled courses",
-              color: AppTokens.inkMuted,
-              onTap: _openSettings,
-            ),
-            const SizedBox(width: 2),
-            _iconButton(
-              key: Key('student_delete_${_data.studentId}'),
-              icon: Icons.delete_outline,
-              tooltip: "Delete student",
-              color: AppTokens.danger,
-              onTap: _confirmDelete,
-            ),
-          ],
+    return CardActions(
+      visible: visible,
+      buttons: [
+        CardIconButton(
+          buttonKey: Key('student_courses_${_data.studentId}'),
+          icon: Icons.school_outlined,
+          tooltip: "Enrolled courses",
+          color: AppTokens.inkMuted,
+          onTap: _openSettings,
         ),
-      ),
+        CardDeleteButton(
+          buttonKey: Key('student_delete_${_data.studentId}'),
+          tooltip: "Delete student",
+          onTap: _confirmDelete,
+        ),
+      ],
     );
   }
 
-  Widget _iconButton({
-    required Key key,
-    required IconData icon,
-    required String tooltip,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        key: key,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(icon, size: 17, color: color),
-        ),
-      ),
-    );
-  }
-
+  /// Opens the student's enrolled-courses (settings) screen.
   void _openSettings() {
     Navigator.push(
       context,
@@ -331,6 +276,7 @@ class _StudentCardState extends State<StudentCard> {
     ).whenComplete(widget.onChanged);
   }
 
+  /// Asks for confirmation, then signs the student out of every device.
   void _confirmSignOut() {
     final StudentViewModel studentViewModel =
         Provider.of<StudentViewModel>(context, listen: false);
@@ -351,24 +297,18 @@ class _StudentCardState extends State<StudentCard> {
     );
   }
 
+  /// Asks for confirmation, then deletes this item.
   void _confirmDelete() {
     final StudentViewModel studentViewModel =
         Provider.of<StudentViewModel>(context, listen: false);
-    // Captured up front: the delete used to run through
-    // `FirebaseFirestore.instance` in this widget and then drop a row by
-    // *list index*, so confirming after a search removed the wrong student.
+    // Captured up front (by id, not list position) so a search or refresh
+    // while the dialog is open cannot change which student gets deleted.
     final String studentId = _data.studentId;
 
-    RemoveAlert.showRemoveAlert(
+    confirmDelete(
       title: _value(_data.studentName, "This student"),
-      description: "Are you sure want to delete ?",
-      onPressYes: () async {
-        Navigator.pop(navigatorKey.currentContext!);
-        final bool success = await studentViewModel.deleteStudent(studentId);
-        if (success) {
-          Helper.showInfoMessage(msg: "Student deleted successfully");
-        }
-      },
+      delete: () => studentViewModel.deleteStudent(studentId),
+      successMessage: "Student deleted successfully",
     );
   }
 }
