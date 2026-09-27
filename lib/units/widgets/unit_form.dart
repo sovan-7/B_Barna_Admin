@@ -1,4 +1,5 @@
 import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/extra_codes_field.dart';
 import 'package:bbarna/core/widgets/form/form_action_bar.dart';
 import 'package:bbarna/core/widgets/form/form_fields.dart';
 import 'package:bbarna/core/widgets/form/form_page_body.dart';
@@ -262,96 +263,77 @@ class _UnitFormState extends State<UnitForm> {
 
   Widget _page(UnitViewModel unitViewModel, CourseViewModel courseViewModel,
       double width) {
-    return Column(
+    return FormPageBody(
+      width: width,
+      actionBar: _actionBar(unitViewModel, width),
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: width < 700 ? 16 : 32, vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _pageHeader(),
-                    const SizedBox(height: AppTokens.gapLg),
-                    FormSection(title: "WHERE IT BELONGS", children: [
-                      FormTwoUp(
-                          width: width,
-                          left: _courseField(unitViewModel, courseViewModel),
-                          right: _subjectField(unitViewModel)),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _extraCodesField(),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "UNIT DETAILS", children: [
-                      FormTwoUp(
-                          width: width,
-                          left: _textField(
-                            label: "Unit code",
-                            hint: "e.g. MECH-01",
-                            controller: codeController,
-                            error: _errors[_Field.code],
-                            onChanged: _revalidate,
-                            uppercase: true,
-                          ),
-                          right: _textField(
-                            label: "Display priority",
-                            hint: "Lower numbers come first",
-                            controller: priorityController,
-                            error: _errors[_Field.priority],
-                            onChanged: _revalidate,
-                            numeric: true,
-                          )),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _textField(
-                        label: "Unit name",
-                        hint: "e.g. Laws of Motion",
-                        controller: nameController,
-                        error: _errors[_Field.name],
-                        onChanged: _revalidate,
-                      ),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _textField(
-                        label: "Description",
-                        hint: "What does this unit cover? (optional)",
-                        controller: descriptionController,
-                        maxLines: 4,
-                      ),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "UNIT IMAGE", children: [_imageField()]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "AVAILABILITY", children: [
-                      FormToggleRow(
-                        title: "Show in the app",
-                        subtitle:
-                            "Hidden units stay in the catalogue but students never see them.",
-                        value: willShow,
-                        onChanged: _isSaving
-                            ? null
-                            : (v) => setState(() => willShow = v),
-                      ),
-                      const FormToggleDivider(),
-                      FormToggleRow(
-                        title: "Locked",
-                        subtitle:
-                            "Students can see a locked unit but cannot open its topics.",
-                        value: isLocked,
-                        onChanged: _isSaving
-                            ? null
-                            : (v) => setState(() => isLocked = v),
-                      ),
-                    ]),
-                    const SizedBox(height: AppTokens.gapXl),
-                  ],
-                ),
+        _pageHeader(),
+        const SizedBox(height: AppTokens.gapLg),
+        FormSection(title: "WHERE IT BELONGS", children: [
+          FormTwoUp(
+              width: width,
+              left: _courseField(unitViewModel, courseViewModel),
+              right: _subjectField(unitViewModel)),
+          const SizedBox(height: AppTokens.gapMd),
+          _extraCodesField(),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "UNIT DETAILS", children: [
+          FormTwoUp(
+              width: width,
+              left: _textField(
+                label: "Unit code",
+                hint: "e.g. MECH-01",
+                controller: codeController,
+                error: _errors[_Field.code],
+                onChanged: _revalidate,
+                uppercase: true,
               ),
-            ),
+              right: _textField(
+                label: "Display priority",
+                hint: "Lower numbers come first",
+                controller: priorityController,
+                error: _errors[_Field.priority],
+                onChanged: _revalidate,
+                numeric: true,
+              )),
+          const SizedBox(height: AppTokens.gapMd),
+          _textField(
+            label: "Unit name",
+            hint: "e.g. Laws of Motion",
+            controller: nameController,
+            error: _errors[_Field.name],
+            onChanged: _revalidate,
           ),
-        ),
-        _actionBar(unitViewModel, width),
+          const SizedBox(height: AppTokens.gapMd),
+          _textField(
+            label: "Description",
+            hint: "What does this unit cover? (optional)",
+            controller: descriptionController,
+            maxLines: 4,
+          ),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "UNIT IMAGE", children: [_imageField()]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "AVAILABILITY", children: [
+          FormToggleRow(
+            title: "Show in the app",
+            subtitle:
+                "Hidden units stay in the catalogue but students never see them.",
+            value: willShow,
+            onChanged: _isSaving ? null : (v) => setState(() => willShow = v),
+          ),
+          const FormToggleDivider(),
+          FormToggleRow(
+            title: "Locked",
+            subtitle:
+                "Students can see a locked unit but cannot open its topics.",
+            value: isLocked,
+            onChanged: _isSaving ? null : (v) => setState(() => isLocked = v),
+          ),
+        ]),
+        const SizedBox(height: AppTokens.gapXl),
       ],
     );
   }
@@ -453,81 +435,23 @@ class _UnitFormState extends State<UnitForm> {
     );
   }
 
-  /// Extra subject codes, for a unit that is shared across subjects. The
-  /// old form offered these as an unlabelled row of boxes with + and −
-  /// buttons and no explanation of what they were.
+  /// Extra subject codes, for a unit that is shared across subjects.
   Widget _extraCodesField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("Also appears in", style: AppTokens.fieldLabel),
-        const SizedBox(height: 2),
-        const Text(
+    return ExtraCodesField(
+      controllers: _extraCodeControllers,
+      description:
           "Extra subject codes this unit should show under. Leave empty "
           "unless the unit is shared.",
-          style: TextStyle(
-              fontSize: 11.5, height: 1.35, color: AppTokens.inkFaint),
-        ),
-        const SizedBox(height: 8),
-        for (int i = 0; i < _extraCodeControllers.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppTokens.gapSm),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppTokens.surface,
-                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                      border: Border.all(color: AppTokens.hairline),
-                    ),
-                    child: TextField(
-                      controller: _extraCodeControllers[i],
-                      inputFormatters: [UpperCaseTextFormatter()],
-                      style:
-                          const TextStyle(fontSize: 13.5, color: AppTokens.ink),
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        border: InputBorder.none,
-                        hintText: "Subject code",
-                        hintStyle:
-                            TextStyle(fontSize: 13, color: AppTokens.inkFaint),
-                        contentPadding: EdgeInsets.fromLTRB(14, 13, 14, 13),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppTokens.gapSm),
-                IconButton(
-                  key: Key('unit_extra_code_remove_$i'),
-                  tooltip: "Remove this code",
-                  onPressed: _isSaving
-                      ? null
-                      : () => setState(() {
-                            _extraCodeControllers[i].dispose();
-                            _extraCodeControllers.removeAt(i);
-                          }),
-                  icon: const Icon(Icons.close, size: 18),
-                  color: AppTokens.inkMuted,
-                ),
-              ],
-            ),
-          ),
-        TextButton.icon(
-          key: const Key('unit_extra_code_add'),
-          onPressed: _isSaving
-              ? null
-              : () => setState(
-                  () => _extraCodeControllers.add(TextEditingController())),
-          icon: const Icon(Icons.add, size: 16),
-          label: const Text("Add a subject code",
-              style: TextStyle(fontSize: 12.5)),
-          style: TextButton.styleFrom(
-            foregroundColor: AppTokens.inkMuted,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          ),
-        ),
-      ],
+      hint: "Subject code",
+      addLabel: "Add a subject code",
+      keyPrefix: "unit",
+      enabled: !_isSaving,
+      onAdd: () =>
+          setState(() => _extraCodeControllers.add(TextEditingController())),
+      onRemove: (i) => setState(() {
+        _extraCodeControllers[i].dispose();
+        _extraCodeControllers.removeAt(i);
+      }),
     );
   }
 

@@ -178,58 +178,43 @@ class _AudioFormState extends State<AudioForm> {
   }
 
   Widget _page(AudioViewModel audioViewModel, double width) {
-    return Column(
+    return FormPageBody(
+      width: width,
+      actionBar: _actionBar(audioViewModel, width),
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: width < 700 ? 16 : 32, vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _pageHeader(),
-                    const SizedBox(height: AppTokens.gapLg),
-                    FormSection(title: "AUDIO DETAILS", children: [
-                      FormTwoUp(
-                          width: width,
-                          left: _textField(
-                            label: "Audio code",
-                            hint: "e.g. LECTURE-01",
-                            controller: codeController,
-                            error: _errors[_Field.code],
-                            onChanged: _revalidate,
-                            uppercase: true,
-                          ),
-                          right: _typeField()),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _textField(
-                        label: "Title",
-                        hint: "e.g. Kinematics — recorded lecture",
-                        controller: titleController,
-                        error: _errors[_Field.title],
-                        onChanged: _revalidate,
-                      ),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _textField(
-                        label: "Description",
-                        hint: "What does this clip cover? (optional)",
-                        controller: descriptionController,
-                        maxLines: 4,
-                      ),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "FILE", children: [_fileField()]),
-                    const SizedBox(height: AppTokens.gapXl),
-                  ],
-                ),
+        _pageHeader(),
+        const SizedBox(height: AppTokens.gapLg),
+        FormSection(title: "AUDIO DETAILS", children: [
+          FormTwoUp(
+              width: width,
+              left: _textField(
+                label: "Audio code",
+                hint: "e.g. LECTURE-01",
+                controller: codeController,
+                error: _errors[_Field.code],
+                onChanged: _revalidate,
+                uppercase: true,
               ),
-            ),
+              right: _typeField()),
+          const SizedBox(height: AppTokens.gapMd),
+          _textField(
+            label: "Title",
+            hint: "e.g. Kinematics — recorded lecture",
+            controller: titleController,
+            error: _errors[_Field.title],
+            onChanged: _revalidate,
           ),
-        ),
-        _actionBar(audioViewModel, width),
+          const SizedBox(height: AppTokens.gapMd),
+          _textField(
+            label: "Description",
+            hint: "What does this clip cover? (optional)",
+            controller: descriptionController,
+            maxLines: 4,
+          ),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "FILE", children: [_fileField()]),
+        const SizedBox(height: AppTokens.gapXl),
       ],
     );
   }

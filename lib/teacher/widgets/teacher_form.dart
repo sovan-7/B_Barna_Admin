@@ -251,73 +251,57 @@ class _TeacherFormState extends TeacherFormTestHooks {
   }
 
   Widget _page(double width) {
-    return Column(
+    return FormPageBody(
+      width: width,
+      maxWidth: 760,
+      actionBar: _actionBar(width),
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: width < 700 ? 16 : 32, vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _pageHeader(),
-                    const SizedBox(height: AppTokens.gapLg),
-                    FormSection(title: "ACCOUNT", children: [
-                      _avatarField(),
-                      const SizedBox(height: AppTokens.gapLg),
-                      FormTwoUp(
-                          width: width,
-                          left: _textField(
-                            fieldKey: const Key('teacher_name_field'),
-                            label: "Full name",
-                            hint: "e.g. Anita Desai",
-                            controller: nameController,
-                            error: _errors[_Field.name],
-                          ),
-                          right: _textField(
-                            fieldKey: const Key('teacher_username_field'),
-                            label: "Username",
-                            hint: "Letters, numbers and underscores",
-                            controller: usernameController,
-                            error: _errors[_Field.username],
-                            // The username is the document id, so it cannot
-                            // change once the teacher exists.
-                            enabled: !widget.isEdit,
-                            note: widget.isEdit
-                                ? "A username cannot be changed."
-                                : null,
-                          )),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _textField(
-                        fieldKey: const Key('teacher_phone_field'),
-                        label: "Phone number",
-                        hint: "10-digit mobile number",
-                        controller: phoneController,
-                        error: _errors[_Field.phone],
-                        keyboardType: TextInputType.phone,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(10),
-                        ],
-                      ),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _passwordField(),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "ROLE", children: [_roleField()]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    _moduleSection(),
-                    const SizedBox(height: AppTokens.gapXl),
-                  ],
-                ),
+        _pageHeader(),
+        const SizedBox(height: AppTokens.gapLg),
+        FormSection(title: "ACCOUNT", children: [
+          _avatarField(),
+          const SizedBox(height: AppTokens.gapLg),
+          FormTwoUp(
+              width: width,
+              left: _textField(
+                fieldKey: const Key('teacher_name_field'),
+                label: "Full name",
+                hint: "e.g. Anita Desai",
+                controller: nameController,
+                error: _errors[_Field.name],
               ),
-            ),
+              right: _textField(
+                fieldKey: const Key('teacher_username_field'),
+                label: "Username",
+                hint: "Letters, numbers and underscores",
+                controller: usernameController,
+                error: _errors[_Field.username],
+                // The username is the document id, so it cannot
+                // change once the teacher exists.
+                enabled: !widget.isEdit,
+                note: widget.isEdit ? "A username cannot be changed." : null,
+              )),
+          const SizedBox(height: AppTokens.gapMd),
+          _textField(
+            fieldKey: const Key('teacher_phone_field'),
+            label: "Phone number",
+            hint: "10-digit mobile number",
+            controller: phoneController,
+            error: _errors[_Field.phone],
+            keyboardType: TextInputType.phone,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(10),
+            ],
           ),
-        ),
-        _actionBar(width),
+          const SizedBox(height: AppTokens.gapMd),
+          _passwordField(),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "ROLE", children: [_roleField()]),
+        const SizedBox(height: AppTokens.gapMd),
+        _moduleSection(),
+        const SizedBox(height: AppTokens.gapXl),
       ],
     );
   }

@@ -10,12 +10,12 @@ import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/subject/viewModel/subject_view_model.dart';
+import 'package:bbarna/subject/widgets/subject_pricing_fields.dart';
 import 'package:bbarna/utils/formatters.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 /// The whole Add/Edit Subject page. [existing] null means Add.
@@ -79,7 +79,6 @@ class _SubjectFormState extends State<SubjectForm> {
   /// The last day the coupon can be used (date only); saved as the end of
   /// that day so "valid till 30 Sep" still works on 30 Sep.
   DateTime? _couponValidDate;
-  static final DateFormat _validDateFormat = DateFormat("d MMM yyyy");
 
   final Map<_Field, String> _errors = <_Field, String>{};
 
@@ -365,232 +364,147 @@ class _SubjectFormState extends State<SubjectForm> {
 
   Widget _page(SubjectViewModel subjectViewModel,
       CourseViewModel courseViewModel, double width) {
-    return Column(
+    return FormPageBody(
+      width: width,
+      actionBar: _actionBar(subjectViewModel, courseViewModel, width),
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: width < 700 ? 16 : 32, vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _pageHeader(),
-                    const SizedBox(height: AppTokens.gapLg),
-                    FormSection(title: "WHERE IT BELONGS", children: [
-                      FormTwoUp(
-                          width: width,
-                          left: _courseField(courseViewModel),
-                          right: _typeField()),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "SUBJECT DETAILS", children: [
-                      FormTwoUp(
-                          width: width,
-                          left: _textField(
-                            label: "Subject code",
-                            hint: "e.g. PHY-MECH",
-                            controller: codeController,
-                            error: _errors[_Field.code],
-                            onChanged: _revalidate,
-                            uppercase: true,
-                          ),
-                          right: _textField(
-                            label: "Display priority",
-                            hint: "Lower numbers come first",
-                            controller: priorityController,
-                            error: _errors[_Field.priority],
-                            onChanged: _revalidate,
-                            numeric: true,
-                          )),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _textField(
-                        label: "Subject name",
-                        hint: "e.g. Mechanics",
-                        controller: nameController,
-                        error: _errors[_Field.name],
-                        onChanged: _revalidate,
-                      ),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _textField(
-                        label: "Description",
-                        hint: "What does this subject cover? (optional)",
-                        controller: descriptionController,
-                        maxLines: 4,
-                      ),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "PRICING", children: [
-                      FormTwoUp(
-                          width: width,
-                          left: _textField(
-                            label: "Price",
-                            hint: "0.00",
-                            controller: priceController,
-                            error: _errors[_Field.price],
-                            onChanged: _revalidate,
-                            money: true,
-                          ),
-                          right: _textField(
-                            label: "Selling price",
-                            hint: "What a student actually pays",
-                            controller: sellingPriceController,
-                            error: _errors[_Field.sellingPrice],
-                            onChanged: _revalidate,
-                            money: true,
-                          )),
-                      _discountNote(),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "COUPON (OPTIONAL)", children: [
-                      FormTwoUp(
-                          width: width,
-                          left: _textField(
-                            label: "Coupon code",
-                            hint: "e.g. NEWYEAR50",
-                            controller: couponCodeController,
-                            error: _errors[_Field.couponCode],
-                            onChanged: _revalidate,
-                            uppercase: true,
-                          ),
-                          right: _textField(
-                            label: "Coupon discount",
-                            hint: "Flat amount off selling price",
-                            controller: couponDiscountController,
-                            error: _errors[_Field.couponDiscount],
-                            onChanged: _revalidate,
-                            money: true,
-                          )),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _couponValidityField(),
-                      _couponNote(),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(
-                        title: "SUBJECT IMAGE", children: [_imageField()]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "AVAILABILITY", children: [
-                      FormToggleRow(
-                        title: "Show in the app",
-                        subtitle:
-                            "Hidden subjects stay in the catalogue but students never see them.",
-                        value: willDisplay,
-                        onChanged: _isSaving
-                            ? null
-                            : (v) => setState(() => willDisplay = v),
-                      ),
-                      const FormToggleDivider(),
-                      FormToggleRow(
-                        title: "Locked",
-                        subtitle:
-                            "Students can see a locked subject but cannot open its content.",
-                        value: isLocked,
-                        onChanged: _isSaving
-                            ? null
-                            : (v) => setState(() => isLocked = v),
-                      ),
-                      const FormToggleDivider(),
-                      FormToggleRow(
-                        title: "Popular",
-                        subtitle:
-                            "Popular subjects are highlighted on the app's home screen.",
-                        value: isPopular,
-                        onChanged: _isSaving
-                            ? null
-                            : (v) => setState(() => isPopular = v),
-                      ),
-                    ]),
-                    const SizedBox(height: AppTokens.gapXl),
-                  ],
-                ),
+        _pageHeader(),
+        const SizedBox(height: AppTokens.gapLg),
+        FormSection(title: "WHERE IT BELONGS", children: [
+          FormTwoUp(
+              width: width,
+              left: _courseField(courseViewModel),
+              right: _typeField()),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "SUBJECT DETAILS", children: [
+          FormTwoUp(
+              width: width,
+              left: _textField(
+                label: "Subject code",
+                hint: "e.g. PHY-MECH",
+                controller: codeController,
+                error: _errors[_Field.code],
+                onChanged: _revalidate,
+                uppercase: true,
               ),
-            ),
+              right: _textField(
+                label: "Display priority",
+                hint: "Lower numbers come first",
+                controller: priorityController,
+                error: _errors[_Field.priority],
+                onChanged: _revalidate,
+                numeric: true,
+              )),
+          const SizedBox(height: AppTokens.gapMd),
+          _textField(
+            label: "Subject name",
+            hint: "e.g. Mechanics",
+            controller: nameController,
+            error: _errors[_Field.name],
+            onChanged: _revalidate,
           ),
-        ),
-        _actionBar(subjectViewModel, courseViewModel, width),
+          const SizedBox(height: AppTokens.gapMd),
+          _textField(
+            label: "Description",
+            hint: "What does this subject cover? (optional)",
+            controller: descriptionController,
+            maxLines: 4,
+          ),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "PRICING", children: [
+          FormTwoUp(
+              width: width,
+              left: _textField(
+                label: "Price",
+                hint: "0.00",
+                controller: priceController,
+                error: _errors[_Field.price],
+                onChanged: _revalidate,
+                money: true,
+              ),
+              right: _textField(
+                label: "Selling price",
+                hint: "What a student actually pays",
+                controller: sellingPriceController,
+                error: _errors[_Field.sellingPrice],
+                onChanged: _revalidate,
+                money: true,
+              )),
+          SubjectPriceSummary(
+            priceText: priceController.text,
+            sellingPriceText: sellingPriceController.text,
+          ),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "COUPON (OPTIONAL)", children: [
+          FormTwoUp(
+              width: width,
+              left: _textField(
+                label: "Coupon code",
+                hint: "e.g. NEWYEAR50",
+                controller: couponCodeController,
+                error: _errors[_Field.couponCode],
+                onChanged: _revalidate,
+                uppercase: true,
+              ),
+              right: _textField(
+                label: "Coupon discount",
+                hint: "Flat amount off selling price",
+                controller: couponDiscountController,
+                error: _errors[_Field.couponDiscount],
+                onChanged: _revalidate,
+                money: true,
+              )),
+          const SizedBox(height: AppTokens.gapMd),
+          CouponValidTillField(
+            date: _couponValidDate,
+            error: _errors[_Field.couponValidTill],
+            enabled: !_isSaving,
+            onTap: _pickCouponValidDate,
+            onClear: () {
+              setState(() => _couponValidDate = null);
+              _revalidate();
+            },
+          ),
+          const CouponNote(),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "SUBJECT IMAGE", children: [_imageField()]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "AVAILABILITY", children: [
+          FormToggleRow(
+            title: "Show in the app",
+            subtitle:
+                "Hidden subjects stay in the catalogue but students never see them.",
+            value: willDisplay,
+            onChanged:
+                _isSaving ? null : (v) => setState(() => willDisplay = v),
+          ),
+          const FormToggleDivider(),
+          FormToggleRow(
+            title: "Locked",
+            subtitle:
+                "Students can see a locked subject but cannot open its content.",
+            value: isLocked,
+            onChanged: _isSaving ? null : (v) => setState(() => isLocked = v),
+          ),
+          const FormToggleDivider(),
+          FormToggleRow(
+            title: "Popular",
+            subtitle:
+                "Popular subjects are highlighted on the app's home screen.",
+            value: isPopular,
+            onChanged: _isSaving ? null : (v) => setState(() => isPopular = v),
+          ),
+        ]),
+        const SizedBox(height: AppTokens.gapXl),
       ],
     );
   }
 
-  /// Spells out what the two price fields add up to, so a discount is
-  /// something you read rather than compute.
-  Widget _discountNote() {
-    final double? price = double.tryParse(priceController.text.trim());
-    final double? selling = double.tryParse(sellingPriceController.text.trim());
-    if (price == null || selling == null || price <= 0 || selling > price) {
-      return const SizedBox.shrink();
-    }
-
-    final bool discounted = selling < price;
-    return Padding(
-      padding: const EdgeInsets.only(top: AppTokens.gapMd),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppTokens.surfaceMuted,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(color: AppTokens.hairline),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.sell_outlined,
-                size: 16, color: AppTokens.inkMuted),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                discounted
-                    ? "Students pay ₹${selling.toStringAsFixed(2)} — "
-                        "${(((price - selling) / price) * 100).round()}% off ₹${price.toStringAsFixed(2)}."
-                    : "Students pay ₹${selling.toStringAsFixed(2)}. No discount is shown.",
-                style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppTokens.inkMuted),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Explains the two things that are not obvious from the fields alone:
-  /// the amount is flat rupees off the selling price (not a percentage,
-  /// matching how the student app applies it), and clearing the fields is
-  /// how an existing coupon is removed.
-  Widget _couponNote() {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppTokens.gapMd),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppTokens.surfaceMuted,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(color: AppTokens.hairline),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.info_outline, size: 16, color: AppTokens.inkMuted),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                "A flat ₹ amount off the selling price, not a percentage. "
-                "The coupon works up to the end of its valid-till date. "
-                "Leave all fields blank to remove an existing coupon.",
-                style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppTokens.inkMuted),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+  /// Opens the shared valid-till calendar for the coupon.
   Future<void> _pickCouponValidDate() async {
     final DateTime? picked = await showValidTillPicker(
       context,
@@ -606,74 +520,6 @@ class _SubjectFormState extends State<SubjectForm> {
     if (picked == null || !mounted) return;
     setState(() => _couponValidDate = _dateOnly(picked));
     _revalidate();
-  }
-
-  Widget _couponValidityField() {
-    final String? error = _errors[_Field.couponValidTill];
-    final DateTime? date = _couponValidDate;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("Valid till", style: AppTokens.fieldLabel),
-        const SizedBox(height: 6),
-        Material(
-          color: AppTokens.surface,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          child: InkWell(
-            key: const Key('subject_coupon_valid_till'),
-            onTap: _isSaving ? null : _pickCouponValidDate,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
-              constraints: const BoxConstraints(minHeight: 46),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                border: Border.all(
-                    color:
-                        error != null ? AppTokens.danger : AppTokens.hairline),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.event_outlined,
-                      size: 16, color: AppTokens.inkFaint),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      date == null
-                          ? "Pick the last day this coupon works"
-                          : _validDateFormat.format(date),
-                      style: date == null
-                          ? const TextStyle(
-                              fontSize: 13, color: AppTokens.inkFaint)
-                          : const TextStyle(
-                              fontSize: 13.5, color: AppTokens.ink),
-                    ),
-                  ),
-                  if (date != null)
-                    IconButton(
-                      tooltip: "Clear date",
-                      onPressed: _isSaving
-                          ? null
-                          : () {
-                              setState(() => _couponValidDate = null);
-                              _revalidate();
-                            },
-                      icon: const Icon(Icons.close, size: 16),
-                      color: AppTokens.inkMuted,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 5),
-          Text(error, style: AppTokens.errorText),
-        ],
-      ],
-    );
   }
 
   /// Back button, title and subtitle at the top of the page.

@@ -182,67 +182,52 @@ class _VideoFormState extends State<VideoForm> {
   }
 
   Widget _page(VideoViewModel videoViewModel, double width) {
-    return Column(
+    return FormPageBody(
+      width: width,
+      actionBar: _actionBar(videoViewModel, width),
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: width < 700 ? 16 : 32, vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _pageHeader(),
-                    const SizedBox(height: AppTokens.gapLg),
-                    FormSection(title: "VIDEO DETAILS", children: [
-                      FormTwoUp(
-                          width: width,
-                          left: _textField(
-                            label: "Video code",
-                            hint: "e.g. INTRO-01",
-                            controller: codeController,
-                            error: _errors[_Field.code],
-                            onChanged: _revalidate,
-                            uppercase: true,
-                          ),
-                          right: _typeField()),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _textField(
-                        label: "Title",
-                        hint: "e.g. Introduction to Kinematics",
-                        controller: titleController,
-                        error: _errors[_Field.title],
-                        onChanged: _revalidate,
-                      ),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _textField(
-                        label: "Description",
-                        hint: "What does this video cover? (optional)",
-                        controller: descriptionController,
-                        maxLines: 4,
-                      ),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "LINK", children: [
-                      _textField(
-                        label: "Video link",
-                        hint: "https://www.youtube.com/watch?v=...",
-                        controller: linkController,
-                        error: _errors[_Field.link],
-                        onChanged: _revalidate,
-                        prefixIcon: Icons.link,
-                      ),
-                    ]),
-                    const SizedBox(height: AppTokens.gapXl),
-                  ],
-                ),
+        _pageHeader(),
+        const SizedBox(height: AppTokens.gapLg),
+        FormSection(title: "VIDEO DETAILS", children: [
+          FormTwoUp(
+              width: width,
+              left: _textField(
+                label: "Video code",
+                hint: "e.g. INTRO-01",
+                controller: codeController,
+                error: _errors[_Field.code],
+                onChanged: _revalidate,
+                uppercase: true,
               ),
-            ),
+              right: _typeField()),
+          const SizedBox(height: AppTokens.gapMd),
+          _textField(
+            label: "Title",
+            hint: "e.g. Introduction to Kinematics",
+            controller: titleController,
+            error: _errors[_Field.title],
+            onChanged: _revalidate,
           ),
-        ),
-        _actionBar(videoViewModel, width),
+          const SizedBox(height: AppTokens.gapMd),
+          _textField(
+            label: "Description",
+            hint: "What does this video cover? (optional)",
+            controller: descriptionController,
+            maxLines: 4,
+          ),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "LINK", children: [
+          _textField(
+            label: "Video link",
+            hint: "https://www.youtube.com/watch?v=...",
+            controller: linkController,
+            error: _errors[_Field.link],
+            onChanged: _revalidate,
+            prefixIcon: Icons.link,
+          ),
+        ]),
+        const SizedBox(height: AppTokens.gapXl),
       ],
     );
   }

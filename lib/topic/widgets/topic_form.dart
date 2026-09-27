@@ -1,4 +1,5 @@
 import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/extra_codes_field.dart';
 import 'package:bbarna/core/widgets/form/form_action_bar.dart';
 import 'package:bbarna/core/widgets/form/form_fields.dart';
 import 'package:bbarna/core/widgets/form/form_page_body.dart';
@@ -252,71 +253,56 @@ class _TopicFormState extends State<TopicForm> {
 
   Widget _page(TopicViewModel topicViewModel, CourseViewModel courseViewModel,
       double width) {
-    return Column(
+    return FormPageBody(
+      width: width,
+      actionBar: _actionBar(topicViewModel, width),
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: width < 700 ? 16 : 32, vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _pageHeader(),
-                    const SizedBox(height: AppTokens.gapLg),
-                    FormSection(title: "WHERE IT BELONGS", children: [
-                      FormTwoUp(
-                          width: width,
-                          left: _courseField(topicViewModel, courseViewModel),
-                          right: _subjectField(topicViewModel)),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _unitField(topicViewModel),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _extraCodesField(),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "TOPIC DETAILS", children: [
-                      FormTwoUp(
-                          width: width,
-                          left: _textField(
-                            label: "Topic code",
-                            hint: "e.g. NEWT-01",
-                            controller: codeController,
-                            error: _errors[_Field.code],
-                            onChanged: _revalidate,
-                            uppercase: true,
-                          ),
-                          right: _textField(
-                            label: "Display priority",
-                            hint: "Lower numbers come first",
-                            controller: priorityController,
-                            error: _errors[_Field.priority],
-                            onChanged: _revalidate,
-                            numeric: true,
-                          )),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _textField(
-                        label: "Topic name",
-                        hint: "e.g. Newton's First Law",
-                        controller: nameController,
-                        error: _errors[_Field.name],
-                        onChanged: _revalidate,
-                      ),
-                    ]),
-                    if (widget.isEdit) ...[
-                      const SizedBox(height: AppTokens.gapMd),
-                      FormSection(title: "CONTENT", children: [_contentRow()]),
-                    ],
-                    const SizedBox(height: AppTokens.gapXl),
-                  ],
-                ),
+        _pageHeader(),
+        const SizedBox(height: AppTokens.gapLg),
+        FormSection(title: "WHERE IT BELONGS", children: [
+          FormTwoUp(
+              width: width,
+              left: _courseField(topicViewModel, courseViewModel),
+              right: _subjectField(topicViewModel)),
+          const SizedBox(height: AppTokens.gapMd),
+          _unitField(topicViewModel),
+          const SizedBox(height: AppTokens.gapMd),
+          _extraCodesField(),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "TOPIC DETAILS", children: [
+          FormTwoUp(
+              width: width,
+              left: _textField(
+                label: "Topic code",
+                hint: "e.g. NEWT-01",
+                controller: codeController,
+                error: _errors[_Field.code],
+                onChanged: _revalidate,
+                uppercase: true,
               ),
-            ),
+              right: _textField(
+                label: "Display priority",
+                hint: "Lower numbers come first",
+                controller: priorityController,
+                error: _errors[_Field.priority],
+                onChanged: _revalidate,
+                numeric: true,
+              )),
+          const SizedBox(height: AppTokens.gapMd),
+          _textField(
+            label: "Topic name",
+            hint: "e.g. Newton's First Law",
+            controller: nameController,
+            error: _errors[_Field.name],
+            onChanged: _revalidate,
           ),
-        ),
-        _actionBar(topicViewModel, width),
+        ]),
+        if (widget.isEdit) ...[
+          const SizedBox(height: AppTokens.gapMd),
+          FormSection(title: "CONTENT", children: [_contentRow()]),
+        ],
+        const SizedBox(height: AppTokens.gapXl),
       ],
     );
   }
@@ -467,81 +453,23 @@ class _TopicFormState extends State<TopicForm> {
     );
   }
 
-  /// Extra unit codes, for a topic that is shared across units. The old
-  /// form offered these as an unlabelled row of boxes with + and − buttons
-  /// and no explanation of what they were.
+  /// Extra unit codes, for a topic that is shared across units.
   Widget _extraCodesField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("Also appears in", style: AppTokens.fieldLabel),
-        const SizedBox(height: 2),
-        const Text(
+    return ExtraCodesField(
+      controllers: _extraCodeControllers,
+      description:
           "Extra unit codes this topic should show under. The unit chosen "
           "above is included automatically.",
-          style: TextStyle(
-              fontSize: 11.5, height: 1.35, color: AppTokens.inkFaint),
-        ),
-        const SizedBox(height: 8),
-        for (int i = 0; i < _extraCodeControllers.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppTokens.gapSm),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppTokens.surface,
-                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                      border: Border.all(color: AppTokens.hairline),
-                    ),
-                    child: TextField(
-                      controller: _extraCodeControllers[i],
-                      inputFormatters: [UpperCaseTextFormatter()],
-                      style:
-                          const TextStyle(fontSize: 13.5, color: AppTokens.ink),
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        border: InputBorder.none,
-                        hintText: "Unit code",
-                        hintStyle:
-                            TextStyle(fontSize: 13, color: AppTokens.inkFaint),
-                        contentPadding: EdgeInsets.fromLTRB(14, 13, 14, 13),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppTokens.gapSm),
-                IconButton(
-                  key: Key('topic_extra_code_remove_$i'),
-                  tooltip: "Remove this code",
-                  onPressed: _isSaving
-                      ? null
-                      : () => setState(() {
-                            _extraCodeControllers[i].dispose();
-                            _extraCodeControllers.removeAt(i);
-                          }),
-                  icon: const Icon(Icons.close, size: 18),
-                  color: AppTokens.inkMuted,
-                ),
-              ],
-            ),
-          ),
-        TextButton.icon(
-          key: const Key('topic_extra_code_add'),
-          onPressed: _isSaving
-              ? null
-              : () => setState(
-                  () => _extraCodeControllers.add(TextEditingController())),
-          icon: const Icon(Icons.add, size: 16),
-          label:
-              const Text("Add a unit code", style: TextStyle(fontSize: 12.5)),
-          style: TextButton.styleFrom(
-            foregroundColor: AppTokens.inkMuted,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          ),
-        ),
-      ],
+      hint: "Unit code",
+      addLabel: "Add a unit code",
+      keyPrefix: "topic",
+      enabled: !_isSaving,
+      onAdd: () =>
+          setState(() => _extraCodeControllers.add(TextEditingController())),
+      onRemove: (i) => setState(() {
+        _extraCodeControllers[i].dispose();
+        _extraCodeControllers.removeAt(i);
+      }),
     );
   }
 

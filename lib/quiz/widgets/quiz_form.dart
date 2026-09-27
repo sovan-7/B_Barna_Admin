@@ -1,9 +1,8 @@
-import 'package:bbarna/core/widgets/form/form_page_body.dart';
-import 'package:bbarna/core/widgets/form/form_fields.dart';
-import 'package:bbarna/core/widgets/form/form_action_bar.dart';
 import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/form_action_bar.dart';
+import 'package:bbarna/core/widgets/form/form_fields.dart';
+import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
-import 'package:bbarna/utils/formatters.dart';
 import 'package:bbarna/question/model/question.dart';
 import 'package:bbarna/quiz/model/quiz_model.dart';
 import 'package:bbarna/quiz/viewModel/quiz_view_model.dart';
@@ -11,6 +10,7 @@ import 'package:bbarna/quiz/widgets/quiz_card.dart'
     show formatDuration, statusColor, statusIcon;
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/formatters.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -229,74 +229,60 @@ class _QuizFormState extends State<QuizForm> {
   }
 
   Widget _page(QuizViewModel quizViewModel, double width) {
-    return Column(
+    return FormPageBody(
+      width: width,
+      maxWidth: 760,
+      actionBar: _actionBar(quizViewModel, width),
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: width < 700 ? 16 : 32, vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _pageHeader(),
-                    const SizedBox(height: AppTokens.gapLg),
-                    FormSection(title: "QUIZ DETAILS", children: [
-                      FormTwoUp(
-                          width: width,
-                          left: _textField(
-                            label: "Quiz code",
-                            hint: "e.g. MOCK-01",
-                            controller: codeController,
-                            error: _errors[_Field.code],
-                            onChanged: _revalidate,
-                            uppercase: true,
-                          ),
-                          right: _textField(
-                            label: "Quiz name",
-                            hint: "e.g. Physics mock test 1",
-                            controller: nameController,
-                            error: _errors[_Field.name],
-                            onChanged: _revalidate,
-                          )),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _statusField(),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _typeField(),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "RULES", children: [
-                      _durationField(),
-                      const SizedBox(height: AppTokens.gapMd),
-                      FormTwoUp(
-                          width: width,
-                          left: _textField(
-                            label: "Total marks",
-                            hint: "e.g. 100",
-                            controller: marksController,
-                            error: _errors[_Field.marks],
-                            onChanged: _revalidate,
-                            numeric: true,
-                          ),
-                          right: _textField(
-                            label: "Negative marking",
-                            hint: "Marks lost per wrong answer (optional)",
-                            controller: deductionController,
-                            numeric: true,
-                          )),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    _questionSection(quizViewModel),
-                    const SizedBox(height: AppTokens.gapXl),
-                  ],
-                ),
+        _pageHeader(),
+        const SizedBox(height: AppTokens.gapLg),
+        FormSection(title: "QUIZ DETAILS", children: [
+          FormTwoUp(
+              width: width,
+              left: _textField(
+                label: "Quiz code",
+                hint: "e.g. MOCK-01",
+                controller: codeController,
+                error: _errors[_Field.code],
+                onChanged: _revalidate,
+                uppercase: true,
               ),
-            ),
-          ),
-        ),
-        _actionBar(quizViewModel, width),
+              right: _textField(
+                label: "Quiz name",
+                hint: "e.g. Physics mock test 1",
+                controller: nameController,
+                error: _errors[_Field.name],
+                onChanged: _revalidate,
+              )),
+          const SizedBox(height: AppTokens.gapMd),
+          _statusField(),
+          const SizedBox(height: AppTokens.gapMd),
+          _typeField(),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "RULES", children: [
+          _durationField(),
+          const SizedBox(height: AppTokens.gapMd),
+          FormTwoUp(
+              width: width,
+              left: _textField(
+                label: "Total marks",
+                hint: "e.g. 100",
+                controller: marksController,
+                error: _errors[_Field.marks],
+                onChanged: _revalidate,
+                numeric: true,
+              ),
+              right: _textField(
+                label: "Negative marking",
+                hint: "Marks lost per wrong answer (optional)",
+                controller: deductionController,
+                numeric: true,
+              )),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        _questionSection(quizViewModel),
+        const SizedBox(height: AppTokens.gapXl),
       ],
     );
   }
@@ -773,8 +759,9 @@ class _QuizFormState extends State<QuizForm> {
   }
 
   static String _plainText(String html) {
-    if (html.trim().isEmpty || html == stringDefault)
+    if (html.trim().isEmpty || html == stringDefault) {
       return "Untitled question";
+    }
     final String text =
         html_parser.parse(html).body?.text.trim() ?? html.trim();
     return text.isEmpty ? "Untitled question" : text;

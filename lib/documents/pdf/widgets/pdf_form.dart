@@ -182,80 +182,61 @@ class _PdfFormState extends State<PdfForm> {
   }
 
   Widget _page(PdfViewModel pdfViewModel, double width) {
-    return Column(
+    return FormPageBody(
+      width: width,
+      actionBar: _actionBar(pdfViewModel, width),
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: width < 700 ? 16 : 32, vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _pageHeader(),
-                    const SizedBox(height: AppTokens.gapLg),
-                    FormSection(title: "PDF DETAILS", children: [
-                      FormTwoUp(
-                          width: width,
-                          left: _textField(
-                            label: "PDF code",
-                            hint: "e.g. NOTES-01",
-                            controller: codeController,
-                            error: _errors[_Field.code],
-                            onChanged: _revalidate,
-                            uppercase: true,
-                          ),
-                          right: _typeField()),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _textField(
-                        label: "Title",
-                        hint: "e.g. Kinematics — formula sheet",
-                        controller: titleController,
-                        error: _errors[_Field.title],
-                        onChanged: _revalidate,
-                      ),
-                      const SizedBox(height: AppTokens.gapMd),
-                      _textField(
-                        label: "Description",
-                        hint: "What does this PDF cover? (optional)",
-                        controller: descriptionController,
-                        maxLines: 4,
-                      ),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "FILE", children: [_fileField()]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "ACCESS", children: [
-                      FormToggleRow(
-                        title: "Downloadable",
-                        subtitle:
-                            "Students can save a copy instead of only reading it in the app.",
-                        value: isDownloadable,
-                        onChanged: _isSaving
-                            ? null
-                            : (v) => setState(() => isDownloadable = v),
-                      ),
-                      const FormToggleDivider(),
-                      FormToggleRow(
-                        title: "Locked",
-                        subtitle:
-                            "Students can see a locked PDF but cannot open it.",
-                        value: isLocked,
-                        onChanged: _isSaving
-                            ? null
-                            : (v) => setState(() => isLocked = v),
-                      ),
-                    ]),
-                    const SizedBox(height: AppTokens.gapXl),
-                  ],
-                ),
+        _pageHeader(),
+        const SizedBox(height: AppTokens.gapLg),
+        FormSection(title: "PDF DETAILS", children: [
+          FormTwoUp(
+              width: width,
+              left: _textField(
+                label: "PDF code",
+                hint: "e.g. NOTES-01",
+                controller: codeController,
+                error: _errors[_Field.code],
+                onChanged: _revalidate,
+                uppercase: true,
               ),
-            ),
+              right: _typeField()),
+          const SizedBox(height: AppTokens.gapMd),
+          _textField(
+            label: "Title",
+            hint: "e.g. Kinematics — formula sheet",
+            controller: titleController,
+            error: _errors[_Field.title],
+            onChanged: _revalidate,
           ),
-        ),
-        _actionBar(pdfViewModel, width),
+          const SizedBox(height: AppTokens.gapMd),
+          _textField(
+            label: "Description",
+            hint: "What does this PDF cover? (optional)",
+            controller: descriptionController,
+            maxLines: 4,
+          ),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "FILE", children: [_fileField()]),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "ACCESS", children: [
+          FormToggleRow(
+            title: "Downloadable",
+            subtitle:
+                "Students can save a copy instead of only reading it in the app.",
+            value: isDownloadable,
+            onChanged:
+                _isSaving ? null : (v) => setState(() => isDownloadable = v),
+          ),
+          const FormToggleDivider(),
+          FormToggleRow(
+            title: "Locked",
+            subtitle: "Students can see a locked PDF but cannot open it.",
+            value: isLocked,
+            onChanged: _isSaving ? null : (v) => setState(() => isLocked = v),
+          ),
+        ]),
+        const SizedBox(height: AppTokens.gapXl),
       ],
     );
   }

@@ -175,67 +175,52 @@ class _QuestionFormState extends State<QuestionForm> {
   }
 
   Widget _page(QuestionViewModel questionViewModel, double width) {
-    return Column(
+    return FormPageBody(
+      width: width,
+      maxWidth: 860,
+      actionBar: _actionBar(questionViewModel, width),
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: width < 700 ? 16 : 32, vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 860),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _pageHeader(),
-                    const SizedBox(height: AppTokens.gapLg),
-                    FormSection(title: "THE QUESTION", children: [
-                      _codeField(),
-                      const SizedBox(height: AppTokens.gapLg),
-                      QuestionRichField(
-                        label: "Question",
-                        controller: questionController,
-                        initialText: _initial.question,
-                        error: _errors[QuestionField.question],
-                      ),
-                      const SizedBox(height: AppTokens.gapLg),
-                      QuestionRichField(
-                        label: "Passage or diagram",
-                        hint:
-                            "Extra material shown above the question. Optional.",
-                        controller: questionBodyController,
-                        initialText: _initial.questionBody,
-                        height: 160,
-                      ),
-                    ]),
-                    const SizedBox(height: AppTokens.gapMd),
-                    _optionsSection(),
-                    const SizedBox(height: AppTokens.gapMd),
-                    FormSection(title: "AFTER THE ANSWER", children: [
-                      QuestionRichField(
-                        label: "Hint",
-                        hint: "Shown to a student who asks for help. Optional.",
-                        controller: hintController,
-                        initialText: _initial.hints,
-                        height: 150,
-                      ),
-                      const SizedBox(height: AppTokens.gapLg),
-                      QuestionRichField(
-                        label: "Solution",
-                        hint: "The worked explanation. Optional.",
-                        controller: solutionController,
-                        initialText: _initial.solution,
-                        height: 200,
-                      ),
-                    ]),
-                    const SizedBox(height: AppTokens.gapXl),
-                  ],
-                ),
-              ),
-            ),
+        _pageHeader(),
+        const SizedBox(height: AppTokens.gapLg),
+        FormSection(title: "THE QUESTION", children: [
+          _codeField(),
+          const SizedBox(height: AppTokens.gapLg),
+          QuestionRichField(
+            label: "Question",
+            controller: questionController,
+            initialText: _initial.question,
+            error: _errors[QuestionField.question],
           ),
-        ),
-        _actionBar(questionViewModel, width),
+          const SizedBox(height: AppTokens.gapLg),
+          QuestionRichField(
+            label: "Passage or diagram",
+            hint: "Extra material shown above the question. Optional.",
+            controller: questionBodyController,
+            initialText: _initial.questionBody,
+            height: 160,
+          ),
+        ]),
+        const SizedBox(height: AppTokens.gapMd),
+        _optionsSection(),
+        const SizedBox(height: AppTokens.gapMd),
+        FormSection(title: "AFTER THE ANSWER", children: [
+          QuestionRichField(
+            label: "Hint",
+            hint: "Shown to a student who asks for help. Optional.",
+            controller: hintController,
+            initialText: _initial.hints,
+            height: 150,
+          ),
+          const SizedBox(height: AppTokens.gapLg),
+          QuestionRichField(
+            label: "Solution",
+            hint: "The worked explanation. Optional.",
+            controller: solutionController,
+            initialText: _initial.solution,
+            height: 200,
+          ),
+        ]),
+        const SizedBox(height: AppTokens.gapXl),
       ],
     );
   }
