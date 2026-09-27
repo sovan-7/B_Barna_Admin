@@ -3,6 +3,9 @@ import 'package:bbarna/banners/screen/add_banner.dart';
 import 'package:bbarna/banners/viewModel/banners_viewmodel.dart';
 import 'package:bbarna/banners/widgets/banner_card.dart';
 import 'package:bbarna/core/widgets/add_widget.dart';
+import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
+import 'package:bbarna/core/widgets/list_page/list_page_frame.dart';
+import 'package:bbarna/core/widgets/list_page/list_page_header.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
@@ -10,11 +13,10 @@ import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// The banner grid.
+/// The banner grid (sidebar module).
 ///
-/// The grid used to be a hardcoded five columns whatever the window was —
-/// five tiles across a phone and five across a 27" monitor. It is sized by
-/// available width now, and the tiles keep a banner's own 16:9 shape.
+/// The number of columns follows the available width (see [columnsFor]),
+/// and the tiles keep a banner's own 16:9 shape.
 class BannerList extends StatefulWidget {
   const BannerList({super.key});
 
@@ -30,9 +32,8 @@ class _BannerListState extends State<BannerList> {
   void initState() {
     super.initState();
     // Deferred to after the first frame: this screen is mounted from
-    // Sidebar's `screenList[selectedIndex]` *during* a build, and the fetch
-    // notifies synchronously. Calling it straight from initState marked the
-    // Consumer dirty mid-build.
+    // Sidebar's `screenList[selectedIndex]` *during* a build, and loading
+    // notifies listeners.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       Provider.of<BannersViewModel>(context, listen: false).getBannerList();
@@ -41,83 +42,47 @@ class _BannerListState extends State<BannerList> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppTokens.canvas,
-      child: Consumer<BannersViewModel>(
-          builder: (context, bannersViewModel, child) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _header(bannersViewModel),
-              const SizedBox(height: AppTokens.gapLg),
-              Expanded(
-                child: bannersViewModel.isLoading
-                    ? const _SkeletonGrid(tileMinWidth: _tileMinWidth)
-                    : bannersViewModel.bannersList.isEmpty
-                        ? _EmptyState(onAdd: () => _openAdd(bannersViewModel))
-                        : _grid(bannersViewModel),
-              ),
-            ],
+    return Consumer<BannersViewModel>(
+        builder: (context, bannersViewModel, child) {
+      return ListPageFrame(
+        children: [
+          ListPageHeader(
+            title: "Banners",
+            count: bannersViewModel.bannersList.length,
+            subtitle: "Shown in the app's home carousel, in this order.",
+            trailing: AddWidget(
+              title: "NEW BANNER",
+              addCall: () => _openAdd(bannersViewModel),
+            ),
           ),
-        );
-      }),
-    );
+          const SizedBox(height: AppTokens.gapLg),
+          Expanded(child: _body(bannersViewModel)),
+        ],
+      );
+    });
   }
 
-  Widget _header(BannersViewModel bannersViewModel) {
-    final int count = bannersViewModel.bannersList.length;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Flexible(
-                    child: Text("Banners",
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTokens.pageTitle),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppTokens.surface,
-                      borderRadius:
-                          BorderRadius.circular(AppTokens.radiusPill),
-                      border: Border.all(color: AppTokens.hairline),
-                    ),
-                    child: Text("$count",
-                        style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppTokens.inkMuted)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 3),
-              const Text(
-                "Shown in the app's home carousel, in this order.",
-                style: AppTokens.pageSubtitle,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: AppTokens.gapMd),
-        AddWidget(
-          title: "NEW BANNER",
-          addCall: () => _openAdd(bannersViewModel),
-        ),
-      ],
-    );
+  /// Skeleton tiles while loading, the empty state when there are no
+  /// banners, otherwise the grid.
+  Widget _body(BannersViewModel bannersViewModel) {
+    if (bannersViewModel.isLoading) {
+      return const _SkeletonGrid(tileMinWidth: _tileMinWidth);
+    }
+    if (bannersViewModel.bannersList.isEmpty) {
+      return ListEmptyState(
+        icon: Icons.image_outlined,
+        title: "No banners yet",
+        message: "Banners you upload appear on the app's home screen.",
+        messageWidth: 320,
+        addLabel: "Upload a banner",
+        addIcon: Icons.upload_outlined,
+        onAdd: () => _openAdd(bannersViewModel),
+      );
+    }
+    return _grid(bannersViewModel);
   }
 
+  /// Opens Add Banner and reloads the grid when it closes.
   void _openAdd(BannersViewModel bannersViewModel) {
     Navigator.push(
       context,
@@ -125,6 +90,7 @@ class _BannerListState extends State<BannerList> {
     ).whenComplete(() => bannersViewModel.getBannerList());
   }
 
+  /// The banners as a wrap of 16:9 tiles, as many columns as fit.
   Widget _grid(BannersViewModel bannersViewModel) {
     final List<BannersModel> bannersList = bannersViewModel.bannersList;
 
@@ -185,6 +151,7 @@ class _BannerListState extends State<BannerList> {
 int columnsFor(double width, double tileMinWidth) =>
     (width / tileMinWidth).floor().clamp(1, 5);
 
+/// Grey 16:9 placeholder tiles (two rows) shown while banners load.
 class _SkeletonGrid extends StatelessWidget {
   final double tileMinWidth;
   const _SkeletonGrid({required this.tileMinWidth});
@@ -220,61 +187,5 @@ class _SkeletonGrid extends StatelessWidget {
         ],
       );
     });
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final VoidCallback onAdd;
-  const _EmptyState({required this.onAdd});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 64,
-              width: 64,
-              decoration: const BoxDecoration(
-                  color: AppTokens.surfaceMuted, shape: BoxShape.circle),
-              child: const Icon(Icons.image_outlined,
-                  size: 28, color: AppTokens.inkFaint),
-            ),
-            const SizedBox(height: AppTokens.gapMd),
-            const Text("No banners yet",
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppTokens.ink)),
-            const SizedBox(height: 5),
-            const SizedBox(
-              width: 320,
-              child: Text(
-                "Banners you upload appear on the app's home screen.",
-                textAlign: TextAlign.center,
-                style: AppTokens.pageSubtitle,
-              ),
-            ),
-            const SizedBox(height: AppTokens.gapLg),
-            OutlinedButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.upload_outlined, size: 16),
-              label: const Text("Upload a banner"),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTokens.ink,
-                side: const BorderSide(color: AppTokens.hairline),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppTokens.radiusMd)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

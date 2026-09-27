@@ -23,6 +23,7 @@ class LiveClassList extends StatefulWidget {
 }
 
 class _LiveClassListState extends State<LiveClassList> {
+  /// Text in the search box.
   final TextEditingController searchController = TextEditingController();
 
   @override
@@ -33,10 +34,8 @@ class _LiveClassListState extends State<LiveClassList> {
     searchController.text =
         Provider.of<LiveClassViewModel>(context, listen: false).searchText;
     // Deferred to after the first frame: this screen is mounted from
-    // Sidebar's `screenList[selectedIndex]` *during* a build, and
-    // getLiveClassList flips `isLoading` + notifies synchronously — calling
-    // it straight from initState would mark the Consumer dirty mid-build
-    // ("setState() called during build").
+    // Sidebar's `screenList[selectedIndex]` *during* a build, and loading
+    // notifies listeners.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       Provider.of<LiveClassViewModel>(context, listen: false)
@@ -90,14 +89,12 @@ class _LiveClassListState extends State<LiveClassList> {
     );
   }
 
-  /// Says which classes the student app cannot see, and fixes them.
+  /// Warning strip listing how many classes the student app cannot read
+  /// correctly, with an "Update" button that rewrites them.
   ///
-  /// Classes saved before this panel started writing the app's field names
-  /// reach the app with `startTime: 0`, which files them under Past no
-  /// matter when they are scheduled — so a class reads Upcoming here and
-  /// Past there at the same moment. Nothing on either screen said why, and
-  /// the only tell was that the class was in the wrong list on a device the
-  /// admin was not holding.
+  /// Classes saved in the old field format reach the app with
+  /// `startTime: 0`, so the app files them under Past whenever they are
+  /// actually scheduled.
   Widget _appSyncBanner(LiveClassViewModel liveClassViewModel) {
     final int count = liveClassViewModel.classesNeedingAppSync.length;
     final bool busy = liveClassViewModel.isSyncingForApp;
@@ -137,7 +134,9 @@ class _LiveClassListState extends State<LiveClassList> {
                   "are scheduled. Updating rewrites them — set a Subject on "
                   "each afterwards, as older classes have none.",
                   style: TextStyle(
-                      fontSize: 12, height: 1.4, color: LiveClassTheme.inkMuted),
+                      fontSize: 12,
+                      height: 1.4,
+                      color: LiveClassTheme.inkMuted),
                 ),
               ],
             ),
@@ -154,11 +153,9 @@ class _LiveClassListState extends State<LiveClassList> {
               foregroundColor: Colors.white,
               disabledForegroundColor: Colors.white,
               elevation: 0,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(LiveClassTheme.radiusSm)),
+                  borderRadius: BorderRadius.circular(LiveClassTheme.radiusSm)),
             ),
             child: busy
                 ? const SizedBox(
@@ -168,8 +165,8 @@ class _LiveClassListState extends State<LiveClassList> {
                         strokeWidth: 2, color: Colors.white),
                   )
                 : const Text("Update them",
-                    style: TextStyle(
-                        fontSize: 12.5, fontWeight: FontWeight.w600)),
+                    style:
+                        TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -178,6 +175,7 @@ class _LiveClassListState extends State<LiveClassList> {
 
   // ---- Header ---------------------------------------------------------
 
+  /// Title, class count, subtitle and the "SCHEDULE CLASS" button.
   Widget _header(LiveClassViewModel liveClassViewModel) {
     final int total = liveClassViewModel.liveClassList.length;
 
@@ -234,6 +232,7 @@ class _LiveClassListState extends State<LiveClassList> {
     );
   }
 
+  /// Opens the Add Class form and reloads the list when it closes.
   void _openAdd(LiveClassViewModel liveClassViewModel) {
     Navigator.push(
       context,
@@ -295,6 +294,7 @@ class _LiveClassListState extends State<LiveClassList> {
     );
   }
 
+  /// One segment of the tab control, with the class count for [status].
   Widget _tab(LiveClassViewModel liveClassViewModel, LiveClassStatus status,
       bool compact) {
     final bool isSelected = liveClassViewModel.selectedStatus == status;
@@ -307,8 +307,8 @@ class _LiveClassListState extends State<LiveClassList> {
       onTap: () => liveClassViewModel.selectStatus(status),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
-        padding: EdgeInsets.symmetric(
-            horizontal: compact ? 11 : 14, vertical: 8),
+        padding:
+            EdgeInsets.symmetric(horizontal: compact ? 11 : 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? accent : Colors.transparent,
           borderRadius: BorderRadius.circular(LiveClassTheme.radiusSm + 1),
@@ -342,8 +342,7 @@ class _LiveClassListState extends State<LiveClassList> {
                 color: isSelected
                     ? Colors.white.withValues(alpha: .25)
                     : LiveClassTheme.surfaceMuted,
-                borderRadius:
-                    BorderRadius.circular(LiveClassTheme.radiusPill),
+                borderRadius: BorderRadius.circular(LiveClassTheme.radiusPill),
               ),
               child: Text(
                 "$count",
@@ -360,6 +359,7 @@ class _LiveClassListState extends State<LiveClassList> {
     );
   }
 
+  /// Search box; filters the loaded classes by title or teacher.
   Widget _search(LiveClassViewModel liveClassViewModel) {
     final bool hasText = searchController.text.isNotEmpty;
 
@@ -404,8 +404,8 @@ class _LiveClassListState extends State<LiveClassList> {
               borderRadius: BorderRadius.circular(LiveClassTheme.radiusPill),
               child: const Padding(
                 padding: EdgeInsets.all(2),
-                child: Icon(Icons.close,
-                    size: 16, color: LiveClassTheme.inkMuted),
+                child:
+                    Icon(Icons.close, size: 16, color: LiveClassTheme.inkMuted),
               ),
             ),
         ],
@@ -415,6 +415,7 @@ class _LiveClassListState extends State<LiveClassList> {
 
   // ---- Grid -----------------------------------------------------------
 
+  /// The visible classes as a responsive grid of cards.
   Widget _grid(
       List<LiveClassModel> visible, LiveClassViewModel liveClassViewModel) {
     return LayoutBuilder(builder: (context, constraints) {
@@ -432,7 +433,8 @@ class _LiveClassListState extends State<LiveClassList> {
       final List<List<LiveClassModel>> rows = <List<LiveClassModel>>[];
       for (int i = 0; i < visible.length; i += columns) {
         final int end = i + columns;
-        rows.add(visible.sublist(i, end > visible.length ? visible.length : end));
+        rows.add(
+            visible.sublist(i, end > visible.length ? visible.length : end));
       }
 
       return SingleChildScrollView(
@@ -468,6 +470,7 @@ class _LiveClassListState extends State<LiveClassList> {
     });
   }
 
+  /// How many card columns fit in [width].
   static int _columnsFor(double width) =>
       (width / LiveClassTheme.cardMinWidth).floor().clamp(1, 4);
 }
@@ -481,8 +484,7 @@ class _SkeletonGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      final int columns =
-          _LiveClassListState._columnsFor(constraints.maxWidth);
+      final int columns = _LiveClassListState._columnsFor(constraints.maxWidth);
       final double itemWidth = columns == 1
           ? constraints.maxWidth
           : (constraints.maxWidth - LiveClassTheme.gapMd * (columns - 1)) /
@@ -500,9 +502,11 @@ class _SkeletonGrid extends StatelessWidget {
   }
 }
 
+/// One placeholder card: grey bars where the title, time and teacher go.
 class _SkeletonCard extends StatelessWidget {
   const _SkeletonCard();
 
+  /// A grey rounded bar of the given size.
   Widget _bar(double width, double height) => Container(
         width: width,
         height: height,
@@ -530,7 +534,11 @@ class _SkeletonCard extends StatelessWidget {
           const SizedBox(height: 8),
           _bar(180, 13),
           const SizedBox(height: 16),
-          Row(children: [_bar(110, 22), const SizedBox(width: 8), _bar(64, 22)]),
+          Row(children: [
+            _bar(110, 22),
+            const SizedBox(width: 8),
+            _bar(64, 22)
+          ]),
         ],
       ),
     );
@@ -616,8 +624,8 @@ class _EmptyState extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: LiveClassTheme.ink,
                   side: const BorderSide(color: LiveClassTheme.hairline),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 18, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.circular(LiveClassTheme.radiusMd)),
