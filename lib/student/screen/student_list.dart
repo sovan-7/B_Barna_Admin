@@ -1,4 +1,5 @@
 import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
+import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_frame.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_header.dart';
 import 'package:bbarna/core/widgets/list_page/list_search_field.dart';
@@ -207,6 +208,12 @@ class _StudentListState extends State<StudentList> {
     }
 
     final List<Student> students = studentViewModel.studentList;
+    // A failed load: say so, with Retry, rather than "No … yet".
+    final String? loadError = studentViewModel.loadError;
+    if (students.isEmpty && loadError != null) {
+      return ListErrorState(
+          title: loadError, onRetry: studentViewModel.fetchFirstStudentList);
+    }
     if (students.isEmpty) {
       // No add button: students sign up in the app, not here.
       return ListEmptyState(
@@ -214,8 +221,12 @@ class _StudentListState extends State<StudentList> {
         icon: Icons.people_outline,
         title: "No students yet",
         message: "Students appear here once they sign up in the app.",
-        filteredMessage:
-            "No loaded student matches that name, phone or email. Load more to widen the search.",
+        // Search only covers the students already loaded; point at loading
+        // more only when there are more to load.
+        filteredMessage: studentViewModel.copyStudentList.length <
+                studentViewModel.reachableTotal
+            ? "No loaded student matches that name, phone or email. Clear the search and load more to widen it."
+            : "No student matches that name, phone or email.",
       );
     }
 

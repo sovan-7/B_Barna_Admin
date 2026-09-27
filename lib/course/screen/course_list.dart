@@ -1,5 +1,6 @@
 import 'package:bbarna/core/widgets/add_widget.dart';
 import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
+import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_frame.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_header.dart';
 import 'package:bbarna/core/widgets/list_page/list_search_field.dart';
@@ -107,6 +108,12 @@ class _CourseListState extends State<CourseList> {
     }
 
     final List<CourseModel> courses = courseViewModel.courseList;
+    // A failed load: say so, with Retry, rather than "No … yet".
+    final String? loadError = courseViewModel.loadError;
+    if (courses.isEmpty && loadError != null) {
+      return ListErrorState(
+          title: loadError, onRetry: courseViewModel.getCourseList);
+    }
     if (courses.isEmpty) {
       return ListEmptyState(
         isFiltered: searchController.text.trim().isNotEmpty,

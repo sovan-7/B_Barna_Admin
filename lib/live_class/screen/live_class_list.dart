@@ -1,4 +1,5 @@
 import 'package:bbarna/core/widgets/add_widget.dart';
+import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
 import 'package:bbarna/live_class/screen/add_live_class.dart';
 import 'package:bbarna/live_class/viewModel/live_class_view_model.dart';
@@ -75,13 +76,21 @@ class _LiveClassListState extends State<LiveClassList> {
               Expanded(
                 child: liveClassViewModel.isLoading
                     ? const _SkeletonGrid()
-                    : visible.isEmpty
-                        ? _EmptyState(
-                            status: liveClassViewModel.selectedStatus,
-                            isFiltered: searchController.text.trim().isNotEmpty,
-                            onSchedule: () => _openAdd(liveClassViewModel),
+                    // A failed load: an error with Retry, not "No classes".
+                    : liveClassViewModel.copyLiveClassList.isEmpty &&
+                            liveClassViewModel.loadError != null
+                        ? ListErrorState(
+                            title: liveClassViewModel.loadError!,
+                            onRetry: liveClassViewModel.getLiveClassList,
                           )
-                        : _grid(visible, liveClassViewModel),
+                        : visible.isEmpty
+                            ? _EmptyState(
+                                status: liveClassViewModel.selectedStatus,
+                                isFiltered:
+                                    searchController.text.trim().isNotEmpty,
+                                onSchedule: () => _openAdd(liveClassViewModel),
+                              )
+                            : _grid(visible, liveClassViewModel),
               ),
             ],
           ),

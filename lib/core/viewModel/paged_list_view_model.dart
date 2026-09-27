@@ -56,6 +56,14 @@ abstract class PagedListViewModel<T> extends ChangeNotifier with SafeNotifier {
   /// Pending search; restarted on every keystroke (debounce).
   Timer? _debounce;
 
+  /// Why the list could not be loaded (first page or search), or null.
+  /// While set and nothing is on screen, the list shows an error state
+  /// with Retry instead of pretending it is empty.
+  String? loadError;
+
+  /// Counts searches, so only the newest one updates the screen.
+  int _searchSeq = 0;
+
   /// Whether another page can be loaded.
   bool get hasMore => !isSearching && items.length < totalCount;
 
@@ -94,8 +102,10 @@ abstract class PagedListViewModel<T> extends ChangeNotifier with SafeNotifier {
       });
 
   Future<void> _loadFirstPage() async {
+    _searchSeq++; // any search still in flight is now stale
     isLoading = items.isEmpty;
     isSearching = false;
+    loadError = null;
     notifyListeners();
     // Page and count are independent queries, so run them at the same time.
     // Future.sync turns a synchronous throw into a failed future.
@@ -103,10 +113,19 @@ abstract class PagedListViewModel<T> extends ChangeNotifier with SafeNotifier {
     final Future<int> count = Future.sync(fetchTotalCount);
     try {
       items = await page;
+    } catch (e) {
+      count.ignore();
+      loadError = "Couldn't load $itemsLabel";
+      Helper.showSnackBarMessage(
+          msg: "Error while fetching $itemsLabel", isSuccess: false);
+      isLoading = false;
+      notifyListeners();
+      return;
+    }
+    try {
       totalCount = await count;
     } catch (e) {
-      // The count may still fail after the page did; that is handled here.
-      count.ignore();
+      // The rows loaded; only the total is out of date.
       Helper.showSnackBarMessage(
           msg: "Error while fetching $itemsLabel", isSuccess: false);
     } finally {
@@ -158,8 +177,13 @@ abstract class PagedListViewModel<T> extends ChangeNotifier with SafeNotifier {
   /// Reloads what the list is showing: the current search's results if
   /// there is one, otherwise the first page. Cancels any pending debounce
   /// so the reload happens now.
-  Future<void> refresh() {
+  ///
+  /// If a load is already running it is waited for first and then a fresh
+  /// one runs, so a refresh after a save never returns pre-save data.
+  Future<void> refresh() async {
     _debounce?.cancel();
+    final Future<void>? inFlight = _firstPageInFlight;
+    if (inFlight != null) await inFlight;
     return _runSearch();
   }
 
@@ -172,23 +196,30 @@ abstract class PagedListViewModel<T> extends ChangeNotifier with SafeNotifier {
       return;
     }
 
+    final int seq = ++_searchSeq;
     isSearching = true;
     isLoading = true;
+    loadError = null;
     notifyListeners();
     try {
       // Codes are stored upper-case, so the prefix match is too.
       final List<T> results = await fetchSearchResults(query.toUpperCase());
       // A newer search (or a refresh) has taken over meanwhile — drop these
       // stale results.
-      if (query != searchText.trim()) return;
+      if (seq != _searchSeq) return;
       items = results;
     } catch (e) {
+      if (seq != _searchSeq) return;
       items = [];
+      loadError = "Search failed";
       Helper.showSnackBarMessage(
           msg: "Error while searching $itemsLabel", isSuccess: false);
     } finally {
-      isLoading = false;
-      notifyListeners();
+      // Only the newest search decides when loading has finished.
+      if (seq == _searchSeq) {
+        isLoading = false;
+        notifyListeners();
+      }
     }
   }
 

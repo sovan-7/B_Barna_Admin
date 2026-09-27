@@ -1,6 +1,7 @@
 import 'package:bbarna/core/viewModel/paged_list_view_model.dart';
 import 'package:bbarna/core/widgets/add_widget.dart';
 import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
+import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_frame.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_header.dart';
 import 'package:bbarna/core/widgets/list_page/list_search_field.dart';
@@ -194,14 +195,19 @@ class _PagedListScreenState<VM extends PagedListViewModel<T>, T>
     });
   }
 
-  /// Skeleton while loading, empty state when there are no rows, otherwise
-  /// the cards.
+  /// Skeleton while loading, an error with Retry when loading failed, the
+  /// empty state when there are no rows, otherwise the cards.
   Widget _body(VM viewModel) {
     if (viewModel.isLoading) {
       return ListSkeleton(rowHeight: widget.skeletonRowHeight);
     }
 
     final List<T> items = viewModel.items;
+    // A failed load or search: say so, with Retry, rather than "No X yet".
+    final String? loadError = viewModel.loadError;
+    if (items.isEmpty && loadError != null) {
+      return ListErrorState(title: loadError, onRetry: viewModel.refresh);
+    }
     if (items.isEmpty) {
       return ListEmptyState(
         isFiltered: searchController.text.trim().isNotEmpty,

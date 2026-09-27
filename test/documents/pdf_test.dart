@@ -179,6 +179,26 @@ void main() {
       expect(find.byType(PdfCard), findsOneWidget);
     });
 
+    testWidgets('a failed first load shows an error, and Retry recovers',
+        (tester) async {
+      when(() => repo.getFirstPdfList(any())).thenThrow(Exception('offline'));
+      final vm = PdfViewModel(pdfRepo: repo);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: PDFList()), vm);
+
+      expect(find.text("Couldn't load PDFs"), findsOneWidget);
+      expect(find.text('No PDFs yet'), findsNothing);
+      expect(find.byType(PdfCard), findsNothing);
+
+      when(() => repo.getFirstPdfList(any()))
+          .thenAnswer((_) async => _fixture());
+      await tester.tap(find.byKey(const Key('list_retry_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Couldn't load PDFs"), findsNothing);
+      expect(find.byType(PdfCard), findsNWidgets(3));
+    });
+
     testWidgets('closing Add without saving does not reload the list',
         (tester) async {
       final vm = PdfViewModel(pdfRepo: repo);
@@ -193,6 +213,31 @@ void main() {
 
       verifyNever(() => repo.getFirstPdfList(any()));
       verifyNever(() => repo.getPdfListLength());
+    });
+
+    testWidgets('a late failed search does not wipe a newer search',
+        (tester) async {
+      final vm = PdfViewModel(pdfRepo: repo);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: PDFList()), vm);
+
+      when(() => repo.searchPdf('OLD')).thenAnswer((_) async {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        throw Exception('offline');
+      });
+      when(() => repo.searchPdf('NEW'))
+          .thenAnswer((_) async => [_fixture().first]);
+
+      vm.searchText = 'old';
+      final Future<void> slow = vm.refresh();
+      vm.searchText = 'new';
+      await vm.refresh();
+      await tester.pump(const Duration(seconds: 2));
+      await slow;
+
+      expect(vm.pdfList.map((p) => p.docId).toList(), ['a']);
+      expect(vm.loadError, isNull);
+      expect(vm.isLoading, isFalse);
     });
 
     testWidgets('a search result that arrives late does not replace a newer one',

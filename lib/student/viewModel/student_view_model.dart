@@ -42,6 +42,11 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   /// True while the first page is loading (drives the skeleton rows).
   bool isLoading = true;
 
+  /// Why the list could not be loaded, or null. While set and nothing is
+  /// loaded, the screen shows an error with Retry instead of "No students
+  /// yet".
+  String? loadError;
+
   /// True while a further page is loading.
   bool isLoadingMore = false;
 
@@ -87,10 +92,17 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   /// nothing to the other.
   Future<void> setSort(StudentSort next) async {
     if (sort == next) return;
+    final StudentSort previous = sort;
     sort = next;
     // fetchFirstStudentList notifies straight away, which also updates the
     // sort toggle.
     await fetchFirstStudentList();
+    // The rows are still in the old order if the reload failed, so the
+    // toggle goes back to match them.
+    if (loadError != null && copyStudentList.isNotEmpty) {
+      sort = previous;
+      notifyListeners();
+    }
   }
 
   /// Loads the first page in the current [sort] order, re-applies the
@@ -98,6 +110,7 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   Future<void> fetchFirstStudentList() async {
     // Skeleton only when nothing is on screen yet.
     isLoading = copyStudentList.isEmpty;
+    loadError = null;
     isSearching = false;
     notifyListeners();
     // The page and the counts are independent queries: run them together.
@@ -114,6 +127,7 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
       studentListLength = await total;
       if (signedIn != null) signedInStudentCount = await signedIn;
     } catch (e) {
+      loadError = "Couldn't load students";
       total.ignore();
       signedIn?.ignore();
       Helper.showSnackBarMessage(

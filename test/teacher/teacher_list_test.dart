@@ -164,7 +164,10 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(vm.isLoading, isFalse);
-      expect(find.text('No teachers yet'), findsOneWidget);
+      // An error with Retry, not the empty state.
+      expect(find.text("Couldn't load teachers"), findsOneWidget);
+      expect(find.text('No teachers yet'), findsNothing);
+      expect(find.byKey(const Key('list_retry_button')), findsOneWidget);
     });
   });
 

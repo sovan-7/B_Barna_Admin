@@ -1,5 +1,6 @@
 import 'package:bbarna/core/widgets/add_widget.dart';
 import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
+import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_frame.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_header.dart';
 import 'package:bbarna/core/widgets/list_page/list_search_field.dart';
@@ -105,6 +106,12 @@ class _TeacherListState extends State<TeacherList> {
     }
 
     final List<TeacherModel> teachers = teacherViewModel.teacherList;
+    // A failed load: say so, with Retry, rather than "No … yet".
+    final String? loadError = teacherViewModel.loadError;
+    if (teachers.isEmpty && loadError != null) {
+      return ListErrorState(
+          title: loadError, onRetry: teacherViewModel.getTeacherList);
+    }
     if (teachers.isEmpty) {
       return ListEmptyState(
         isFiltered: searchController.text.trim().isNotEmpty,

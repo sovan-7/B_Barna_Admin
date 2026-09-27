@@ -238,7 +238,9 @@ void main() {
       // The old catch called Navigator.pop on failure, taking the whole
       // screen off the navigator.
       expect(find.byType(UnitList), findsOneWidget);
-      expect(find.text('No matches'), findsOneWidget);
+      // A failed search is an error with Retry, not "No matches".
+      expect(find.text('Search failed'), findsOneWidget);
+      expect(find.byKey(const Key('list_retry_button')), findsOneWidget);
     });
 
     testWidgets('an empty collection says so', (tester) async {

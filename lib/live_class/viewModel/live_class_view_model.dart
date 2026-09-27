@@ -31,6 +31,11 @@ class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
   /// "No upcoming classes".
   bool isLoading = true;
 
+  /// Why the list could not be loaded, or null. While set and nothing is
+  /// loaded, the screen shows an error with Retry instead of "No classes
+  /// yet".
+  String? loadError;
+
   /// The tab currently selected on the list screen.
   LiveClassStatus selectedStatus = LiveClassStatus.upcoming;
 
@@ -39,11 +44,13 @@ class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
     // Skeleton only when nothing is on screen yet; otherwise keep the
     // current rows visible while refreshing.
     isLoading = copyLiveClassList.isEmpty;
+    loadError = null;
     notifyListeners();
     try {
       copyLiveClassList = await _liveClassRepo.getLiveClassList();
       _applySearch();
     } catch (e) {
+      loadError = "Couldn't load classes";
       Helper.showSnackBarMessage(
           msg: "Error while fetching classes", isSuccess: false);
     } finally {

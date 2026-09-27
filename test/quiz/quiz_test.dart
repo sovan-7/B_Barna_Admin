@@ -178,7 +178,9 @@ void main() {
       await tester.pump();
 
       expect(find.byType(QuizList), findsOneWidget);
-      expect(find.text('No matches'), findsOneWidget);
+      // A failed search is an error with Retry, not "No matches".
+      expect(find.text('Search failed'), findsOneWidget);
+      expect(find.byKey(const Key('list_retry_button')), findsOneWidget);
     });
 
     testWidgets('mounting mid-build does not throw', (tester) async {

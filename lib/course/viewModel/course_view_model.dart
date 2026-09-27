@@ -24,11 +24,17 @@ class CourseViewModel extends ChangeNotifier with SafeNotifier {
   /// True while the list is loading (drives the skeleton rows).
   bool isLoading = true;
 
+  /// Why the list could not be loaded, or null. While set and nothing is
+  /// loaded, the screen shows an error with Retry instead of "No courses
+  /// yet".
+  String? loadError;
+
   /// Loads every course, sorts newest first and re-applies the search.
   Future<void> getCourseList() async {
     // Skeleton only when nothing is on screen yet; otherwise keep the
     // current rows visible while refreshing.
     isLoading = copyCourseList.isEmpty;
+    loadError = null;
     notifyListeners();
     try {
       courseList = await _courseRepo.getCourseList();
@@ -36,6 +42,7 @@ class CourseViewModel extends ChangeNotifier with SafeNotifier {
       copyCourseList = List<CourseModel>.from(courseList);
       _applySearch();
     } catch (e) {
+      loadError = "Couldn't load courses";
       Helper.showSnackBarMessage(
           msg: "Error while fetching courses", isSuccess: false);
     } finally {

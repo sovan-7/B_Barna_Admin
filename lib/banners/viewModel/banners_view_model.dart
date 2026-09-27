@@ -22,15 +22,22 @@ class BannersViewModel extends ChangeNotifier with SafeNotifier {
   /// claiming there are no banners.
   bool isLoading = true;
 
+  /// Why the list could not be loaded, or null. While set and nothing is
+  /// loaded, the screen shows an error with Retry instead of "No banners
+  /// yet".
+  String? loadError;
+
   /// Loads every banner into [bannersList].
   Future<void> getBannerList() async {
     // Skeleton only when nothing is on screen yet; otherwise keep the
     // current rows visible while refreshing.
     isLoading = bannersList.isEmpty;
+    loadError = null;
     notifyListeners();
     try {
       bannersList = await _bannersRepo.getBannersList();
     } catch (e) {
+      loadError = "Couldn't load banners";
       Helper.showSnackBarMessage(
           msg: "Error while fetching banners", isSuccess: false);
     } finally {

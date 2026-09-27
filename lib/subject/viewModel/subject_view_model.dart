@@ -24,11 +24,17 @@ class SubjectViewModel extends ChangeNotifier with SafeNotifier {
   /// True while the list is loading (drives the skeleton rows).
   bool isLoading = true;
 
+  /// Why the list could not be loaded, or null. While set and nothing is
+  /// loaded, the screen shows an error with Retry instead of "No subjects
+  /// yet".
+  String? loadError;
+
   /// Loads every subject, sorts newest first and re-applies the search.
   Future<void> getSubjectList() async {
     // Skeleton only when nothing is on screen yet; otherwise keep the
     // current rows visible while refreshing.
     isLoading = copySubjectList.isEmpty;
+    loadError = null;
     notifyListeners();
     try {
       subjectList = await _subjectRepo.getSubjectList();
@@ -36,6 +42,7 @@ class SubjectViewModel extends ChangeNotifier with SafeNotifier {
       copySubjectList = List<SubjectModel>.from(subjectList);
       _applySearch();
     } catch (e) {
+      loadError = "Couldn't load subjects";
       Helper.showSnackBarMessage(
           msg: "Error while fetching subjects", isSuccess: false);
     } finally {

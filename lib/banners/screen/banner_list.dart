@@ -4,6 +4,7 @@ import 'package:bbarna/banners/viewModel/banners_view_model.dart';
 import 'package:bbarna/banners/widgets/banner_card.dart';
 import 'package:bbarna/core/widgets/add_widget.dart';
 import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
+import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_frame.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_header.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
@@ -68,6 +69,11 @@ class _BannerListState extends State<BannerList> {
   Widget _body(BannersViewModel bannersViewModel) {
     if (bannersViewModel.isLoading) {
       return const _SkeletonGrid(tileMinWidth: _tileMinWidth);
+    }
+    final String? loadError = bannersViewModel.loadError;
+    if (bannersViewModel.bannersList.isEmpty && loadError != null) {
+      return ListErrorState(
+          title: loadError, onRetry: bannersViewModel.getBannerList);
     }
     if (bannersViewModel.bannersList.isEmpty) {
       return ListEmptyState(

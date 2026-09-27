@@ -27,6 +27,11 @@ class TeacherViewModel extends ChangeNotifier with SafeNotifier {
   /// True while the list is loading (drives the skeleton rows).
   bool isLoading = true;
 
+  /// Why the list could not be loaded, or null. While set and nothing is
+  /// loaded, the screen shows an error with Retry instead of "No teachers
+  /// yet".
+  String? loadError;
+
   /// Creates a teacher: uploads the photo, hashes the password, then adds
   /// the document (whose id is the normalised username).
   ///
@@ -142,12 +147,14 @@ class TeacherViewModel extends ChangeNotifier with SafeNotifier {
     // Skeleton only when nothing is on screen yet; otherwise keep the
     // current rows visible while refreshing.
     isLoading = copyTeacherList.isEmpty;
+    loadError = null;
     notifyListeners();
     try {
       teacherList = await _teacherRepo.getTeacherList();
       copyTeacherList = List<TeacherModel>.from(teacherList);
       _applySearch();
     } catch (e) {
+      loadError = "Couldn't load teachers";
       Helper.showSnackBarMessage(
           msg: "Error while fetching teachers", isSuccess: false);
     } finally {
