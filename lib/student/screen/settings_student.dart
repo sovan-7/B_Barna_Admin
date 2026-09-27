@@ -129,7 +129,7 @@ class _SettingStudentState extends State<SettingStudent> {
 
     setState(() => _errors.clear());
 
-    await studentViewModel.enrolledCourse(
+    final bool enrolled = await studentViewModel.enrolledCourse(
       _selectedSubjectCode,
       _selectedSubjectName ?? stringDefault,
       _selectedSubjectImage,
@@ -138,7 +138,8 @@ class _SettingStudentState extends State<SettingStudent> {
       widget.studentName,
     );
 
-    if (!mounted) return;
+    // Keep what was entered when the enrolment failed, so it can be retried.
+    if (!mounted || !enrolled) return;
     setState(() {
       _selectedSubjectName = null;
       _selectedSubjectCode = "";
@@ -283,17 +284,30 @@ class _SettingStudentState extends State<SettingStudent> {
           alignment: Alignment.centerRight,
           child: ElevatedButton(
             key: const Key('student_enrol_button'),
-            onPressed: () => _onEnrol(studentViewModel),
+            // Disabled (and spinning) while an enrolment is saving.
+            onPressed: studentViewModel.isEnrolling
+                ? null
+                : () => _onEnrol(studentViewModel),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTokens.ink,
+              disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
               foregroundColor: Colors.white,
+              disabledForegroundColor: Colors.white,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
             ),
-            child: const Text("Enrol",
-                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+            child: studentViewModel.isEnrolling
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.2, color: Colors.white),
+                  )
+                : const Text("Enrol",
+                    style:
+                        TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
           ),
         ),
       ],

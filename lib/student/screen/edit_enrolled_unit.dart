@@ -21,6 +21,13 @@ class EditEnrolledUnit extends StatelessWidget {
         onToggle: studentVM.updateEditedCheckList,
         onToggleAll: studentVM.updateEditedUnitList,
         saveLabel: "Save units",
+        isLoading: studentVM.isLoadingEditUnits,
+        isSaving: studentVM.isSavingUnits,
+        loadError: studentVM.editUnitsError,
+        onRetry: () {
+          final String? code = studentVM.selectedSubjectModel?.subjectCode;
+          if (code != null) studentVM.setEditedUnitList(code);
+        },
         onSave: () async {
           final String? subjectCode =
               studentVM.selectedSubjectModel?.subjectCode;

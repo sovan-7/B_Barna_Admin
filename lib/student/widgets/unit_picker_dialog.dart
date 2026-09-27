@@ -35,6 +35,15 @@ class UnitPickerDialog extends StatelessWidget {
   /// Shows a spinner instead of the list.
   final bool isLoading;
 
+  /// True while [onSave] is running: the Save button spins and is disabled.
+  final bool isSaving;
+
+  /// Why the units could not be loaded, or null (shown with [onRetry]).
+  final String? loadError;
+
+  /// Loads the units again.
+  final VoidCallback? onRetry;
+
   const UnitPickerDialog({
     required this.title,
     required this.units,
@@ -45,6 +54,9 @@ class UnitPickerDialog extends StatelessWidget {
     this.subtitle,
     this.saveLabel = "Save",
     this.isLoading = false,
+    this.isSaving = false,
+    this.loadError,
+    this.onRetry,
     super.key,
   });
 
@@ -149,6 +161,34 @@ class UnitPickerDialog extends StatelessWidget {
             child: CircularProgressIndicator(
                 strokeWidth: 2.2, color: AppTokens.inkFaint),
           ),
+        ),
+      );
+    }
+
+    final String? loadError = this.loadError;
+    if (units.isEmpty && loadError != null) {
+      // The units failed to load: say so, with Retry — not "no units".
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 44, horizontal: 24),
+        child: Column(
+          children: [
+            const Icon(Icons.cloud_off_outlined,
+                size: 28, color: AppTokens.danger),
+            const SizedBox(height: 10),
+            Text(loadError,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTokens.ink)),
+            const SizedBox(height: 10),
+            if (onRetry != null)
+              OutlinedButton.icon(
+                key: const Key('unit_picker_retry'),
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text("Retry"),
+              ),
+          ],
         ),
       );
     }
@@ -316,7 +356,7 @@ class UnitPickerDialog extends StatelessWidget {
           const SizedBox(width: AppTokens.gapSm),
           ElevatedButton(
             key: const Key('unit_picker_save'),
-            onPressed: units.isEmpty ? null : onSave,
+            onPressed: units.isEmpty || isSaving ? null : onSave,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTokens.ink,
               disabledBackgroundColor: AppTokens.ink.withValues(alpha: .4),
@@ -327,9 +367,16 @@ class UnitPickerDialog extends StatelessWidget {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
             ),
-            child: Text(saveLabel,
-                style:
-                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            child: isSaving
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : Text(saveLabel,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

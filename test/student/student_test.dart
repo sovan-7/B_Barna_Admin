@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/student/model/enrolled_course_model.dart';
@@ -535,6 +537,47 @@ void main() {
       await vm.getEnrolledCourseList('a');
 
       expect(vm.enrolledCourseBaseModel, isNull);
+    });
+
+    testWidgets('a failed enrol reports false and a repeat tap is ignored',
+        (tester) async {
+      final Completer<void> saving = Completer<void>();
+      when(() => repo.addCourse(any(), any(), any()))
+          .thenAnswer((_) => saving.future);
+
+      final vm = StudentViewModel(studentRepo: repo);
+      await _pump(tester, const Size(1440, 900), const Scaffold(), vm);
+
+      final Future<bool> first =
+          vm.enrolledCourse('S1', 'Physics', '', 0, 'a', 'Anita');
+      expect(vm.isEnrolling, isTrue);
+      // A second tap while the first is saving does nothing.
+      expect(await vm.enrolledCourse('S1', 'Physics', '', 0, 'a', 'Anita'),
+          isFalse);
+      verify(() => repo.addCourse(any(), any(), any())).called(1);
+
+      saving.completeError(Exception('offline'));
+      // False tells the form to keep what was entered.
+      expect(await first, isFalse);
+      expect(vm.isEnrolling, isFalse);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    test('a failed enrolments load keeps the last ones and says so',
+        () async {
+      when(() => repo.getEnrolledCourseList(any()))
+          .thenAnswer((_) async => null);
+      final vm = StudentViewModel(studentRepo: repo);
+      await vm.getEnrolledCourseList('a');
+      expect(vm.enrolmentError, isNull);
+      expect(vm.isLoadingEnrolment, isFalse);
+
+      when(() => repo.getEnrolledCourseList(any()))
+          .thenThrow(Exception('offline'));
+      await vm.getEnrolledCourseList('a');
+      // Not "None": the card shows an error with Retry.
+      expect(vm.enrolmentError, "Couldn't load the enrolments");
+      expect(vm.isLoadingEnrolment, isFalse);
     });
 
     test('a course map with no fields yields no units', () {

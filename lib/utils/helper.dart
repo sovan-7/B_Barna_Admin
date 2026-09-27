@@ -1,10 +1,7 @@
 import 'package:bbarna/core/widgets/app_toast.dart';
-import 'package:bbarna/resources/app_colors.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:flutter/material.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
 
-/// Small app-wide helpers: toasts, a loader, and the locally stored
+/// Small app-wide helpers: toasts and the locally stored
 /// sidebar / module-access preferences.
 class Helper {
   /// Shows [msg] as a toast in the corner of the window: green when
@@ -25,15 +22,6 @@ class Helper {
   /// win or a failure.
   static Future<void> showInfoMessage({required String msg}) async {
     AppToast.show(message: msg, level: ToastLevel.info);
-  }
-
-  /// A centred animated loader (hexagon dots) in [color].
-  Widget showLoader({Color? color = const Color(0xFF8ADDE1)}) {
-    return Center(
-        child: LoadingAnimationWidget.hexagonDots(
-      color: color ?? AppColorsInApp.colorLightBlue,
-      size: 80,
-    ));
   }
 
   /// Whether the navigation rail was last left collapsed.

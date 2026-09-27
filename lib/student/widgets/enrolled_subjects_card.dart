@@ -1,4 +1,5 @@
 import 'package:bbarna/core/widgets/card/image_or_initial.dart';
+import 'package:bbarna/core/widgets/form/form_fields.dart';
 import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/resources/app_tokens.dart';
@@ -43,18 +44,43 @@ class _EnrolledSubjectsCardState extends State<EnrolledSubjectsCard> {
   Widget build(BuildContext context) {
     final List<EnrolledCourseModel> enrolled =
         _viewModel.enrolledCourseBaseModel?.enrolledCourseList ?? const [];
+    // Loading and failure are shown as such, not as "None".
+    final bool loading = enrolled.isEmpty && _viewModel.isLoadingEnrolment;
+    final String? loadError =
+        enrolled.isEmpty ? _viewModel.enrolmentError : null;
 
     return FormSection(
       title: "ENROLLED SUBJECTS",
       trailing: Text(
-        enrolled.isEmpty
-            ? "None"
-            : "${enrolled.length} subject${enrolled.length == 1 ? '' : 's'}",
+        loading
+            ? "Loading…"
+            : loadError != null
+                ? "—"
+                : enrolled.isEmpty
+                    ? "None"
+                    : "${enrolled.length} subject${enrolled.length == 1 ? '' : 's'}",
         style: const TextStyle(
             fontSize: 12, fontWeight: FontWeight.w600, color: AppTokens.ink),
       ),
       children: [
-        if (enrolled.isEmpty)
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2.2, color: AppTokens.inkFaint),
+              ),
+            ),
+          )
+        else if (loadError != null)
+          LoadErrorLine(
+            message: loadError,
+            onRetry: () => _viewModel.getEnrolledCourseList(widget.studentId),
+          )
+        else if (enrolled.isEmpty)
           const _EmptyEnrolments()
         else
           for (final EnrolledCourseModel course in enrolled) _row(course),
@@ -142,10 +168,11 @@ class _EnrolledSubjectsCardState extends State<EnrolledSubjectsCard> {
             borderRadius: BorderRadius.circular(AppTokens.radiusSm),
             // Opens the unit picker directly (editing is reversible, so no
             // confirmation first).
-            onTap: () async {
-              await _viewModel.setEditedUnitList(course.subjectCode);
-              if (!mounted) return;
-              await showSlideDialog(context, const EditEnrolledUnit());
+            // The dialog opens at once and shows its own loading / error
+            // state while the units load.
+            onTap: () {
+              _viewModel.setEditedUnitList(course.subjectCode);
+              showSlideDialog(context, const EditEnrolledUnit());
             },
             child: const Padding(
               padding: EdgeInsets.all(6),

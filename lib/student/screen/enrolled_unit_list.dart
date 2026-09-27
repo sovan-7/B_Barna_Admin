@@ -21,6 +21,9 @@ class EnrolledUnitList extends StatelessWidget {
         onToggle: studentVM.updateCheckList,
         onToggleAll: studentVM.setAllCheckList,
         saveLabel: "Done",
+        isLoading: studentVM.unitOptions.isLoading,
+        loadError: studentVM.unitOptions.error,
+        onRetry: studentVM.unitOptions.retry,
         onSave: () => Navigator.pop(context),
       );
     });

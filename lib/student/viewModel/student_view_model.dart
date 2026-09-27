@@ -1,6 +1,5 @@
 import 'package:bbarna/core/viewModel/async_list.dart';
 import 'package:bbarna/core/mixins/safe_notifier.dart';
-import 'package:bbarna/core/widgets/loader_dialog.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/student/model/enrolled_course_model.dart';
@@ -279,6 +278,24 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   /// Units handed to the edit dialog by the screen.
   List<UnitModel> editUnitList = [];
 
+  /// True while the student's enrolments are loading.
+  bool isLoadingEnrolment = false;
+
+  /// Why the student's enrolments could not be loaded, or null.
+  String? enrolmentError;
+
+  /// True while an enrolment is being saved (the Enrol button spins).
+  bool isEnrolling = false;
+
+  /// True while the "edit units" dialog is saving.
+  bool isSavingUnits = false;
+
+  /// True while the units for the "edit units" dialog are loading.
+  bool isLoadingEditUnits = false;
+
+  /// Why the units for the "edit units" dialog failed to load, or null.
+  String? editUnitsError;
+
   /// The enrolled subject currently being edited.
   EnrolledCourseModel? selectedSubjectModel;
 
@@ -286,6 +303,7 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   /// for a different student.
   void clearStudentData() {
     enrolledCourseBaseModel = null;
+    enrolmentError = null;
     selectedEditUnitList = [];
     unitOptions.reset();
   }
@@ -293,16 +311,22 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   // ---- Enrolment actions ------------------------------------------------
 
   /// Loads the student's enrolment document into
-  /// [enrolledCourseBaseModel] (null when they have none or on error).
+  /// [enrolledCourseBaseModel] (null when they have none). On failure the
+  /// last loaded enrolments stay and [enrolmentError] is set.
   Future<void> getEnrolledCourseList(String studentId) async {
+    isLoadingEnrolment = true;
+    enrolmentError = null;
+    notifyListeners();
     try {
       // The repo returns null when the student has no enrolments.
       enrolledCourseBaseModel =
           await _studentRepo.getEnrolledCourseList(studentId);
     } catch (e) {
-      enrolledCourseBaseModel = null;
+      enrolmentError = "Couldn't load the enrolments";
+    } finally {
+      isLoadingEnrolment = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   /// Loads the courses for the enrol picker. Uses no loader dialog: it is
@@ -380,9 +404,9 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   }
 
   /// Enrols the student in [subjectCode] with the ticked units, valid until
-  /// [accessTill] (epoch ms), then reloads their enrolments. Shows the
-  /// global loader dialog while saving.
-  Future<void> enrolledCourse(
+  /// [accessTill] (epoch ms), then reloads their enrolments. The Enrol button shows
+  /// [isEnrolling]; returns true when the enrolment was saved.
+  Future<bool> enrolledCourse(
     String subjectCode,
     String subjectName,
     String subjectImage,
@@ -390,7 +414,10 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
     String studentId,
     String studentName,
   ) async {
-    LoaderDialogs.showLoadingDialog();
+    // Ignore a second tap while the first enrol is still saving.
+    if (isEnrolling) return false;
+    isEnrolling = true;
+    notifyListeners();
     try {
       final List<String> units =
           selectedUnitList.where((element) => element != "").toList();
@@ -403,12 +430,17 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
         "unit_code_list": units,
       }, studentId, studentName);
 
-      Navigator.pop(navigatorKey.currentContext!);
+      Helper.showSnackBarMessage(
+          msg: "Enrolled in $subjectName", isSuccess: true);
       await getEnrolledCourseList(studentId);
+      return true;
     } catch (e) {
-      Navigator.pop(navigatorKey.currentContext!);
       Helper.showSnackBarMessage(
           msg: "Error while enrolling the student", isSuccess: false);
+      return false;
+    } finally {
+      isEnrolling = false;
+      notifyListeners();
     }
   }
 
@@ -447,6 +479,10 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   /// loads all its units and pre-ticks the ones already enrolled.
   Future<void> setEditedUnitList(String subjectCode) async {
     selectedEditUnitList = [];
+    editedUnitList = [];
+    selectedEditedUnitListLength = 0;
+    editUnitsError = null;
+    isLoadingEditUnits = true;
     selectedSubjectModel = enrolledCourseBaseModel?.enrolledCourseList
         .where((element) => element.subjectCode == subjectCode)
         .firstOrNull;
@@ -457,6 +493,9 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
           await _studentRepo.getUnitList(subjectCode: subjectCode);
     } catch (e) {
       selectedEditUnitList = [];
+      editUnitsError = "Couldn't load the units";
+    } finally {
+      isLoadingEditUnits = false;
     }
 
     final List<String> alreadyEnrolled =
@@ -501,33 +540,32 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   /// the caller should reload the enrolment.
   ///
   /// Saves the edit dialog: replaces enrolled subject [courseId]'s unit
-  /// list with the ticked units. Shows the global loader dialog.
+  /// list with the ticked units ([isSavingUnits] while saving).
   Future<bool> updateEditUnitCourse(String courseId) async {
     final EnrolledCourseBaseModel? enrolment = enrolledCourseBaseModel;
-    if (enrolment == null) return false;
+    if (enrolment == null || isSavingUnits) return false;
 
-    LoaderDialogs.showLoadingDialog();
     final int courseIndex = enrolment.enrolledCourseList
         .indexWhere((element) => element.subjectCode == courseId);
-    if (courseIndex == -1) {
-      Navigator.pop(navigatorKey.currentContext!);
-      return false;
-    }
+    if (courseIndex == -1) return false;
     enrolment.enrolledCourseList[courseIndex].unitCodeList =
         editedUnitList.where((element) => element != "").toList();
 
+    // The dialog's Save button spins while this runs.
+    isSavingUnits = true;
+    notifyListeners();
     try {
       await _studentRepo.updateEnrolment(enrolment.docId, enrolment.toMap());
-      Navigator.pop(navigatorKey.currentContext!);
       Helper.showSnackBarMessage(
           msg: "Course updated successfully", isSuccess: true);
-      notifyListeners();
       return true;
     } catch (e) {
-      Navigator.pop(navigatorKey.currentContext!);
       Helper.showSnackBarMessage(
           msg: "Sorry something went wrong", isSuccess: false);
       return false;
+    } finally {
+      isSavingUnits = false;
+      notifyListeners();
     }
   }
 }
