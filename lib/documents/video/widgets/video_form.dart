@@ -1,11 +1,13 @@
-import 'package:bbarna/core/widgets/app_header.dart';
+import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/form_action_bar.dart';
+import 'package:bbarna/core/widgets/form/form_fields.dart';
+import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
-import 'package:bbarna/core/widgets/sidebar.dart';
-import 'package:bbarna/course/widgets/course_form.dart' show UpperCaseTextFormatter;
 import 'package:bbarna/documents/video/model/video_model.dart';
 import 'package:bbarna/documents/video/viewModel/video_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/formatters.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -28,8 +30,6 @@ class VideoForm extends StatefulWidget {
 enum _Field { code, title, link, type }
 
 class _VideoFormState extends State<VideoForm> {
-  final GlobalKey<ScaffoldState> key = GlobalKey();
-
   final TextEditingController codeController = TextEditingController();
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
@@ -50,10 +50,10 @@ class _VideoFormState extends State<VideoForm> {
       titleController.text = existing.title;
       descriptionController.text =
           existing.description == stringDefault ? "" : existing.description;
-      linkController.text =
-          existing.link == stringDefault ? "" : existing.link;
-      _selectedType =
-          videoTypeList.contains(existing.videoType) ? existing.videoType : null;
+      linkController.text = existing.link == stringDefault ? "" : existing.link;
+      _selectedType = videoTypeList.contains(existing.videoType)
+          ? existing.videoType
+          : null;
     }
   }
 
@@ -171,43 +171,13 @@ class _VideoFormState extends State<VideoForm> {
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    final bool isCompact = width < AppTokens.compactBreakpoint;
-
-    return Scaffold(
-      key: key,
-      backgroundColor: AppTokens.canvas,
-      body: PopScope(
-        canPop: true,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-        },
-        child: Column(
-          children: [
-            AppHeader(
-              onTapIcon: () => key.currentState?.openDrawer(),
-              title: "Videos",
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  if (!isCompact)
-                    const Expanded(child: ExtraSideBar(sidebarIndex: 5)),
-                  Expanded(
-                    flex: 5,
-                    child: Consumer<VideoViewModel>(
-                      builder: (context, videoViewModel, child) =>
-                          _page(videoViewModel, width),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return AdminFormScaffold(
+      headerTitle: "Videos",
+      sidebarIndex: 5,
+      body: (context, width) => Consumer<VideoViewModel>(
+        builder: (context, videoViewModel, child) =>
+            _page(videoViewModel, width),
       ),
-      drawer:
-          isCompact ? const Drawer(child: ExtraSideBar(sidebarIndex: 5)) : null,
     );
   }
 
@@ -226,19 +196,18 @@ class _VideoFormState extends State<VideoForm> {
                   children: [
                     _pageHeader(),
                     const SizedBox(height: AppTokens.gapLg),
-                    _section(title: "VIDEO DETAILS", children: [
-                      _twoUp(
-                        width,
-                        _textField(
-                          label: "Video code",
-                          hint: "e.g. INTRO-01",
-                          controller: codeController,
-                          error: _errors[_Field.code],
-                          onChanged: _revalidate,
-                          uppercase: true,
-                        ),
-                        _typeField(),
-                      ),
+                    FormSection(title: "VIDEO DETAILS", children: [
+                      FormTwoUp(
+                          width: width,
+                          left: _textField(
+                            label: "Video code",
+                            hint: "e.g. INTRO-01",
+                            controller: codeController,
+                            error: _errors[_Field.code],
+                            onChanged: _revalidate,
+                            uppercase: true,
+                          ),
+                          right: _typeField()),
                       const SizedBox(height: AppTokens.gapMd),
                       _textField(
                         label: "Title",
@@ -256,7 +225,7 @@ class _VideoFormState extends State<VideoForm> {
                       ),
                     ]),
                     const SizedBox(height: AppTokens.gapMd),
-                    _section(title: "LINK", children: [
+                    FormSection(title: "LINK", children: [
                       _textField(
                         label: "Video link",
                         hint: "https://www.youtube.com/watch?v=...",
@@ -278,94 +247,18 @@ class _VideoFormState extends State<VideoForm> {
     );
   }
 
-  Widget _twoUp(double width, Widget left, Widget right) {
-    if (width < 700) {
-      return Column(children: [
-        left,
-        const SizedBox(height: AppTokens.gapMd),
-        right,
-      ]);
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: left),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(child: right),
-      ],
-    );
-  }
-
+  /// Back button, title and subtitle at the top of the page.
   Widget _pageHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _backButton(),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.isEdit ? "Edit video" : "Add a video",
-                  style: AppTokens.pageTitle),
-              const SizedBox(height: 3),
-              Text(
-                widget.isEdit
-                    ? "Update this video's details and link."
-                    : "Videos are linked, not uploaded.",
-                style: AppTokens.pageSubtitle,
-              ),
-            ],
-          ),
-        ),
-      ],
+    return FormPageHeader(
+      title: widget.isEdit ? "Edit video" : "Add a video",
+      subtitle: widget.isEdit
+          ? "Update this video's details and link."
+          : "Videos are linked, not uploaded.",
+      onBack: _isSaving ? null : () => Navigator.pop(context),
     );
   }
 
-  Widget _backButton() {
-    return Material(
-      color: AppTokens.surface,
-      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-      child: InkWell(
-        onTap: _isSaving ? null : () => Navigator.pop(context),
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        child: Container(
-          height: 38,
-          width: 38,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(color: AppTokens.hairline),
-          ),
-          child: const Icon(Icons.arrow_back, size: 18, color: AppTokens.ink),
-        ),
-      ),
-    );
-  }
-
-  Widget _section({required String title, required List<Widget> children}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-      decoration: BoxDecoration(
-        color: AppTokens.surface,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: AppTokens.hairline),
-        boxShadow: AppTokens.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: AppTokens.sectionTitle),
-          const SizedBox(height: AppTokens.gapMd),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  static const TextStyle _labelStyle = TextStyle(
-      fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF344054));
-
+  /// A [FormTextField] configured for this form.
   Widget _textField({
     required String label,
     required String hint,
@@ -376,213 +269,44 @@ class _VideoFormState extends State<VideoForm> {
     bool uppercase = false,
     IconData? prefixIcon,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: _labelStyle),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            color: AppTokens.surface,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(
-                color: error != null ? AppTokens.danger : AppTokens.hairline),
-          ),
-          child: TextField(
-            controller: controller,
-            maxLines: maxLines,
-            inputFormatters: [if (uppercase) UpperCaseTextFormatter()],
-            onChanged: onChanged == null ? null : (_) => onChanged(),
-            style: const TextStyle(fontSize: 13.5, color: AppTokens.ink),
-            decoration: InputDecoration(
-              isDense: true,
-              border: InputBorder.none,
-              hintText: hint,
-              hintStyle:
-                  const TextStyle(fontSize: 13, color: AppTokens.inkFaint),
-              prefixIcon: prefixIcon == null
-                  ? null
-                  : Icon(prefixIcon, size: 17, color: AppTokens.inkFaint),
-              prefixIconConstraints:
-                  const BoxConstraints(minWidth: 38, minHeight: 20),
-              contentPadding:
-                  EdgeInsets.fromLTRB(prefixIcon == null ? 14 : 0, 13, 14, 13),
-            ),
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 5),
-          Text(error, style: AppTokens.errorText),
-        ],
-      ],
+    return FormTextField(
+      label: label,
+      hint: hint,
+      controller: controller,
+      maxLines: maxLines,
+      error: error,
+      onChanged: onChanged,
+      prefixIcon: prefixIcon,
+      inputFormatters: [if (uppercase) UpperCaseTextFormatter()],
     );
   }
 
-  /// FREE or PAID as two segments rather than a dropdown: with exactly two
-  /// options, a dropdown hides half the answer behind a tap.
+  /// FREE / PAID as two segments.
   Widget _typeField() {
-    final String? error = _errors[_Field.type];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("Access", style: _labelStyle),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            color: AppTokens.surface,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(
-                color: error != null ? AppTokens.danger : AppTokens.hairline),
-          ),
-          child: Row(
-            children: [
-              for (final String type in videoTypeList)
-                Expanded(
-                  child: _segment(
-                    key: Key('video_type_${type.toLowerCase()}'),
-                    label: type == "FREE" ? "Free" : "Paid",
-                    icon: type == "FREE"
-                        ? Icons.lock_open_outlined
-                        : Icons.paid_outlined,
-                    selected: _selectedType == type,
-                    onTap: () {
-                      setState(() => _selectedType = type);
-                      _revalidate();
-                    },
-                  ),
-                ),
-            ],
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 5),
-          Text(error, style: AppTokens.errorText),
-        ],
-      ],
+    return FormAccessTypeField(
+      types: videoTypeList,
+      selected: _selectedType,
+      keyPrefix: "video",
+      error: _errors[_Field.type],
+      enabled: !_isSaving,
+      onSelect: (type) {
+        setState(() => _selectedType = type);
+        _revalidate();
+      },
     );
   }
 
-  Widget _segment({
-    required Key key,
-    required String label,
-    required IconData icon,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      key: key,
-      onTap: _isSaving ? null : onTap,
-      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        padding: const EdgeInsets.symmetric(vertical: 9),
-        decoration: BoxDecoration(
-          color: selected ? AppTokens.ink : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon,
-                size: 14,
-                color: selected ? Colors.white : AppTokens.inkFaint),
-            const SizedBox(width: 6),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : AppTokens.inkMuted)),
-          ],
-        ),
-      ),
-    );
-  }
-
+  /// Delete / Cancel / Save bar pinned to the bottom of the page.
   Widget _actionBar(VideoViewModel videoViewModel, double width) {
-    final bool narrow = width < 560;
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: width < 700 ? 16 : 32, vertical: 14),
-      decoration: const BoxDecoration(
-        color: AppTokens.surface,
-        border: Border(top: BorderSide(color: AppTokens.hairline)),
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Row(
-            children: [
-              if (widget.isEdit)
-                narrow
-                    ? IconButton(
-                        onPressed:
-                            _isSaving ? null : () => _onDelete(videoViewModel),
-                        tooltip: "Delete video",
-                        icon: const Icon(Icons.delete_outline, size: 20),
-                        color: AppTokens.danger,
-                      )
-                    : TextButton.icon(
-                        onPressed:
-                            _isSaving ? null : () => _onDelete(videoViewModel),
-                        icon: const Icon(Icons.delete_outline, size: 17),
-                        label: const Text("Delete"),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppTokens.danger,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
-                        ),
-                      ),
-              if (!narrow) const Spacer(),
-              TextButton(
-                onPressed: _isSaving ? null : () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTokens.inkMuted,
-                  padding: EdgeInsets.symmetric(
-                      horizontal: narrow ? 12 : 18, vertical: 14),
-                ),
-                child: const Text("Cancel"),
-              ),
-              const SizedBox(width: AppTokens.gapSm),
-              _saveButton(videoViewModel, expand: narrow),
-            ],
-          ),
-        ),
-      ),
+    return FormActionBar(
+      width: width,
+      isSaving: _isSaving,
+      onDelete: widget.isEdit ? () => _onDelete(videoViewModel) : null,
+      deleteTooltip: "Delete video",
+      saveKey: const Key('video_save_button'),
+      saveLabel: widget.isEdit ? "Update video" : "Save video",
+      onSave: () => _onSubmit(videoViewModel),
+      saveMinWidth: 135,
     );
-  }
-
-  Widget _saveButton(VideoViewModel videoViewModel, {required bool expand}) {
-    final Widget button = ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 135, minHeight: 42),
-      child: ElevatedButton(
-        key: const Key('video_save_button'),
-        onPressed: _isSaving ? null : () => _onSubmit(videoViewModel),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTokens.ink,
-          disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
-          foregroundColor: Colors.white,
-          disabledForegroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
-        ),
-        child: _isSaving
-            ? const SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.2, color: Colors.white),
-              )
-            : Text(widget.isEdit ? "Update video" : "Save video",
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 13.5, fontWeight: FontWeight.w600)),
-      ),
-    );
-
-    return expand ? Expanded(child: button) : button;
   }
 }

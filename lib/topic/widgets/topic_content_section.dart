@@ -1,7 +1,6 @@
-import 'package:bbarna/course/widgets/course_form.dart'
-    show UpperCaseTextFormatter;
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/topic/model/topic_model.dart';
+import 'package:bbarna/utils/formatters.dart';
 import 'package:flutter/material.dart';
 
 /// One kind of content attached to a topic — its codes, and what each one

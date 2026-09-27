@@ -1,7 +1,9 @@
-import 'package:bbarna/core/widgets/app_header.dart';
+import 'package:bbarna/core/widgets/form/form_page_body.dart';
+import 'package:bbarna/core/widgets/form/form_fields.dart';
+import 'package:bbarna/core/widgets/form/form_action_bar.dart';
+import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
-import 'package:bbarna/core/widgets/sidebar.dart';
-import 'package:bbarna/course/widgets/course_form.dart' show UpperCaseTextFormatter;
+import 'package:bbarna/utils/formatters.dart';
 import 'package:bbarna/question/model/question.dart';
 import 'package:bbarna/quiz/model/quiz_model.dart';
 import 'package:bbarna/quiz/viewModel/quiz_view_model.dart';
@@ -34,8 +36,6 @@ class QuizForm extends StatefulWidget {
 enum _Field { code, name, status, type, time, marks }
 
 class _QuizFormState extends State<QuizForm> {
-  final GlobalKey<ScaffoldState> key = GlobalKey();
-
   final TextEditingController codeController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController hoursController = TextEditingController();
@@ -219,43 +219,12 @@ class _QuizFormState extends State<QuizForm> {
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    final bool isCompact = width < AppTokens.compactBreakpoint;
-
-    return Scaffold(
-      key: key,
-      backgroundColor: AppTokens.canvas,
-      body: PopScope(
-        canPop: true,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-        },
-        child: Column(
-          children: [
-            AppHeader(
-              onTapIcon: () => key.currentState?.openDrawer(),
-              title: "Quizzes",
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  if (!isCompact)
-                    const Expanded(child: ExtraSideBar(sidebarIndex: 8)),
-                  Expanded(
-                    flex: 5,
-                    child: Consumer<QuizViewModel>(
-                      builder: (context, quizViewModel, child) =>
-                          _page(quizViewModel, width),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return AdminFormScaffold(
+      headerTitle: "Quizzes",
+      sidebarIndex: 8,
+      body: (context, width) => Consumer<QuizViewModel>(
+        builder: (context, quizViewModel, child) => _page(quizViewModel, width),
       ),
-      drawer:
-          isCompact ? const Drawer(child: ExtraSideBar(sidebarIndex: 8)) : null,
     );
   }
 
@@ -274,51 +243,49 @@ class _QuizFormState extends State<QuizForm> {
                   children: [
                     _pageHeader(),
                     const SizedBox(height: AppTokens.gapLg),
-                    _section(title: "QUIZ DETAILS", children: [
-                      _twoUp(
-                        width,
-                        _textField(
-                          label: "Quiz code",
-                          hint: "e.g. MOCK-01",
-                          controller: codeController,
-                          error: _errors[_Field.code],
-                          onChanged: _revalidate,
-                          uppercase: true,
-                        ),
-                        _textField(
-                          label: "Quiz name",
-                          hint: "e.g. Physics mock test 1",
-                          controller: nameController,
-                          error: _errors[_Field.name],
-                          onChanged: _revalidate,
-                        ),
-                      ),
+                    FormSection(title: "QUIZ DETAILS", children: [
+                      FormTwoUp(
+                          width: width,
+                          left: _textField(
+                            label: "Quiz code",
+                            hint: "e.g. MOCK-01",
+                            controller: codeController,
+                            error: _errors[_Field.code],
+                            onChanged: _revalidate,
+                            uppercase: true,
+                          ),
+                          right: _textField(
+                            label: "Quiz name",
+                            hint: "e.g. Physics mock test 1",
+                            controller: nameController,
+                            error: _errors[_Field.name],
+                            onChanged: _revalidate,
+                          )),
                       const SizedBox(height: AppTokens.gapMd),
                       _statusField(),
                       const SizedBox(height: AppTokens.gapMd),
                       _typeField(),
                     ]),
                     const SizedBox(height: AppTokens.gapMd),
-                    _section(title: "RULES", children: [
+                    FormSection(title: "RULES", children: [
                       _durationField(),
                       const SizedBox(height: AppTokens.gapMd),
-                      _twoUp(
-                        width,
-                        _textField(
-                          label: "Total marks",
-                          hint: "e.g. 100",
-                          controller: marksController,
-                          error: _errors[_Field.marks],
-                          onChanged: _revalidate,
-                          numeric: true,
-                        ),
-                        _textField(
-                          label: "Negative marking",
-                          hint: "Marks lost per wrong answer (optional)",
-                          controller: deductionController,
-                          numeric: true,
-                        ),
-                      ),
+                      FormTwoUp(
+                          width: width,
+                          left: _textField(
+                            label: "Total marks",
+                            hint: "e.g. 100",
+                            controller: marksController,
+                            error: _errors[_Field.marks],
+                            onChanged: _revalidate,
+                            numeric: true,
+                          ),
+                          right: _textField(
+                            label: "Negative marking",
+                            hint: "Marks lost per wrong answer (optional)",
+                            controller: deductionController,
+                            numeric: true,
+                          )),
                     ]),
                     const SizedBox(height: AppTokens.gapMd),
                     _questionSection(quizViewModel),
@@ -334,103 +301,18 @@ class _QuizFormState extends State<QuizForm> {
     );
   }
 
-  Widget _twoUp(double width, Widget left, Widget right) {
-    if (width < 700) {
-      return Column(children: [
-        left,
-        const SizedBox(height: AppTokens.gapMd),
-        right,
-      ]);
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: left),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(child: right),
-      ],
-    );
-  }
-
+  /// Back button, title and subtitle at the top of the page.
   Widget _pageHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _backButton(),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.isEdit ? "Edit quiz" : "Add a quiz",
-                  style: AppTokens.pageTitle),
-              const SizedBox(height: 3),
-              Text(
-                widget.isEdit
-                    ? "Update this quiz's rules and its questions."
-                    : "Set the rules, then attach the questions.",
-                style: AppTokens.pageSubtitle,
-              ),
-            ],
-          ),
-        ),
-      ],
+    return FormPageHeader(
+      title: widget.isEdit ? "Edit quiz" : "Add a quiz",
+      subtitle: widget.isEdit
+          ? "Update this quiz's rules and its questions."
+          : "Set the rules, then attach the questions.",
+      onBack: _isSaving ? null : () => Navigator.pop(context),
     );
   }
 
-  Widget _backButton() {
-    return Material(
-      color: AppTokens.surface,
-      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-      child: InkWell(
-        onTap: _isSaving ? null : () => Navigator.pop(context),
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        child: Container(
-          height: 38,
-          width: 38,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(color: AppTokens.hairline),
-          ),
-          child: const Icon(Icons.arrow_back, size: 18, color: AppTokens.ink),
-        ),
-      ),
-    );
-  }
-
-  Widget _section({
-    required String title,
-    required List<Widget> children,
-    Widget? trailing,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-      decoration: BoxDecoration(
-        color: AppTokens.surface,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: AppTokens.hairline),
-        boxShadow: AppTokens.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(title, style: AppTokens.sectionTitle),
-              if (trailing != null) ...[const Spacer(), trailing],
-            ],
-          ),
-          const SizedBox(height: AppTokens.gapMd),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  static const TextStyle _labelStyle = TextStyle(
-      fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF344054));
-
+  /// A [FormTextField] configured for this form.
   Widget _textField({
     required String label,
     required String hint,
@@ -440,41 +322,16 @@ class _QuizFormState extends State<QuizForm> {
     bool numeric = false,
     bool uppercase = false,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: _labelStyle),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            color: AppTokens.surface,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(
-                color: error != null ? AppTokens.danger : AppTokens.hairline),
-          ),
-          child: TextField(
-            controller: controller,
-            keyboardType: numeric ? TextInputType.number : TextInputType.text,
-            inputFormatters: [
-              if (numeric) FilteringTextInputFormatter.digitsOnly,
-              if (uppercase) UpperCaseTextFormatter(),
-            ],
-            onChanged: onChanged == null ? null : (_) => onChanged(),
-            style: const TextStyle(fontSize: 13.5, color: AppTokens.ink),
-            decoration: InputDecoration(
-              isDense: true,
-              border: InputBorder.none,
-              hintText: hint,
-              hintStyle:
-                  const TextStyle(fontSize: 13, color: AppTokens.inkFaint),
-              contentPadding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-            ),
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 5),
-          Text(error, style: AppTokens.errorText),
-        ],
+    return FormTextField(
+      label: label,
+      hint: hint,
+      controller: controller,
+      error: error,
+      onChanged: onChanged,
+      keyboardType: numeric ? TextInputType.number : TextInputType.text,
+      inputFormatters: [
+        if (numeric) FilteringTextInputFormatter.digitsOnly,
+        if (uppercase) UpperCaseTextFormatter(),
       ],
     );
   }
@@ -488,11 +345,12 @@ class _QuizFormState extends State<QuizForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Time limit", style: _labelStyle),
+        const Text("Time limit", style: AppTokens.fieldLabel),
         const SizedBox(height: 6),
         Row(
           children: [
-            Expanded(child: _numberBox(hoursController, "Hours", error != null)),
+            Expanded(
+                child: _numberBox(hoursController, "Hours", error != null)),
             const SizedBox(width: AppTokens.gapSm),
             Expanded(
                 child: _numberBox(minutesController, "Minutes", error != null)),
@@ -503,8 +361,7 @@ class _QuizFormState extends State<QuizForm> {
           _totalMinutes > 0
               ? "Students get ${formatDuration(_totalMinutes)}."
               : "Enter hours, minutes, or both.",
-          style:
-              const TextStyle(fontSize: 11.5, color: AppTokens.inkFaint),
+          style: const TextStyle(fontSize: 11.5, color: AppTokens.inkFaint),
         ),
         if (error != null) ...[
           const SizedBox(height: 5),
@@ -520,8 +377,8 @@ class _QuizFormState extends State<QuizForm> {
       decoration: BoxDecoration(
         color: AppTokens.surface,
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(
-            color: hasError ? AppTokens.danger : AppTokens.hairline),
+        border:
+            Border.all(color: hasError ? AppTokens.danger : AppTokens.hairline),
       ),
       child: TextField(
         controller: controller,
@@ -538,8 +395,7 @@ class _QuizFormState extends State<QuizForm> {
           hintText: "0",
           hintStyle: const TextStyle(fontSize: 13, color: AppTokens.inkFaint),
           suffixText: suffix,
-          suffixStyle:
-              const TextStyle(fontSize: 12, color: AppTokens.inkFaint),
+          suffixStyle: const TextStyle(fontSize: 12, color: AppTokens.inkFaint),
           contentPadding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
         ),
       ),
@@ -552,7 +408,7 @@ class _QuizFormState extends State<QuizForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Status", style: _labelStyle),
+        const Text("Status", style: AppTokens.fieldLabel),
         const SizedBox(height: 6),
         Wrap(
           spacing: AppTokens.gapSm,
@@ -586,7 +442,7 @@ class _QuizFormState extends State<QuizForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Access", style: _labelStyle),
+        const Text("Access", style: AppTokens.fieldLabel),
         const SizedBox(height: 6),
         Wrap(
           spacing: AppTokens.gapSm,
@@ -675,7 +531,7 @@ class _QuizFormState extends State<QuizForm> {
   Widget _questionSection(QuizViewModel quizViewModel) {
     final List<Question> attached = quizViewModel.quizQuestionList;
 
-    return _section(
+    return FormSection(
       title: "QUESTIONS",
       trailing: Text(
         "${attached.length} attached",
@@ -742,7 +598,7 @@ class _QuizFormState extends State<QuizForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Add questions", style: _labelStyle),
+        const Text("Add questions", style: AppTokens.fieldLabel),
         const SizedBox(height: 6),
         Row(
           children: [
@@ -764,8 +620,8 @@ class _QuizFormState extends State<QuizForm> {
                       child: TextField(
                         key: const Key('quiz_question_search'),
                         controller: questionSearchController,
-                        style: const TextStyle(
-                            fontSize: 13, color: AppTokens.ink),
+                        style:
+                            const TextStyle(fontSize: 13, color: AppTokens.ink),
                         decoration: const InputDecoration(
                           isDense: true,
                           border: InputBorder.none,
@@ -806,16 +662,15 @@ class _QuizFormState extends State<QuizForm> {
           Row(
             children: [
               Text("${found.length} found",
-                  style: const TextStyle(
-                      fontSize: 12, color: AppTokens.inkMuted)),
+                  style:
+                      const TextStyle(fontSize: 12, color: AppTokens.inkMuted)),
               const Spacer(),
               TextButton.icon(
                 key: const Key('quiz_add_all_questions'),
                 onPressed:
                     _isSaving ? null : quizViewModel.addAllFoundQuestions,
                 icon: const Icon(Icons.playlist_add, size: 16),
-                label: const Text("Add all",
-                    style: TextStyle(fontSize: 12.5)),
+                label: const Text("Add all", style: TextStyle(fontSize: 12.5)),
                 style: TextButton.styleFrom(
                     foregroundColor: AppTokens.inkMuted,
                     padding: const EdgeInsets.symmetric(horizontal: 10)),
@@ -918,95 +773,25 @@ class _QuizFormState extends State<QuizForm> {
   }
 
   static String _plainText(String html) {
-    if (html.trim().isEmpty || html == stringDefault) return "Untitled question";
+    if (html.trim().isEmpty || html == stringDefault)
+      return "Untitled question";
     final String text =
         html_parser.parse(html).body?.text.trim() ?? html.trim();
     return text.isEmpty ? "Untitled question" : text;
   }
 
+  /// Delete / Cancel / Save bar pinned to the bottom of the page.
   Widget _actionBar(QuizViewModel quizViewModel, double width) {
-    final bool narrow = width < 560;
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: width < 700 ? 16 : 32, vertical: 14),
-      decoration: const BoxDecoration(
-        color: AppTokens.surface,
-        border: Border(top: BorderSide(color: AppTokens.hairline)),
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Row(
-            children: [
-              if (widget.isEdit)
-                narrow
-                    ? IconButton(
-                        onPressed:
-                            _isSaving ? null : () => _onDelete(quizViewModel),
-                        tooltip: "Delete quiz",
-                        icon: const Icon(Icons.delete_outline, size: 20),
-                        color: AppTokens.danger,
-                      )
-                    : TextButton.icon(
-                        onPressed:
-                            _isSaving ? null : () => _onDelete(quizViewModel),
-                        icon: const Icon(Icons.delete_outline, size: 17),
-                        label: const Text("Delete"),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppTokens.danger,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
-                        ),
-                      ),
-              if (!narrow) const Spacer(),
-              TextButton(
-                onPressed: _isSaving ? null : () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTokens.inkMuted,
-                  padding: EdgeInsets.symmetric(
-                      horizontal: narrow ? 12 : 18, vertical: 14),
-                ),
-                child: const Text("Cancel"),
-              ),
-              const SizedBox(width: AppTokens.gapSm),
-              _saveButton(quizViewModel, expand: narrow),
-            ],
-          ),
-        ),
-      ),
+    return FormActionBar(
+      width: width,
+      isSaving: _isSaving,
+      onDelete: widget.isEdit ? () => _onDelete(quizViewModel) : null,
+      deleteTooltip: "Delete quiz",
+      saveKey: const Key('quiz_save_button'),
+      saveLabel: widget.isEdit ? "Update quiz" : "Save quiz",
+      onSave: () => _onSubmit(quizViewModel),
+      saveMinWidth: 130,
+      maxWidth: 760,
     );
-  }
-
-  Widget _saveButton(QuizViewModel quizViewModel, {required bool expand}) {
-    final Widget button = ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 130, minHeight: 42),
-      child: ElevatedButton(
-        key: const Key('quiz_save_button'),
-        onPressed: _isSaving ? null : () => _onSubmit(quizViewModel),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTokens.ink,
-          disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
-          foregroundColor: Colors.white,
-          disabledForegroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
-        ),
-        child: _isSaving
-            ? const SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.2, color: Colors.white),
-              )
-            : Text(widget.isEdit ? "Update quiz" : "Save quiz",
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 13.5, fontWeight: FontWeight.w600)),
-      ),
-    );
-
-    return expand ? Expanded(child: button) : button;
   }
 }

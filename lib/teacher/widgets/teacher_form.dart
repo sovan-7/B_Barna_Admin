@@ -1,5 +1,7 @@
-import 'package:bbarna/core/widgets/app_header.dart';
-import 'package:bbarna/core/widgets/sidebar.dart';
+import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/form_action_bar.dart';
+import 'package:bbarna/core/widgets/form/form_fields.dart';
+import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/teacher/model/teacher_model.dart';
@@ -40,8 +42,6 @@ class TeacherForm extends StatefulWidget {
 enum _Field { name, username, password, phone, photo, modules }
 
 class _TeacherFormState extends TeacherFormTestHooks {
-  final GlobalKey<ScaffoldState> key = GlobalKey();
-
   final TextEditingController nameController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -128,8 +128,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
     // "alphanumeric username" (real handles commonly use underscores);
     // still rejects spaces/punctuation/emoji.
     final String username = usernameController.text.trim();
-    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username) ||
-        username.length < 4) {
+    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username) || username.length < 4) {
       errors[_Field.username] =
           "Username must be at least 4 letters, numbers, or underscores";
     }
@@ -244,38 +243,10 @@ class _TeacherFormState extends TeacherFormTestHooks {
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    final bool isCompact = width < AppTokens.compactBreakpoint;
-
-    return Scaffold(
-      key: key,
-      backgroundColor: AppTokens.canvas,
-      body: PopScope(
-        canPop: true,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-        },
-        child: Column(
-          children: [
-            AppHeader(
-              onTapIcon: () => key.currentState?.openDrawer(),
-              title: "Teachers",
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  if (!isCompact)
-                    const Expanded(child: ExtraSideBar(sidebarIndex: 11)),
-                  Expanded(flex: 5, child: _page(width)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      drawer: isCompact
-          ? const Drawer(child: ExtraSideBar(sidebarIndex: 11))
-          : null,
+    return AdminFormScaffold(
+      headerTitle: "Teachers",
+      sidebarIndex: 11,
+      body: (context, width) => _page(width),
     );
   }
 
@@ -294,32 +265,31 @@ class _TeacherFormState extends TeacherFormTestHooks {
                   children: [
                     _pageHeader(),
                     const SizedBox(height: AppTokens.gapLg),
-                    _section(title: "ACCOUNT", children: [
+                    FormSection(title: "ACCOUNT", children: [
                       _avatarField(),
                       const SizedBox(height: AppTokens.gapLg),
-                      _twoUp(
-                        width,
-                        _textField(
-                          fieldKey: const Key('teacher_name_field'),
-                          label: "Full name",
-                          hint: "e.g. Anita Desai",
-                          controller: nameController,
-                          error: _errors[_Field.name],
-                        ),
-                        _textField(
-                          fieldKey: const Key('teacher_username_field'),
-                          label: "Username",
-                          hint: "Letters, numbers and underscores",
-                          controller: usernameController,
-                          error: _errors[_Field.username],
-                          // The username is the document id, so it cannot
-                          // change once the teacher exists.
-                          enabled: !widget.isEdit,
-                          note: widget.isEdit
-                              ? "A username cannot be changed."
-                              : null,
-                        ),
-                      ),
+                      FormTwoUp(
+                          width: width,
+                          left: _textField(
+                            fieldKey: const Key('teacher_name_field'),
+                            label: "Full name",
+                            hint: "e.g. Anita Desai",
+                            controller: nameController,
+                            error: _errors[_Field.name],
+                          ),
+                          right: _textField(
+                            fieldKey: const Key('teacher_username_field'),
+                            label: "Username",
+                            hint: "Letters, numbers and underscores",
+                            controller: usernameController,
+                            error: _errors[_Field.username],
+                            // The username is the document id, so it cannot
+                            // change once the teacher exists.
+                            enabled: !widget.isEdit,
+                            note: widget.isEdit
+                                ? "A username cannot be changed."
+                                : null,
+                          )),
                       const SizedBox(height: AppTokens.gapMd),
                       _textField(
                         fieldKey: const Key('teacher_phone_field'),
@@ -337,7 +307,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
                       _passwordField(),
                     ]),
                     const SizedBox(height: AppTokens.gapMd),
-                    _section(title: "ROLE", children: [_roleField()]),
+                    FormSection(title: "ROLE", children: [_roleField()]),
                     const SizedBox(height: AppTokens.gapMd),
                     _moduleSection(),
                     const SizedBox(height: AppTokens.gapXl),
@@ -352,103 +322,18 @@ class _TeacherFormState extends TeacherFormTestHooks {
     );
   }
 
-  Widget _twoUp(double width, Widget left, Widget right) {
-    if (width < 700) {
-      return Column(children: [
-        left,
-        const SizedBox(height: AppTokens.gapMd),
-        right,
-      ]);
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: left),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(child: right),
-      ],
-    );
-  }
-
+  /// Back button, title and subtitle at the top of the page.
   Widget _pageHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _backButton(),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.isEdit ? "Edit teacher" : "Add a teacher",
-                  style: AppTokens.pageTitle),
-              const SizedBox(height: 3),
-              Text(
-                widget.isEdit
-                    ? "Update this teacher's details and what they can reach."
-                    : "Create a sign-in and choose what this teacher can reach.",
-                style: AppTokens.pageSubtitle,
-              ),
-            ],
-          ),
-        ),
-      ],
+    return FormPageHeader(
+      title: widget.isEdit ? "Edit teacher" : "Add a teacher",
+      subtitle: widget.isEdit
+          ? "Update this teacher's details and what they can reach."
+          : "Create a sign-in and choose what this teacher can reach.",
+      onBack: isSaving ? null : () => Navigator.pop(context),
     );
   }
 
-  Widget _backButton() {
-    return Material(
-      color: AppTokens.surface,
-      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-      child: InkWell(
-        onTap: isSaving ? null : () => Navigator.pop(context),
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        child: Container(
-          height: 38,
-          width: 38,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(color: AppTokens.hairline),
-          ),
-          child: const Icon(Icons.arrow_back, size: 18, color: AppTokens.ink),
-        ),
-      ),
-    );
-  }
-
-  Widget _section({
-    required String title,
-    required List<Widget> children,
-    Widget? trailing,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-      decoration: BoxDecoration(
-        color: AppTokens.surface,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: AppTokens.hairline),
-        boxShadow: AppTokens.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(title, style: AppTokens.sectionTitle),
-              if (trailing != null) ...[const Spacer(), trailing],
-            ],
-          ),
-          const SizedBox(height: AppTokens.gapMd),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  static const TextStyle _labelStyle = TextStyle(
-      fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF344054));
-
+  /// A [FormTextField] configured for this form.
   Widget _textField({
     required Key fieldKey,
     required String label,
@@ -462,48 +347,19 @@ class _TeacherFormState extends TeacherFormTestHooks {
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: _labelStyle),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            color: enabled ? AppTokens.surface : AppTokens.surfaceMuted,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(
-                color: error != null ? AppTokens.danger : AppTokens.hairline),
-          ),
-          child: TextField(
-            key: fieldKey,
-            controller: controller,
-            enabled: enabled,
-            obscureText: obscure,
-            keyboardType: keyboardType,
-            inputFormatters: inputFormatters,
-            onChanged: (_) => _revalidate(),
-            style: const TextStyle(fontSize: 13.5, color: AppTokens.ink),
-            decoration: InputDecoration(
-              isDense: true,
-              border: InputBorder.none,
-              hintText: hint,
-              hintStyle:
-                  const TextStyle(fontSize: 13, color: AppTokens.inkFaint),
-              suffixIcon: suffix,
-              contentPadding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-            ),
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 5),
-          Text(error, style: AppTokens.errorText),
-        ] else if (note != null) ...[
-          const SizedBox(height: 5),
-          Text(note,
-              style: const TextStyle(
-                  fontSize: 11.5, height: 1.35, color: AppTokens.inkFaint)),
-        ],
-      ],
+    return FormTextField(
+      fieldKey: fieldKey,
+      label: label,
+      hint: hint,
+      controller: controller,
+      error: error,
+      note: note,
+      enabled: enabled,
+      obscureText: obscure,
+      suffix: suffix,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      onChanged: _revalidate,
     );
   }
 
@@ -519,8 +375,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
       obscure: !isPasswordVisible,
       note: "At least 8 characters. Letters and numbers are recommended.",
       suffix: IconButton(
-        onPressed: () =>
-            setState(() => isPasswordVisible = !isPasswordVisible),
+        onPressed: () => setState(() => isPasswordVisible = !isPasswordVisible),
         tooltip: isPasswordVisible ? "Hide password" : "Show password",
         icon: Icon(
             isPasswordVisible
@@ -661,9 +516,8 @@ class _TeacherFormState extends TeacherFormTestHooks {
   Widget _roleOption(String role) {
     final bool selected = selectedRole == role;
     final bool isAdmin = role == roleAdmin;
-    final Color accent = isAdmin
-        ? const Color(0xFFB54708)
-        : const Color(0xFF2563EB);
+    final Color accent =
+        isAdmin ? const Color(0xFFB54708) : const Color(0xFF2563EB);
 
     return Material(
       color: selected ? accent.withValues(alpha: .07) : AppTokens.surface,
@@ -728,7 +582,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
     final String? error = _errors[_Field.modules];
     final bool allSelected = selectedModules.length == moduleList.length;
 
-    return _section(
+    return FormSection(
       title: "MODULE ACCESS",
       trailing: TextButton(
         key: const Key('teacher_toggle_all_modules'),
@@ -760,8 +614,7 @@ class _TeacherFormState extends TeacherFormTestHooks {
           spacing: AppTokens.gapSm,
           runSpacing: AppTokens.gapSm,
           children: [
-            for (int i = 0; i < moduleList.length; i++)
-              _moduleChip(i),
+            for (int i = 0; i < moduleList.length; i++) _moduleChip(i),
           ],
         ),
         if (error != null) ...[
@@ -828,69 +681,16 @@ class _TeacherFormState extends TeacherFormTestHooks {
     );
   }
 
+  /// Delete / Cancel / Save bar pinned to the bottom of the page.
   Widget _actionBar(double width) {
-    final bool narrow = width < 560;
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: width < 700 ? 16 : 32, vertical: 14),
-      decoration: const BoxDecoration(
-        color: AppTokens.surface,
-        border: Border(top: BorderSide(color: AppTokens.hairline)),
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Row(
-            children: [
-              if (!narrow) const Spacer(),
-              TextButton(
-                onPressed: isSaving ? null : () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTokens.inkMuted,
-                  padding: EdgeInsets.symmetric(
-                      horizontal: narrow ? 12 : 18, vertical: 14),
-                ),
-                child: const Text("Cancel"),
-              ),
-              const SizedBox(width: AppTokens.gapSm),
-              _saveButton(expand: narrow),
-            ],
-          ),
-        ),
-      ),
+    return FormActionBar(
+      width: width,
+      isSaving: isSaving,
+      saveKey: const Key('teacher_save_button'),
+      saveLabel: widget.isEdit ? "Update teacher" : "Save teacher",
+      onSave: _onSave,
+      saveMinWidth: 150,
+      maxWidth: 760,
     );
-  }
-
-  Widget _saveButton({required bool expand}) {
-    final Widget button = ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 150, minHeight: 42),
-      child: ElevatedButton(
-        key: const Key('teacher_save_button'),
-        onPressed: isSaving ? null : _onSave,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTokens.ink,
-          disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
-          foregroundColor: Colors.white,
-          disabledForegroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
-        ),
-        child: isSaving
-            ? const SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.2, color: Colors.white),
-              )
-            : Text(widget.isEdit ? "Update teacher" : "Save teacher",
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 13.5, fontWeight: FontWeight.w600)),
-      ),
-    );
-
-    return expand ? Expanded(child: button) : button;
   }
 }

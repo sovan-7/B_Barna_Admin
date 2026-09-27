@@ -1,13 +1,14 @@
-import 'package:bbarna/core/widgets/app_header.dart';
+import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/form_action_bar.dart';
+import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
-import 'package:bbarna/core/widgets/sidebar.dart';
-import 'package:bbarna/course/widgets/course_form.dart' show UpperCaseTextFormatter;
 import 'package:bbarna/question/model/question.dart';
 import 'package:bbarna/question/model/question_draft.dart';
 import 'package:bbarna/question/question_viewmodel/question_viewmodel.dart';
 import 'package:bbarna/question/widgets/question_rich_field.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/formatters.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
@@ -30,8 +31,6 @@ class QuestionForm extends StatefulWidget {
 }
 
 class _QuestionFormState extends State<QuestionForm> {
-  final GlobalKey<ScaffoldState> key = GlobalKey();
-
   final TextEditingController codeController = TextEditingController();
 
   // One set per open form. These used to be fields on QuestionViewModel, so
@@ -165,43 +164,13 @@ class _QuestionFormState extends State<QuestionForm> {
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    final bool isCompact = width < AppTokens.compactBreakpoint;
-
-    return Scaffold(
-      key: key,
-      backgroundColor: AppTokens.canvas,
-      body: PopScope(
-        canPop: true,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-        },
-        child: Column(
-          children: [
-            AppHeader(
-              onTapIcon: () => key.currentState?.openDrawer(),
-              title: "Questions",
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  if (!isCompact)
-                    const Expanded(child: ExtraSideBar(sidebarIndex: 9)),
-                  Expanded(
-                    flex: 5,
-                    child: Consumer<QuestionViewModel>(
-                      builder: (context, questionViewModel, child) =>
-                          _page(questionViewModel, width),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return AdminFormScaffold(
+      headerTitle: "Questions",
+      sidebarIndex: 9,
+      body: (context, width) => Consumer<QuestionViewModel>(
+        builder: (context, questionViewModel, child) =>
+            _page(questionViewModel, width),
       ),
-      drawer:
-          isCompact ? const Drawer(child: ExtraSideBar(sidebarIndex: 9)) : null,
     );
   }
 
@@ -220,7 +189,7 @@ class _QuestionFormState extends State<QuestionForm> {
                   children: [
                     _pageHeader(),
                     const SizedBox(height: AppTokens.gapLg),
-                    _section(title: "THE QUESTION", children: [
+                    FormSection(title: "THE QUESTION", children: [
                       _codeField(),
                       const SizedBox(height: AppTokens.gapLg),
                       QuestionRichField(
@@ -242,7 +211,7 @@ class _QuestionFormState extends State<QuestionForm> {
                     const SizedBox(height: AppTokens.gapMd),
                     _optionsSection(),
                     const SizedBox(height: AppTokens.gapMd),
-                    _section(title: "AFTER THE ANSWER", children: [
+                    FormSection(title: "AFTER THE ANSWER", children: [
                       QuestionRichField(
                         label: "Hint",
                         hint: "Shown to a student who asks for help. Optional.",
@@ -284,8 +253,8 @@ class _QuestionFormState extends State<QuestionForm> {
                 color: Color(0xFF344054))),
         const SizedBox(height: 2),
         const Text("Quizzes pull questions in by this code.",
-            style:
-                TextStyle(fontSize: 11.5, height: 1.35, color: AppTokens.inkFaint)),
+            style: TextStyle(
+                fontSize: 11.5, height: 1.35, color: AppTokens.inkFaint)),
         const SizedBox(height: 6),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 320),
@@ -294,8 +263,7 @@ class _QuestionFormState extends State<QuestionForm> {
               color: AppTokens.surface,
               borderRadius: BorderRadius.circular(AppTokens.radiusMd),
               border: Border.all(
-                  color:
-                      error != null ? AppTokens.danger : AppTokens.hairline),
+                  color: error != null ? AppTokens.danger : AppTokens.hairline),
             ),
             child: TextField(
               controller: codeController,
@@ -305,8 +273,7 @@ class _QuestionFormState extends State<QuestionForm> {
                 isDense: true,
                 border: InputBorder.none,
                 hintText: "e.g. PHY-MECH-001",
-                hintStyle:
-                    TextStyle(fontSize: 13, color: AppTokens.inkFaint),
+                hintStyle: TextStyle(fontSize: 13, color: AppTokens.inkFaint),
                 contentPadding: EdgeInsets.fromLTRB(14, 13, 14, 13),
               ),
             ),
@@ -328,7 +295,7 @@ class _QuestionFormState extends State<QuestionForm> {
   Widget _optionsSection() {
     final String? answerError = _errors[QuestionField.answer];
 
-    return _section(
+    return FormSection(
       title: "OPTIONS",
       trailing: Text(
         _answer == null ? "No answer marked" : "Answer: ${_answer!.label}",
@@ -397,7 +364,8 @@ class _QuestionFormState extends State<QuestionForm> {
                 Text(selected ? "Correct" : "Mark correct",
                     style: TextStyle(
                         fontSize: 12,
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500,
                         color: selected ? green : AppTokens.inkMuted)),
               ],
             ),
@@ -407,168 +375,29 @@ class _QuestionFormState extends State<QuestionForm> {
     );
   }
 
+  /// Back button, title and subtitle at the top of the page.
   Widget _pageHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _backButton(),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.isEdit ? "Edit question" : "Add a question",
-                  style: AppTokens.pageTitle),
-              const SizedBox(height: 3),
-              Text(
-                widget.isEdit
-                    ? "Update this question, its options and its answer."
-                    : "Write the question, fill in four options, mark the correct one.",
-                style: AppTokens.pageSubtitle,
-              ),
-            ],
-          ),
-        ),
-      ],
+    return FormPageHeader(
+      title: widget.isEdit ? "Edit question" : "Add a question",
+      subtitle: widget.isEdit
+          ? "Update this question, its options and its answer."
+          : "Write the question, fill in four options, mark the correct one.",
+      onBack: _isSaving ? null : () => Navigator.pop(context),
     );
   }
 
-  Widget _backButton() {
-    return Material(
-      color: AppTokens.surface,
-      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-      child: InkWell(
-        onTap: _isSaving ? null : () => Navigator.pop(context),
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        child: Container(
-          height: 38,
-          width: 38,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(color: AppTokens.hairline),
-          ),
-          child: const Icon(Icons.arrow_back, size: 18, color: AppTokens.ink),
-        ),
-      ),
-    );
-  }
-
-  Widget _section({
-    required String title,
-    required List<Widget> children,
-    Widget? trailing,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-      decoration: BoxDecoration(
-        color: AppTokens.surface,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: AppTokens.hairline),
-        boxShadow: AppTokens.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(title, style: AppTokens.sectionTitle),
-              if (trailing != null) ...[const Spacer(), trailing],
-            ],
-          ),
-          const SizedBox(height: AppTokens.gapMd),
-          ...children,
-        ],
-      ),
-    );
-  }
-
+  /// Delete / Cancel / Save bar pinned to the bottom of the page.
   Widget _actionBar(QuestionViewModel questionViewModel, double width) {
-    final bool narrow = width < 560;
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: width < 700 ? 16 : 32, vertical: 14),
-      decoration: const BoxDecoration(
-        color: AppTokens.surface,
-        border: Border(top: BorderSide(color: AppTokens.hairline)),
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 860),
-          child: Row(
-            children: [
-              if (widget.isEdit)
-                narrow
-                    ? IconButton(
-                        onPressed: _isSaving
-                            ? null
-                            : () => _onDelete(questionViewModel),
-                        tooltip: "Delete question",
-                        icon: const Icon(Icons.delete_outline, size: 20),
-                        color: AppTokens.danger,
-                      )
-                    : TextButton.icon(
-                        onPressed: _isSaving
-                            ? null
-                            : () => _onDelete(questionViewModel),
-                        icon: const Icon(Icons.delete_outline, size: 17),
-                        label: const Text("Delete"),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppTokens.danger,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
-                        ),
-                      ),
-              if (!narrow) const Spacer(),
-              TextButton(
-                onPressed: _isSaving ? null : () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTokens.inkMuted,
-                  padding: EdgeInsets.symmetric(
-                      horizontal: narrow ? 12 : 18, vertical: 14),
-                ),
-                child: const Text("Cancel"),
-              ),
-              const SizedBox(width: AppTokens.gapSm),
-              _saveButton(questionViewModel, expand: narrow),
-            ],
-          ),
-        ),
-      ),
+    return FormActionBar(
+      width: width,
+      isSaving: _isSaving,
+      onDelete: widget.isEdit ? () => _onDelete(questionViewModel) : null,
+      deleteTooltip: "Delete question",
+      saveKey: const Key('question_save_button'),
+      saveLabel: widget.isEdit ? "Update question" : "Save question",
+      onSave: () => _onSubmit(questionViewModel),
+      saveMinWidth: 150,
+      maxWidth: 860,
     );
-  }
-
-  Widget _saveButton(QuestionViewModel questionViewModel,
-      {required bool expand}) {
-    final Widget button = ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 150, minHeight: 42),
-      child: ElevatedButton(
-        key: const Key('question_save_button'),
-        onPressed: _isSaving ? null : () => _onSubmit(questionViewModel),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTokens.ink,
-          disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
-          foregroundColor: Colors.white,
-          disabledForegroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
-        ),
-        child: _isSaving
-            ? const SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.2, color: Colors.white),
-              )
-            : Text(widget.isEdit ? "Update question" : "Save question",
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 13.5, fontWeight: FontWeight.w600)),
-      ),
-    );
-
-    return expand ? Expanded(child: button) : button;
   }
 }

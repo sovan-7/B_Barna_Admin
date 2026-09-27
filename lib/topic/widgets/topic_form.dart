@@ -1,10 +1,10 @@
-import 'package:bbarna/core/widgets/app_header.dart';
+import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/form_action_bar.dart';
+import 'package:bbarna/core/widgets/form/form_fields.dart';
+import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
-import 'package:bbarna/core/widgets/sidebar.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/course/viewModel/course_view_model.dart';
-import 'package:bbarna/course/widgets/course_form.dart'
-    show UpperCaseTextFormatter;
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
@@ -12,6 +12,7 @@ import 'package:bbarna/topic/model/topic_model.dart';
 import 'package:bbarna/topic/screen/topic_details.dart';
 import 'package:bbarna/topic/viewModel/topic_view_model.dart';
 import 'package:bbarna/units/model/unit_model.dart';
+import 'package:bbarna/utils/formatters.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -37,8 +38,6 @@ class TopicForm extends StatefulWidget {
 enum _Field { course, subject, unit, code, name, priority }
 
 class _TopicFormState extends State<TopicForm> {
-  final GlobalKey<ScaffoldState> key = GlobalKey();
-
   final TextEditingController codeController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priorityController = TextEditingController();
@@ -241,44 +240,13 @@ class _TopicFormState extends State<TopicForm> {
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    final bool isCompact = width < AppTokens.compactBreakpoint;
-
-    return Scaffold(
-      key: key,
-      backgroundColor: AppTokens.canvas,
-      body: PopScope(
-        canPop: true,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-        },
-        child: Column(
-          children: [
-            AppHeader(
-              onTapIcon: () => key.currentState?.openDrawer(),
-              title: "Topics",
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  if (!isCompact)
-                    const Expanded(child: ExtraSideBar(sidebarIndex: 4)),
-                  Expanded(
-                    flex: 5,
-                    child: Consumer2<TopicViewModel, CourseViewModel>(
-                      builder:
-                          (context, topicViewModel, courseViewModel, child) =>
-                              _page(topicViewModel, courseViewModel, width),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return AdminFormScaffold(
+      headerTitle: "Topics",
+      sidebarIndex: 4,
+      body: (context, width) => Consumer2<TopicViewModel, CourseViewModel>(
+        builder: (context, topicViewModel, courseViewModel, child) =>
+            _page(topicViewModel, courseViewModel, width),
       ),
-      drawer:
-          isCompact ? const Drawer(child: ExtraSideBar(sidebarIndex: 4)) : null,
     );
   }
 
@@ -298,38 +266,36 @@ class _TopicFormState extends State<TopicForm> {
                   children: [
                     _pageHeader(),
                     const SizedBox(height: AppTokens.gapLg),
-                    _section(title: "WHERE IT BELONGS", children: [
-                      _twoUp(
-                        width,
-                        _courseField(topicViewModel, courseViewModel),
-                        _subjectField(topicViewModel),
-                      ),
+                    FormSection(title: "WHERE IT BELONGS", children: [
+                      FormTwoUp(
+                          width: width,
+                          left: _courseField(topicViewModel, courseViewModel),
+                          right: _subjectField(topicViewModel)),
                       const SizedBox(height: AppTokens.gapMd),
                       _unitField(topicViewModel),
                       const SizedBox(height: AppTokens.gapMd),
                       _extraCodesField(),
                     ]),
                     const SizedBox(height: AppTokens.gapMd),
-                    _section(title: "TOPIC DETAILS", children: [
-                      _twoUp(
-                        width,
-                        _textField(
-                          label: "Topic code",
-                          hint: "e.g. NEWT-01",
-                          controller: codeController,
-                          error: _errors[_Field.code],
-                          onChanged: _revalidate,
-                          uppercase: true,
-                        ),
-                        _textField(
-                          label: "Display priority",
-                          hint: "Lower numbers come first",
-                          controller: priorityController,
-                          error: _errors[_Field.priority],
-                          onChanged: _revalidate,
-                          numeric: true,
-                        ),
-                      ),
+                    FormSection(title: "TOPIC DETAILS", children: [
+                      FormTwoUp(
+                          width: width,
+                          left: _textField(
+                            label: "Topic code",
+                            hint: "e.g. NEWT-01",
+                            controller: codeController,
+                            error: _errors[_Field.code],
+                            onChanged: _revalidate,
+                            uppercase: true,
+                          ),
+                          right: _textField(
+                            label: "Display priority",
+                            hint: "Lower numbers come first",
+                            controller: priorityController,
+                            error: _errors[_Field.priority],
+                            onChanged: _revalidate,
+                            numeric: true,
+                          )),
                       const SizedBox(height: AppTokens.gapMd),
                       _textField(
                         label: "Topic name",
@@ -341,7 +307,7 @@ class _TopicFormState extends State<TopicForm> {
                     ]),
                     if (widget.isEdit) ...[
                       const SizedBox(height: AppTokens.gapMd),
-                      _section(title: "CONTENT", children: [_contentRow()]),
+                      FormSection(title: "CONTENT", children: [_contentRow()]),
                     ],
                     const SizedBox(height: AppTokens.gapXl),
                   ],
@@ -355,95 +321,18 @@ class _TopicFormState extends State<TopicForm> {
     );
   }
 
-  Widget _twoUp(double width, Widget left, Widget right) {
-    if (width < 700) {
-      return Column(children: [
-        left,
-        const SizedBox(height: AppTokens.gapMd),
-        right,
-      ]);
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: left),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(child: right),
-      ],
-    );
-  }
-
+  /// Back button, title and subtitle at the top of the page.
   Widget _pageHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _backButton(),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.isEdit ? "Edit topic" : "Add a topic",
-                  style: AppTokens.pageTitle),
-              const SizedBox(height: 3),
-              Text(
-                widget.isEdit
-                    ? "Update where this topic sits and how it is labelled."
-                    : "Topics sit under a unit, and content hangs off them.",
-                style: AppTokens.pageSubtitle,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _backButton() {
-    return Material(
-      color: AppTokens.surface,
-      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-      child: InkWell(
-        onTap: _isSaving ? null : () => Navigator.pop(context),
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        child: Container(
-          height: 38,
-          width: 38,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(color: AppTokens.hairline),
-          ),
-          child: const Icon(Icons.arrow_back, size: 18, color: AppTokens.ink),
-        ),
-      ),
-    );
-  }
-
-  Widget _section({required String title, required List<Widget> children}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-      decoration: BoxDecoration(
-        color: AppTokens.surface,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: AppTokens.hairline),
-        boxShadow: AppTokens.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: AppTokens.sectionTitle),
-          const SizedBox(height: AppTokens.gapMd),
-          ...children,
-        ],
-      ),
+    return FormPageHeader(
+      title: widget.isEdit ? "Edit topic" : "Add a topic",
+      subtitle: widget.isEdit
+          ? "Update where this topic sits and how it is labelled."
+          : "Topics sit under a unit, and content hangs off them.",
+      onBack: _isSaving ? null : () => Navigator.pop(context),
     );
   }
 
   // ---- Fields ---------------------------------------------------------
-
-  static const TextStyle _labelStyle = TextStyle(
-      fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF344054));
 
   Widget _courseField(
       TopicViewModel topicViewModel, CourseViewModel courseViewModel) {
@@ -585,7 +474,7 @@ class _TopicFormState extends State<TopicForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Also appears in", style: _labelStyle),
+        const Text("Also appears in", style: AppTokens.fieldLabel),
         const SizedBox(height: 2),
         const Text(
           "Extra unit codes this topic should show under. The unit chosen "
@@ -689,8 +578,7 @@ class _TopicFormState extends State<TopicForm> {
                             TopicDetails(topicData: existing)),
                   ),
           icon: const Icon(Icons.playlist_add, size: 16),
-          label: const Text("Manage content",
-              style: TextStyle(fontSize: 12.5)),
+          label: const Text("Manage content", style: TextStyle(fontSize: 12.5)),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppTokens.ink,
             side: const BorderSide(color: AppTokens.hairline),
@@ -703,6 +591,7 @@ class _TopicFormState extends State<TopicForm> {
     );
   }
 
+  /// A [FormTextField] configured for this form.
   Widget _textField({
     required String label,
     required String hint,
@@ -713,46 +602,22 @@ class _TopicFormState extends State<TopicForm> {
     bool numeric = false,
     bool uppercase = false,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: _labelStyle),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            color: AppTokens.surface,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(
-                color: error != null ? AppTokens.danger : AppTokens.hairline),
-          ),
-          child: TextField(
-            controller: controller,
-            maxLines: maxLines,
-            keyboardType: numeric ? TextInputType.number : TextInputType.text,
-            inputFormatters: [
-              if (numeric) FilteringTextInputFormatter.digitsOnly,
-              if (uppercase) UpperCaseTextFormatter(),
-            ],
-            onChanged: onChanged == null ? null : (_) => onChanged(),
-            style: const TextStyle(fontSize: 13.5, color: AppTokens.ink),
-            decoration: InputDecoration(
-              isDense: true,
-              border: InputBorder.none,
-              hintText: hint,
-              hintStyle:
-                  const TextStyle(fontSize: 13, color: AppTokens.inkFaint),
-              contentPadding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-            ),
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 5),
-          Text(error, style: AppTokens.errorText),
-        ],
+    return FormTextField(
+      label: label,
+      hint: hint,
+      controller: controller,
+      maxLines: maxLines,
+      error: error,
+      onChanged: onChanged,
+      keyboardType: numeric ? TextInputType.number : TextInputType.text,
+      inputFormatters: [
+        if (numeric) FilteringTextInputFormatter.digitsOnly,
+        if (uppercase) UpperCaseTextFormatter(),
       ],
     );
   }
 
+  /// A [FormDropdownField] wired to this form's saving state.
   Widget _dropdownField({
     required Key key,
     required String label,
@@ -764,153 +629,30 @@ class _TopicFormState extends State<TopicForm> {
     String? error,
     bool enabled = true,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: _labelStyle),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: enabled ? AppTokens.surface : AppTokens.surfaceMuted,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(
-                color: error != null ? AppTokens.danger : AppTokens.hairline),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              key: key,
-              value: value,
-              isExpanded: true,
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-              icon: const Icon(Icons.keyboard_arrow_down,
-                  size: 20, color: AppTokens.inkFaint),
-              hint: Text(hint,
-                  style:
-                      const TextStyle(fontSize: 13, color: AppTokens.inkFaint)),
-              // Built from the theme with the decoration pinned off:
-              // DropdownButton uses `style` verbatim instead of merging it,
-              // and this State's context sits above the Scaffold's
-              // Material — inheriting DefaultTextStyle there picks up
-              // WidgetsApp's yellow double-underline error style.
-              style: (Theme.of(context).textTheme.bodyMedium ??
-                      const TextStyle())
-                  .copyWith(
-                fontSize: 13.5,
-                color: AppTokens.ink,
-                decoration: TextDecoration.none,
-              ),
-              onChanged: (_isSaving || !enabled) ? null : onChanged,
-              items: items
-                  .map((String item) => DropdownMenuItem<String>(
-                        value: item,
-                        child: Row(
-                          children: [
-                            Icon(icon, size: 15, color: AppTokens.inkFaint),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child:
-                                  Text(item, overflow: TextOverflow.ellipsis),
-                            ),
-                          ],
-                        ),
-                      ))
-                  .toList(),
-            ),
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 5),
-          Text(error, style: AppTokens.errorText),
-        ],
-      ],
+    return FormDropdownField(
+      dropdownKey: key,
+      label: label,
+      hint: hint,
+      value: value,
+      items: items,
+      icon: icon,
+      onChanged: (_isSaving || !enabled) ? null : onChanged,
+      error: error,
+      enabled: enabled,
     );
   }
 
+  /// Delete / Cancel / Save bar pinned to the bottom of the page.
   Widget _actionBar(TopicViewModel topicViewModel, double width) {
-    final bool narrow = width < 560;
-
-    return Container(
-      padding:
-          EdgeInsets.symmetric(horizontal: width < 700 ? 16 : 32, vertical: 14),
-      decoration: const BoxDecoration(
-        color: AppTokens.surface,
-        border: Border(top: BorderSide(color: AppTokens.hairline)),
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Row(
-            children: [
-              if (widget.isEdit)
-                narrow
-                    ? IconButton(
-                        onPressed:
-                            _isSaving ? null : () => _onDelete(topicViewModel),
-                        tooltip: "Delete topic",
-                        icon: const Icon(Icons.delete_outline, size: 20),
-                        color: AppTokens.danger,
-                      )
-                    : TextButton.icon(
-                        onPressed:
-                            _isSaving ? null : () => _onDelete(topicViewModel),
-                        icon: const Icon(Icons.delete_outline, size: 17),
-                        label: const Text("Delete"),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppTokens.danger,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
-                        ),
-                      ),
-              if (!narrow) const Spacer(),
-              TextButton(
-                onPressed: _isSaving ? null : () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTokens.inkMuted,
-                  padding: EdgeInsets.symmetric(
-                      horizontal: narrow ? 12 : 18, vertical: 14),
-                ),
-                child: const Text("Cancel"),
-              ),
-              const SizedBox(width: AppTokens.gapSm),
-              _saveButton(topicViewModel, expand: narrow),
-            ],
-          ),
-        ),
-      ),
+    return FormActionBar(
+      width: width,
+      isSaving: _isSaving,
+      onDelete: widget.isEdit ? () => _onDelete(topicViewModel) : null,
+      deleteTooltip: "Delete topic",
+      saveKey: const Key('topic_save_button'),
+      saveLabel: widget.isEdit ? "Update topic" : "Save topic",
+      onSave: () => _onSubmit(topicViewModel),
+      saveMinWidth: 130,
     );
-  }
-
-  Widget _saveButton(TopicViewModel topicViewModel, {required bool expand}) {
-    final Widget button = ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 130, minHeight: 42),
-      child: ElevatedButton(
-        key: const Key('topic_save_button'),
-        onPressed: _isSaving ? null : () => _onSubmit(topicViewModel),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTokens.ink,
-          disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
-          foregroundColor: Colors.white,
-          disabledForegroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
-        ),
-        child: _isSaving
-            ? const SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.2, color: Colors.white),
-              )
-            : Text(widget.isEdit ? "Update topic" : "Save topic",
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 13.5, fontWeight: FontWeight.w600)),
-      ),
-    );
-
-    return expand ? Expanded(child: button) : button;
   }
 }

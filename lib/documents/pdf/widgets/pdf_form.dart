@@ -1,11 +1,13 @@
-import 'package:bbarna/core/widgets/app_header.dart';
+import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/form_action_bar.dart';
+import 'package:bbarna/core/widgets/form/form_fields.dart';
+import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
-import 'package:bbarna/core/widgets/sidebar.dart';
-import 'package:bbarna/course/widgets/course_form.dart' show UpperCaseTextFormatter;
 import 'package:bbarna/documents/pdf/model/pdf_model.dart';
 import 'package:bbarna/documents/pdf/viewModel/pdf_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/formatters.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -30,8 +32,6 @@ class PdfForm extends StatefulWidget {
 enum _Field { code, title, file, type }
 
 class _PdfFormState extends State<PdfForm> {
-  final GlobalKey<ScaffoldState> key = GlobalKey();
-
   final TextEditingController codeController = TextEditingController();
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
@@ -172,43 +172,12 @@ class _PdfFormState extends State<PdfForm> {
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    final bool isCompact = width < AppTokens.compactBreakpoint;
-
-    return Scaffold(
-      key: key,
-      backgroundColor: AppTokens.canvas,
-      body: PopScope(
-        canPop: true,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-        },
-        child: Column(
-          children: [
-            AppHeader(
-              onTapIcon: () => key.currentState?.openDrawer(),
-              title: "PDFs",
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  if (!isCompact)
-                    const Expanded(child: ExtraSideBar(sidebarIndex: 6)),
-                  Expanded(
-                    flex: 5,
-                    child: Consumer<PdfViewModel>(
-                      builder: (context, pdfViewModel, child) =>
-                          _page(pdfViewModel, width),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return AdminFormScaffold(
+      headerTitle: "PDFs",
+      sidebarIndex: 6,
+      body: (context, width) => Consumer<PdfViewModel>(
+        builder: (context, pdfViewModel, child) => _page(pdfViewModel, width),
       ),
-      drawer:
-          isCompact ? const Drawer(child: ExtraSideBar(sidebarIndex: 6)) : null,
     );
   }
 
@@ -227,19 +196,18 @@ class _PdfFormState extends State<PdfForm> {
                   children: [
                     _pageHeader(),
                     const SizedBox(height: AppTokens.gapLg),
-                    _section(title: "PDF DETAILS", children: [
-                      _twoUp(
-                        width,
-                        _textField(
-                          label: "PDF code",
-                          hint: "e.g. NOTES-01",
-                          controller: codeController,
-                          error: _errors[_Field.code],
-                          onChanged: _revalidate,
-                          uppercase: true,
-                        ),
-                        _typeField(),
-                      ),
+                    FormSection(title: "PDF DETAILS", children: [
+                      FormTwoUp(
+                          width: width,
+                          left: _textField(
+                            label: "PDF code",
+                            hint: "e.g. NOTES-01",
+                            controller: codeController,
+                            error: _errors[_Field.code],
+                            onChanged: _revalidate,
+                            uppercase: true,
+                          ),
+                          right: _typeField()),
                       const SizedBox(height: AppTokens.gapMd),
                       _textField(
                         label: "Title",
@@ -257,26 +225,27 @@ class _PdfFormState extends State<PdfForm> {
                       ),
                     ]),
                     const SizedBox(height: AppTokens.gapMd),
-                    _section(title: "FILE", children: [_fileField()]),
+                    FormSection(title: "FILE", children: [_fileField()]),
                     const SizedBox(height: AppTokens.gapMd),
-                    _section(title: "ACCESS", children: [
-                      _toggleRow(
+                    FormSection(title: "ACCESS", children: [
+                      FormToggleRow(
                         title: "Downloadable",
                         subtitle:
                             "Students can save a copy instead of only reading it in the app.",
                         value: isDownloadable,
-                        onChanged: (v) => setState(() => isDownloadable = v),
+                        onChanged: _isSaving
+                            ? null
+                            : (v) => setState(() => isDownloadable = v),
                       ),
-                      const Divider(
-                          height: AppTokens.gapLg,
-                          thickness: 1,
-                          color: AppTokens.hairline),
-                      _toggleRow(
+                      const FormToggleDivider(),
+                      FormToggleRow(
                         title: "Locked",
                         subtitle:
                             "Students can see a locked PDF but cannot open it.",
                         value: isLocked,
-                        onChanged: (v) => setState(() => isLocked = v),
+                        onChanged: _isSaving
+                            ? null
+                            : (v) => setState(() => isLocked = v),
                       ),
                     ]),
                     const SizedBox(height: AppTokens.gapXl),
@@ -291,94 +260,18 @@ class _PdfFormState extends State<PdfForm> {
     );
   }
 
-  Widget _twoUp(double width, Widget left, Widget right) {
-    if (width < 700) {
-      return Column(children: [
-        left,
-        const SizedBox(height: AppTokens.gapMd),
-        right,
-      ]);
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: left),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(child: right),
-      ],
-    );
-  }
-
+  /// Back button, title and subtitle at the top of the page.
   Widget _pageHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _backButton(),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.isEdit ? "Edit PDF" : "Add a PDF",
-                  style: AppTokens.pageTitle),
-              const SizedBox(height: 3),
-              Text(
-                widget.isEdit
-                    ? "Update this PDF's details, file and access."
-                    : "Upload a PDF for students to read in the app.",
-                style: AppTokens.pageSubtitle,
-              ),
-            ],
-          ),
-        ),
-      ],
+    return FormPageHeader(
+      title: widget.isEdit ? "Edit PDF" : "Add a PDF",
+      subtitle: widget.isEdit
+          ? "Update this PDF's details, file and access."
+          : "Upload a PDF for students to read in the app.",
+      onBack: _isSaving ? null : () => Navigator.pop(context),
     );
   }
 
-  Widget _backButton() {
-    return Material(
-      color: AppTokens.surface,
-      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-      child: InkWell(
-        onTap: _isSaving ? null : () => Navigator.pop(context),
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        child: Container(
-          height: 38,
-          width: 38,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(color: AppTokens.hairline),
-          ),
-          child: const Icon(Icons.arrow_back, size: 18, color: AppTokens.ink),
-        ),
-      ),
-    );
-  }
-
-  Widget _section({required String title, required List<Widget> children}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-      decoration: BoxDecoration(
-        color: AppTokens.surface,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: AppTokens.hairline),
-        boxShadow: AppTokens.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: AppTokens.sectionTitle),
-          const SizedBox(height: AppTokens.gapMd),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  static const TextStyle _labelStyle = TextStyle(
-      fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF344054));
-
+  /// A [FormTextField] configured for this form.
   Widget _textField({
     required String label,
     required String hint,
@@ -389,127 +282,30 @@ class _PdfFormState extends State<PdfForm> {
     bool uppercase = false,
     IconData? prefixIcon,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: _labelStyle),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            color: AppTokens.surface,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(
-                color: error != null ? AppTokens.danger : AppTokens.hairline),
-          ),
-          child: TextField(
-            controller: controller,
-            maxLines: maxLines,
-            inputFormatters: [if (uppercase) UpperCaseTextFormatter()],
-            onChanged: onChanged == null ? null : (_) => onChanged(),
-            style: const TextStyle(fontSize: 13.5, color: AppTokens.ink),
-            decoration: InputDecoration(
-              isDense: true,
-              border: InputBorder.none,
-              hintText: hint,
-              hintStyle:
-                  const TextStyle(fontSize: 13, color: AppTokens.inkFaint),
-              prefixIcon: prefixIcon == null
-                  ? null
-                  : Icon(prefixIcon, size: 17, color: AppTokens.inkFaint),
-              prefixIconConstraints:
-                  const BoxConstraints(minWidth: 38, minHeight: 20),
-              contentPadding:
-                  EdgeInsets.fromLTRB(prefixIcon == null ? 14 : 0, 13, 14, 13),
-            ),
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 5),
-          Text(error, style: AppTokens.errorText),
-        ],
-      ],
+    return FormTextField(
+      label: label,
+      hint: hint,
+      controller: controller,
+      maxLines: maxLines,
+      error: error,
+      onChanged: onChanged,
+      prefixIcon: prefixIcon,
+      inputFormatters: [if (uppercase) UpperCaseTextFormatter()],
     );
   }
 
-  /// FREE or PAID as two segments rather than a dropdown: with exactly two
-  /// options, a dropdown hides half the answer behind a tap.
+  /// FREE / PAID as two segments.
   Widget _typeField() {
-    final String? error = _errors[_Field.type];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("Access", style: _labelStyle),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            color: AppTokens.surface,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(
-                color: error != null ? AppTokens.danger : AppTokens.hairline),
-          ),
-          child: Row(
-            children: [
-              for (final String type in pdfTypeList)
-                Expanded(
-                  child: _segment(
-                    key: Key('pdf_type_${type.toLowerCase()}'),
-                    label: type == "FREE" ? "Free" : "Paid",
-                    icon: type == "FREE"
-                        ? Icons.lock_open_outlined
-                        : Icons.paid_outlined,
-                    selected: _selectedType == type,
-                    onTap: () {
-                      setState(() => _selectedType = type);
-                      _revalidate();
-                    },
-                  ),
-                ),
-            ],
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 5),
-          Text(error, style: AppTokens.errorText),
-        ],
-      ],
-    );
-  }
-
-  Widget _segment({
-    required Key key,
-    required String label,
-    required IconData icon,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      key: key,
-      onTap: _isSaving ? null : onTap,
-      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        padding: const EdgeInsets.symmetric(vertical: 9),
-        decoration: BoxDecoration(
-          color: selected ? AppTokens.ink : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon,
-                size: 14,
-                color: selected ? Colors.white : AppTokens.inkFaint),
-            const SizedBox(width: 6),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : AppTokens.inkMuted)),
-          ],
-        ),
-      ),
+    return FormAccessTypeField(
+      types: pdfTypeList,
+      selected: _selectedType,
+      keyPrefix: "pdf",
+      error: _errors[_Field.type],
+      enabled: !_isSaving,
+      onSelect: (type) {
+        setState(() => _selectedType = type);
+        _revalidate();
+      },
     );
   }
 
@@ -582,7 +378,7 @@ class _PdfFormState extends State<PdfForm> {
                   const SizedBox(height: 4),
                   Text(
                     hasNew
-                        ? _readableSize(selectedPdfBytes!.lengthInBytes)
+                        ? readableFileSize(selectedPdfBytes!.lengthInBytes)
                         : hasExisting
                             ? "A file is already attached — leave this to keep it."
                             : "PDF only.",
@@ -608,8 +404,7 @@ class _PdfFormState extends State<PdfForm> {
               style: TextButton.styleFrom(
                   foregroundColor: AppTokens.danger,
                   padding: const EdgeInsets.symmetric(horizontal: 10)),
-              child:
-                  const Text("Remove", style: TextStyle(fontSize: 12.5)),
+              child: const Text("Remove", style: TextStyle(fontSize: 12.5)),
             ),
           ),
         ],
@@ -621,136 +416,17 @@ class _PdfFormState extends State<PdfForm> {
     );
   }
 
-  static String _readableSize(int bytes) {
-    if (bytes < 1024) return "$bytes B";
-    if (bytes < 1024 * 1024) return "${(bytes / 1024).toStringAsFixed(0)} KB";
-    return "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB";
-  }
-
-  /// A labelled switch with the consequence spelled out. These were two
-  /// unlabelled `ToggleSwitch` widgets whose states were "position 0" and
-  /// "position 1".
-  Widget _toggleRow({
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppTokens.ink)),
-              const SizedBox(height: 2),
-              Text(subtitle,
-                  style: const TextStyle(
-                      fontSize: 11.5,
-                      height: 1.35,
-                      color: AppTokens.inkFaint)),
-            ],
-          ),
-        ),
-        const SizedBox(width: AppTokens.gapMd),
-        Switch(
-          value: value,
-          onChanged: _isSaving ? null : onChanged,
-          activeThumbColor: Colors.white,
-          activeTrackColor: AppTokens.ink,
-        ),
-      ],
-    );
-  }
-
+  /// Delete / Cancel / Save bar pinned to the bottom of the page.
   Widget _actionBar(PdfViewModel pdfViewModel, double width) {
-    final bool narrow = width < 560;
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: width < 700 ? 16 : 32, vertical: 14),
-      decoration: const BoxDecoration(
-        color: AppTokens.surface,
-        border: Border(top: BorderSide(color: AppTokens.hairline)),
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Row(
-            children: [
-              if (widget.isEdit)
-                narrow
-                    ? IconButton(
-                        onPressed:
-                            _isSaving ? null : () => _onDelete(pdfViewModel),
-                        tooltip: "Delete PDF",
-                        icon: const Icon(Icons.delete_outline, size: 20),
-                        color: AppTokens.danger,
-                      )
-                    : TextButton.icon(
-                        onPressed:
-                            _isSaving ? null : () => _onDelete(pdfViewModel),
-                        icon: const Icon(Icons.delete_outline, size: 17),
-                        label: const Text("Delete"),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppTokens.danger,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
-                        ),
-                      ),
-              if (!narrow) const Spacer(),
-              TextButton(
-                onPressed: _isSaving ? null : () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTokens.inkMuted,
-                  padding: EdgeInsets.symmetric(
-                      horizontal: narrow ? 12 : 18, vertical: 14),
-                ),
-                child: const Text("Cancel"),
-              ),
-              const SizedBox(width: AppTokens.gapSm),
-              _saveButton(pdfViewModel, expand: narrow),
-            ],
-          ),
-        ),
-      ),
+    return FormActionBar(
+      width: width,
+      isSaving: _isSaving,
+      onDelete: widget.isEdit ? () => _onDelete(pdfViewModel) : null,
+      deleteTooltip: "Delete PDF",
+      saveKey: const Key('pdf_save_button'),
+      saveLabel: widget.isEdit ? "Update PDF" : "Save PDF",
+      onSave: () => _onSubmit(pdfViewModel),
+      saveMinWidth: 135,
     );
-  }
-
-  Widget _saveButton(PdfViewModel pdfViewModel, {required bool expand}) {
-    final Widget button = ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 135, minHeight: 42),
-      child: ElevatedButton(
-        key: const Key('pdf_save_button'),
-        onPressed: _isSaving ? null : () => _onSubmit(pdfViewModel),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTokens.ink,
-          disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
-          foregroundColor: Colors.white,
-          disabledForegroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
-        ),
-        child: _isSaving
-            ? const SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.2, color: Colors.white),
-              )
-            : Text(widget.isEdit ? "Update PDF" : "Save PDF",
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 13.5, fontWeight: FontWeight.w600)),
-      ),
-    );
-
-    return expand ? Expanded(child: button) : button;
   }
 }

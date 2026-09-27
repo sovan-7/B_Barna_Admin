@@ -77,6 +77,10 @@ class AppTokens {
   static const TextStyle errorText =
       TextStyle(fontSize: 11.5, height: 1.3, color: danger);
 
+  /// Label above a form field ("Course name", "Display priority", …).
+  static const TextStyle fieldLabel = TextStyle(
+      fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF344054));
+
   // ---- Nav type -------------------------------------------------------
   /// Idle navigation items are near-black, not grey. A sidebar is a list
   /// of destinations, all of them available — greying them makes every row

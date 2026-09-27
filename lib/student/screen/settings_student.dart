@@ -1,6 +1,7 @@
-import 'package:bbarna/core/widgets/app_header.dart';
+import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/form_fields.dart';
+import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
-import 'package:bbarna/core/widgets/sidebar.dart';
 import 'package:bbarna/core/widgets/valid_till_picker.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
@@ -37,8 +38,6 @@ class SettingStudent extends StatefulWidget {
 enum _Field { course, subject, units, validity }
 
 class _SettingStudentState extends State<SettingStudent> {
-  final GlobalKey<ScaffoldState> key = GlobalKey();
-
   String? _selectedCourseName;
   String _selectedCourseCode = "";
   String? _selectedSubjectName;
@@ -167,53 +166,20 @@ class _SettingStudentState extends State<SettingStudent> {
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    final bool isCompact = width < AppTokens.compactBreakpoint;
-
-    return Scaffold(
-      key: key,
-      backgroundColor: AppTokens.canvas,
-      body: PopScope(
-        canPop: true,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-        },
-        child: Column(
-          children: [
-            AppHeader(
-              onTapIcon: () => key.currentState?.openDrawer(),
-              title: "Students",
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  if (!isCompact)
-                    const Expanded(child: ExtraSideBar(sidebarIndex: 10)),
-                  Expanded(
-                    flex: 5,
-                    child: Consumer<StudentViewModel>(
-                      builder: (context, studentViewModel, child) =>
-                          _page(studentViewModel, width),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return AdminFormScaffold(
+      headerTitle: "Students",
+      sidebarIndex: 10,
+      body: (context, width) => Consumer<StudentViewModel>(
+        builder: (context, studentViewModel, child) =>
+            _page(studentViewModel, width),
       ),
-      // Read from MediaQuery, not the SizeConfig global, which is only as
-      // fresh as the last screen that set it.
-      drawer: isCompact
-          ? const Drawer(child: ExtraSideBar(sidebarIndex: 10))
-          : null,
     );
   }
 
   Widget _page(StudentViewModel studentViewModel, double width) {
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(
-          horizontal: width < 700 ? 16 : 32, vertical: 24),
+      padding:
+          EdgeInsets.symmetric(horizontal: width < 700 ? 16 : 32, vertical: 24),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 820),
@@ -243,7 +209,8 @@ class _SettingStudentState extends State<SettingStudent> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(widget.studentName.trim().isEmpty
+              Text(
+                  widget.studentName.trim().isEmpty
                       ? "Student"
                       : widget.studentName,
                   overflow: TextOverflow.ellipsis,
@@ -278,53 +245,23 @@ class _SettingStudentState extends State<SettingStudent> {
     );
   }
 
-  Widget _section({
-    required String title,
-    required List<Widget> children,
-    Widget? trailing,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-      decoration: BoxDecoration(
-        color: AppTokens.surface,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: AppTokens.hairline),
-        boxShadow: AppTokens.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(title, style: AppTokens.sectionTitle),
-              if (trailing != null) ...[const Spacer(), trailing],
-            ],
-          ),
-          const SizedBox(height: AppTokens.gapMd),
-          ...children,
-        ],
-      ),
-    );
-  }
-
   // ---- Enrol ----------------------------------------------------------
 
   Widget _enrolCard(StudentViewModel studentViewModel, double width) {
-    return _section(
+    return FormSection(
       title: "ENROL IN A SUBJECT",
       children: [
-        _twoUp(
-          width,
-          _courseField(studentViewModel),
-          _subjectField(studentViewModel),
-        ),
+        FormTwoUp(
+            width: width,
+            left: _courseField(studentViewModel),
+            right: _subjectField(studentViewModel),
+            breakpoint: 760),
         const SizedBox(height: AppTokens.gapMd),
-        _twoUp(
-          width,
-          _unitsField(studentViewModel),
-          _validityField(),
-        ),
+        FormTwoUp(
+            width: width,
+            left: _unitsField(studentViewModel),
+            right: _validityField(),
+            breakpoint: 760),
         const SizedBox(height: AppTokens.gapLg),
         Align(
           alignment: Alignment.centerRight,
@@ -335,34 +272,14 @@ class _SettingStudentState extends State<SettingStudent> {
               backgroundColor: AppTokens.ink,
               foregroundColor: Colors.white,
               elevation: 0,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
             ),
             child: const Text("Enrol",
-                style:
-                    TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _twoUp(double width, Widget left, Widget right) {
-    if (width < 760) {
-      return Column(children: [
-        left,
-        const SizedBox(height: AppTokens.gapMd),
-        right,
-      ]);
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: left),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(child: right),
       ],
     );
   }
@@ -386,9 +303,11 @@ class _SettingStudentState extends State<SettingStudent> {
           _selectedCourseName = value;
           // firstOrNull, not first: `.first` threw a StateError whenever a
           // course had been renamed or removed since the list loaded.
-          _selectedCourseCode =
-              courses.where((c) => c.name == value).map((c) => c.code).firstOrNull ??
-                  "";
+          _selectedCourseCode = courses
+                  .where((c) => c.name == value)
+                  .map((c) => c.code)
+                  .firstOrNull ??
+              "";
           _selectedSubjectName = null;
           _selectedSubjectCode = "";
           _selectedSubjectImage = "";
@@ -486,6 +405,7 @@ class _SettingStudentState extends State<SettingStudent> {
     );
   }
 
+  /// A [FormDropdownField] wired to this form's saving state.
   Widget _dropdownField({
     required Key fieldKey,
     required String label,
@@ -497,67 +417,16 @@ class _SettingStudentState extends State<SettingStudent> {
     String? error,
     bool enabled = true,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: _labelStyle),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: enabled ? AppTokens.surface : AppTokens.surfaceMuted,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(
-                color: error != null ? AppTokens.danger : AppTokens.hairline),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              key: fieldKey,
-              value: value,
-              isExpanded: true,
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-              icon: const Icon(Icons.keyboard_arrow_down,
-                  size: 20, color: AppTokens.inkFaint),
-              hint: Text(hint,
-                  style: const TextStyle(
-                      fontSize: 13, color: AppTokens.inkFaint)),
-              // Built from the theme with the decoration pinned off:
-              // DropdownButton uses `style` verbatim rather than merging
-              // it, and this State's context sits above the Scaffold's
-              // Material — inheriting DefaultTextStyle there picks up
-              // WidgetsApp's yellow double-underline error style.
-              style: (Theme.of(context).textTheme.bodyMedium ??
-                      const TextStyle())
-                  .copyWith(
-                fontSize: 13.5,
-                color: AppTokens.ink,
-                decoration: TextDecoration.none,
-              ),
-              onChanged: enabled ? onChanged : null,
-              items: items
-                  .map((String item) => DropdownMenuItem<String>(
-                        value: item,
-                        child: Row(
-                          children: [
-                            Icon(icon, size: 15, color: AppTokens.inkFaint),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child:
-                                  Text(item, overflow: TextOverflow.ellipsis),
-                            ),
-                          ],
-                        ),
-                      ))
-                  .toList(),
-            ),
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 5),
-          Text(error, style: AppTokens.errorText),
-        ],
-      ],
+    return FormDropdownField(
+      dropdownKey: fieldKey,
+      label: label,
+      hint: hint,
+      value: value,
+      items: items,
+      icon: icon,
+      onChanged: enabled ? onChanged : null,
+      error: error,
+      enabled: enabled,
     );
   }
 
@@ -574,7 +443,7 @@ class _SettingStudentState extends State<SettingStudent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: _labelStyle),
+        Text(label, style: AppTokens.fieldLabel),
         const SizedBox(height: 6),
         Material(
           color: enabled ? AppTokens.surface : AppTokens.surfaceMuted,
@@ -595,8 +464,7 @@ class _SettingStudentState extends State<SettingStudent> {
                 children: [
                   Icon(icon,
                       size: 17,
-                      color:
-                          isSet ? AppTokens.inkMuted : AppTokens.inkFaint),
+                      color: isSet ? AppTokens.inkMuted : AppTokens.inkFaint),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(text,
@@ -605,8 +473,7 @@ class _SettingStudentState extends State<SettingStudent> {
                           fontSize: 13.5,
                           fontWeight:
                               isSet ? FontWeight.w600 : FontWeight.normal,
-                          color:
-                              isSet ? AppTokens.ink : AppTokens.inkFaint,
+                          color: isSet ? AppTokens.ink : AppTokens.inkFaint,
                         )),
                   ),
                   const Icon(Icons.keyboard_arrow_down,
@@ -624,9 +491,6 @@ class _SettingStudentState extends State<SettingStudent> {
     );
   }
 
-  static const TextStyle _labelStyle = TextStyle(
-      fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF344054));
-
   Future<void> _showSlideDialog(Widget child) {
     return showGeneralDialog(
       context: context,
@@ -640,8 +504,8 @@ class _SettingStudentState extends State<SettingStudent> {
       transitionBuilder: (_, anim, __, dialog) => FadeTransition(
         opacity: anim,
         child: ScaleTransition(
-          scale: Tween<double>(begin: .96, end: 1).animate(
-              CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+          scale: Tween<double>(begin: .96, end: 1)
+              .animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
           child: dialog,
         ),
       ),
@@ -655,7 +519,7 @@ class _SettingStudentState extends State<SettingStudent> {
         studentViewModel.enrolledCourseBaseModel?.enrolledCourseList ??
             const [];
 
-    return _section(
+    return FormSection(
       title: "ENROLLED SUBJECTS",
       trailing: Text(
         enrolled.isEmpty
@@ -807,8 +671,7 @@ class _SettingStudentState extends State<SettingStudent> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.layers_outlined,
-              size: 12,
-              color: none ? AppTokens.danger : AppTokens.inkMuted),
+              size: 12, color: none ? AppTokens.danger : AppTokens.inkMuted),
           const SizedBox(width: 5),
           Text(none ? "No units" : "$units unit${units == 1 ? '' : 's'}",
               style: TextStyle(
@@ -912,8 +775,8 @@ class _SettingStudentState extends State<SettingStudent> {
             onTap: () => _confirmRemove(studentViewModel, course),
             child: const Padding(
               padding: EdgeInsets.all(6),
-              child: Icon(Icons.delete_outline,
-                  size: 17, color: AppTokens.danger),
+              child:
+                  Icon(Icons.delete_outline, size: 17, color: AppTokens.danger),
             ),
           ),
         ),
