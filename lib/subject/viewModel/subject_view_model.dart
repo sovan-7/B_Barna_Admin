@@ -1,50 +1,30 @@
 import 'dart:typed_data';
 
+import 'package:bbarna/core/mixins/safe_notifier.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/subject/repo/subject_repo.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
-class SubjectViewModel with ChangeNotifier {
-  // Constructor-injectable so the list, search and save logic can be
-  // exercised without real Firebase.
+/// State and actions for the Subject module: the full subject list with a
+/// local search, create/update/delete with image upload, and the lock /
+/// popular toggles.
+class SubjectViewModel extends ChangeNotifier with SafeNotifier {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
   final SubjectRepo _subjectRepo;
   SubjectViewModel({SubjectRepo? subjectRepo})
       : _subjectRepo = subjectRepo ?? SubjectRepo();
 
+  /// Subjects currently shown (after the search filter), newest first.
   List<SubjectModel> subjectList = [];
+
+  /// Every subject, unfiltered; the search filters this.
   List<SubjectModel> copySubjectList = [];
 
-  /// Drives the list's own skeletons. The module used to reach for the
-  /// global [LoaderDialogs] overlay, which pushes a route — from
-  /// `initState`, while the sidebar shell was still building.
+  /// True while the list is loading (drives the skeleton rows).
   bool isLoading = true;
 
-  bool _disposed = false;
-
-  @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
-  }
-
-  /// Safe to call from any point in the frame — [SubjectList] is mounted
-  /// from `Sidebar.screenList[selectedIndex]` *during* a build.
-  @override
-  void notifyListeners() {
-    if (_disposed) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_disposed) return;
-        super.notifyListeners();
-      });
-      return;
-    }
-    super.notifyListeners();
-  }
-
+  /// Loads every subject, sorts newest first and re-applies the search.
   Future<void> getSubjectList() async {
     isLoading = true;
     notifyListeners();
@@ -100,6 +80,7 @@ class SubjectViewModel with ChangeNotifier {
     }
   }
 
+  /// Deletes the subject. Returns `false` (and shows a toast) on failure.
   Future<bool> deleteSubject(String subjectId) async {
     try {
       await _subjectRepo.deleteSubject(subjectId);
@@ -123,6 +104,7 @@ class SubjectViewModel with ChangeNotifier {
     return ok;
   }
 
+  /// Flips the "popular" heart the same way as [toggleLocked].
   Future<bool> togglePopular(SubjectModel subjectModel) async {
     final bool next = !subjectModel.isPopular;
     final bool ok = await _setFlag(subjectModel.docId, "isPopular", next);
@@ -133,6 +115,7 @@ class SubjectViewModel with ChangeNotifier {
     return ok;
   }
 
+  /// Writes one boolean [field]; toasts and returns `false` on failure.
   Future<bool> _setFlag(String docId, String field, bool value) async {
     try {
       await _subjectRepo.setSubjectFlag(docId, field, value);
@@ -149,12 +132,15 @@ class SubjectViewModel with ChangeNotifier {
   /// re-applied after every refetch instead of showing everything.
   String searchText = "";
 
+  /// Filters [subjectList] by code, name or course name
+  /// (case-insensitive).
   void searchSubject({required String searchText}) {
     this.searchText = searchText;
     _applySearch();
     notifyListeners();
   }
 
+  /// Rebuilds [subjectList] from [copySubjectList] using [searchText].
   void _applySearch() {
     final String query = searchText.toLowerCase().trim();
     if (query.isEmpty) {
@@ -169,7 +155,7 @@ class SubjectViewModel with ChangeNotifier {
     }
   }
 
-  /// Newest first.
+  /// Sorts [subjectList] newest first.
   void filterSubject() {
     subjectList.sort((a, b) => b.timeStamp.compareTo(a.timeStamp));
   }

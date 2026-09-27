@@ -1,37 +1,26 @@
+import 'package:bbarna/core/mixins/safe_notifier.dart';
 import 'package:bbarna/login/model/login_result.dart';
 import 'package:bbarna/login/repo/login_repo.dart';
 import 'package:bbarna/utils/session.dart';
 import 'package:flutter/material.dart';
 
-class LoginViewModel with ChangeNotifier {
-  // Constructor-injectable so the sign-in path can be exercised without
-  // real Firebase.
+/// State for the login screen: submits the credentials and holds the
+/// in-flight flag and the error message shown on the form.
+class LoginViewModel extends ChangeNotifier with SafeNotifier {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
   final LoginRepo _loginRepo;
-  LoginViewModel({LoginRepo? loginRepo}) : _loginRepo = loginRepo ?? LoginRepo();
+  LoginViewModel({LoginRepo? loginRepo})
+      : _loginRepo = loginRepo ?? LoginRepo();
 
-  /// True while the lookup is in flight. The old screen removed its login
-  /// button outright while this was true, so the form showed nothing at
-  /// all where the button had been.
+  /// True while the lookup is in flight (the button shows a spinner and
+  /// repeated submits are ignored).
   bool isSubmitting = false;
 
   /// Why the last attempt failed, or null. Shown on the form rather than
   /// in a snackbar floating at the top of the window.
   String? errorMessage;
 
-  bool _disposed = false;
-
-  @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
-  }
-
-  @override
-  void notifyListeners() {
-    if (_disposed) return;
-    super.notifyListeners();
-  }
-
+  /// Hides the error message (called when the user edits a field).
   void clearError() {
     if (errorMessage == null) return;
     errorMessage = null;
@@ -59,8 +48,8 @@ class LoginViewModel with ChangeNotifier {
       await Session.signIn(result);
       return true;
     } catch (e) {
-      // Separate from a wrong password: the old screen reported both the
-      // same way, so an outage looked like bad credentials.
+      // A failed lookup (network / server) — reported differently from a
+      // wrong password so an outage does not look like bad credentials.
       errorMessage = "Could not reach the server. Check your connection "
           "and try again.";
       return false;

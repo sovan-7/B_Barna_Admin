@@ -1,10 +1,13 @@
 import 'dart:typed_data';
 
+import 'package:bbarna/core/repo/storage_upload.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/teacher/model/teacher_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+/// Thrown by [TeacherRepo.addTeacher] when a teacher with the same
+/// username (document id) already exists.
 class UsernameTakenException implements Exception {
   final String username;
   UsernameTakenException(this.username);
@@ -13,6 +16,11 @@ class UsernameTakenException implements Exception {
   String toString() => 'Username "$username" is already taken';
 }
 
+/// Firestore / Storage access for the `teacher` collection. A teacher's
+/// document id is their (lower-cased) username.
+///
+/// Firestore and Storage are injectable so the repo itself can be unit
+/// tested with fakes.
 class TeacherRepo {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
@@ -26,12 +34,14 @@ class TeacherRepo {
   /// even if their usernames do. Pure client-side generation, no network call.
   String generateStorageKey() => _firestore.collection(teacher).doc().id;
 
-  Future<String> uploadTeacherImage(Uint8List image, String storageKey) async {
-    final Reference reference =
-        _storage.ref().child("images").child("teacher_$storageKey");
-    final metadata = SettableMetadata(contentType: "image/jpeg");
-    await reference.putData(image, metadata);
-    return reference.getDownloadURL();
+  /// Uploads [image] to `images/teacher_<storageKey>` and returns its
+  /// download URL (the caller stores it on the teacher document).
+  Future<String> uploadTeacherImage(Uint8List image, String storageKey) {
+    return uploadToStorage(
+      _storage.ref().child("images").child("teacher_$storageKey"),
+      image,
+      contentType: jpegContentType,
+    );
   }
 
   /// [teacherModel.username] must already be normalized (lowercased) by the
@@ -61,6 +71,7 @@ class TeacherRepo {
         .update(teacherModel.toMap());
   }
 
+  /// Every teacher.
   Future<List<TeacherModel>> getTeacherList() async {
     final QuerySnapshot<Map<String, dynamic>> snapshot =
         await _firestore.collection(teacher).get();
@@ -69,6 +80,7 @@ class TeacherRepo {
         .toList();
   }
 
+  /// Deletes the teacher whose document id is [username].
   Future<void> deleteTeacher(String username) async {
     await _firestore.collection(teacher).doc(username).delete();
   }

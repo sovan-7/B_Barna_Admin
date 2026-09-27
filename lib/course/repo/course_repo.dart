@@ -1,66 +1,63 @@
 import 'dart:typed_data';
 
+import 'package:bbarna/core/repo/storage_upload.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+/// Firestore / Storage access for the `course` collection. Courses are few,
+/// so the whole collection is loaded at once (no paging).
+///
+/// Every method throws on failure; [CourseViewModel] catches and reports.
 class CourseRepo {
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
   final Reference storageReference = FirebaseStorage.instance.ref();
 
-  /// Returns the new document's id — no caller wants the reference itself,
-  /// and being a sealed Firestore type it cannot be faked in a test.
+  /// The `course` collection.
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _fireStore.collection(course);
+
+  /// Adds a course and returns the new document's id.
   Future<String> addCourse(CourseModel courseModel) async {
     final DocumentReference<Map<String, dynamic>> doc =
-        await _fireStore.collection(course).add(courseModel.toMap());
+        await _collection.add(courseModel.toMap());
     return doc.id;
   }
 
+  /// Every course, in Firestore's default order (the view model sorts).
   Future<List<CourseModel>> getCourseList() async {
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _fireStore.collection(course).get();
+    final QuerySnapshot<Map<String, dynamic>> snapshot =
+        await _collection.get();
     return snapshot.docs
         .map((docSnapshot) => CourseModel.fromDocumentSnapshot(docSnapshot))
         .toList();
   }
 
-  /// Uploads [image] and points the course document at it.
-  ///
-  /// Keyed by [courseId], not by course code. The old path was
-  /// `img_$courseCode`, and course codes are not unique — two courses that
-  /// shared a code silently overwrote each other's picture in storage.
-  ///
-  /// Throws on failure rather than swallowing it: the caller used to report
-  /// "Course added successfully" straight over the top of the error.
+  /// Uploads [image] to `images/img_<courseId>` and stores its download URL
+  /// as `course_image`. Keyed by document id because course codes are not
+  /// unique.
   Future<void> uploadCourseImage(Uint8List image, String courseId) async {
-    final Reference referenceDirImages = storageReference.child("images");
-    final Reference referenceImageToUpload =
-        referenceDirImages.child("img_$courseId");
-
-    final metadata = SettableMetadata(contentType: "image/jpeg");
-    await referenceImageToUpload.putData(image, metadata);
-    final String imageUrl = await referenceImageToUpload.getDownloadURL();
-    await _fireStore
-        .collection(course)
-        .doc(courseId)
-        .update({"course_image": imageUrl});
+    final String url = await uploadToStorage(
+      storageReference.child("images").child("img_$courseId"),
+      image,
+      contentType: jpegContentType,
+    );
+    await _collection.doc(courseId).update({"course_image": url});
   }
 
+  /// Overwrites the course's fields.
   Future<void> updateCourse(CourseModel courseModel, String docId) async {
-    await _fireStore.collection(course).doc(docId).update(courseModel.toMap());
+    await _collection.doc(docId).update(courseModel.toMap());
   }
 
-  /// Flips just the lock flag. This used to be done with a raw
-  /// `FirebaseFirestore.instance` call from inside the list widget.
+  /// Sets only the `isLocked` flag.
   Future<void> setCourseLocked(String docId, bool isLocked) async {
-    await _fireStore
-        .collection(course)
-        .doc(docId)
-        .update({"isLocked": isLocked});
+    await _collection.doc(docId).update({"isLocked": isLocked});
   }
 
+  /// Deletes the course document.
   Future<void> deleteCourse(String docId) async {
-    await _fireStore.collection(course).doc(docId).delete();
+    await _collection.doc(docId).delete();
   }
 }

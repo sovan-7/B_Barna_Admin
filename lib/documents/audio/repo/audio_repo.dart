@@ -1,103 +1,76 @@
 import 'dart:typed_data';
+
+import 'package:bbarna/core/repo/firestore_pager.dart';
+import 'package:bbarna/core/repo/storage_upload.dart';
 import 'package:bbarna/documents/audio/model/audio_model.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+/// Firestore / Storage access for the `audio` collection.
+///
+/// Every method throws on failure; [AudioViewModel] catches and reports.
 class AudioRepo {
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
   final Reference storageReference = FirebaseStorage.instance.ref();
 
-  /// Returns the new document's id — no caller wants the reference itself,
-  /// and being a sealed Firestore type it cannot be faked in a test.
+  /// The `audio` collection.
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _fireStore.collection(audio);
+
+  /// Newest-first paging with the cursor kept here, not in the view model.
+  late final FirestorePager _pager = FirestorePager(_collection);
+
+  /// Converts raw documents into models.
+  List<AudioModel> _toModels(List<FirestoreDoc> docs) =>
+      docs.map((doc) => AudioModel.fromDocumentSnapshot(doc)).toList();
+
+  /// Adds a clip and returns the new document's id.
   Future<String> addAudio(AudioModel audioModel) async {
     final DocumentReference<Map<String, dynamic>> doc =
-        await _fireStore.collection(audio).add(audioModel.toMap());
+        await _collection.add(audioModel.toMap());
     return doc.id;
   }
 
-  /// The paging cursor lives here rather than in the view model.
-  ///
-  /// It is a Firestore [DocumentSnapshot] — a sealed type — so a view model
-  /// that held it could not be exercised without real Firebase.
-  DocumentSnapshot<Map<String, dynamic>>? _cursor;
+  /// First page, newest first. Resets the paging cursor.
+  Future<List<AudioModel>> getFirstAudioList(int limit) async =>
+      _toModels(await _pager.firstPage(limit));
 
-  /// First page, newest first. Resets the cursor.
-  Future<List<AudioModel>> getFirstAudioList(int limit) async {
-    final QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(audio)
-        .orderBy("timeStamp", descending: true)
-        .limit(limit)
-        .get();
-    _cursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
-    return snapshot.docs
-        .map((doc) => AudioModel.fromDocumentSnapshot(doc))
-        .toList();
-  }
+  /// The page after the last one returned (empty when there is none).
+  Future<List<AudioModel>> getNextAudioList(int limit) async =>
+      _toModels(await _pager.nextPage(limit));
 
-  /// The page after the last one returned. Empty when there is no cursor
-  /// yet or nothing further to read.
-  Future<List<AudioModel>> getNextAudioList(int limit) async {
-    final DocumentSnapshot<Map<String, dynamic>>? cursor = _cursor;
-    if (cursor == null) return const [];
-
-    final QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(audio)
-        .orderBy("timeStamp", descending: true)
-        .startAfterDocument(cursor)
-        .limit(limit)
-        .get();
-    if (snapshot.docs.isNotEmpty) _cursor = snapshot.docs.last;
-    return snapshot.docs
-        .map((doc) => AudioModel.fromDocumentSnapshot(doc))
-        .toList();
-  }
-
+  /// Overwrites the clip's fields.
   Future<void> updateAudio(AudioModel audioModel, String docId) async {
-    await _fireStore.collection(audio).doc(docId).update(audioModel.toMap());
+    await _collection.doc(docId).update(audioModel.toMap());
   }
 
+  /// Deletes the clip document.
   Future<void> deleteAudio(String docId) async {
-    await _fireStore.collection(audio).doc(docId).delete();
+    await _collection.doc(docId).delete();
   }
 
-  /// Uploads [audioData] and points the document at it.
+  /// Uploads [audioData] and stores its download URL on document
+  /// [audioId]. The storage file is keyed by document id (ids are unique,
+  /// codes are not).
   ///
-  /// Keyed by [audioId], not by audio code. The old path was `pdf_$pdfCode`,
-  /// and codes are not unique — two documents sharing one silently
-  /// overwrote each other's file in storage.
-  ///
-  /// Throws on failure rather than swallowing it: the caller used to report
-  /// "Pdf added successfully" straight over the top of the error, leaving a
-  /// row with no file behind it.
+  /// NOTE: this still writes to `pdf/pdf_<id>` with a PDF content type and
+  /// saves the URL as `pdf_link`, while [AudioModel] reads `audio_link`.
+  /// That is a known bug, left as-is here because this change is a
+  /// behaviour-preserving refactor.
   Future<void> uploadAudio(Uint8List audioData, String audioId) async {
-    final Reference pdfDirReference = storageReference.child("pdf");
-    final Reference pdfReference = pdfDirReference.child("pdf_$audioId");
-    final metadata = SettableMetadata(contentType: 'application/pdf');
-    await pdfReference.putData(audioData, metadata);
-    final String pdfUrl = await pdfReference.getDownloadURL();
-    // Was `FirebaseFirestore.instance.collection('pdf')` — a second client
-    // and a hardcoded collection name beside the one this class already
-    // holds.
-    await _fireStore.collection(audio).doc(audioId).update({"pdf_link": pdfUrl});
+    final String url = await uploadToStorage(
+      storageReference.child("pdf").child("pdf_$audioId"),
+      audioData,
+      contentType: 'application/pdf',
+    );
+    await _collection.doc(audioId).update({"pdf_link": url});
   }
 
-  Future<int> getAudioListLength() async {
-    AggregateQuerySnapshot countSnapshot =
-        await _fireStore.collection(audio).count().get();
-    return countSnapshot.count ?? 0;
-  }
+  /// Total clips in the collection.
+  Future<int> getAudioListLength() => countDocuments(_collection);
 
-  /// Prefix match on `pdf_code`, server-side — the collection is paged
-  /// precisely because it is too big to filter in memory.
-  Future<List<AudioModel>> searchAudio(String searchText) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(audio)
-        .where("audio_code", isGreaterThanOrEqualTo: searchText)
-        .where("audio_code", isLessThan: '${searchText}z')
-        .get();
-    return snapshot.docs
-        .map((docSnapshot) => AudioModel.fromDocumentSnapshot(docSnapshot))
-        .toList();
-  }
+  /// Clips whose `audio_code` starts with [searchText].
+  Future<List<AudioModel>> searchAudio(String searchText) async =>
+      _toModels(await prefixSearch(_collection, "audio_code", searchText));
 }

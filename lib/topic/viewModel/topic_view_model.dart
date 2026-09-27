@@ -1,105 +1,68 @@
-import 'dart:async';
-
+import 'package:bbarna/core/viewModel/paged_list_view_model.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/topic/model/topic_model.dart';
 import 'package:bbarna/topic/repo/topic_repo.dart';
 import 'package:bbarna/units/model/unit_model.dart';
 import 'package:bbarna/utils/helper.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
-class TopicViewModel with ChangeNotifier {
-  // Constructor-injectable so the paging, search and save logic can be
-  // exercised without real Firebase.
+/// State and actions for the Topic module: the paged/searchable topic list
+/// (inherited from [PagedListViewModel]), create/update/delete, the
+/// subject/unit lists for the form dropdowns, and the topic's attached
+/// content codes (videos, PDFs, audio, quizzes).
+class TopicViewModel extends PagedListViewModel<TopicModel> {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
   final TopicRepo _topicRepo;
-  TopicViewModel({TopicRepo? topicRepo}) : _topicRepo = topicRepo ?? TopicRepo();
 
-  List<TopicModel> topicList = [];
+  TopicViewModel({TopicRepo? topicRepo})
+      : _topicRepo = topicRepo ?? TopicRepo();
+
+  /// Subjects of the course chosen on the Add/Edit Topic form.
   List<SubjectModel> subjectList = [];
+
+  /// Units of the subject chosen on the Add/Edit Topic form.
   List<UnitModel> unitList = [];
 
-  /// How many topics the collection holds in total, so the list can say
-  /// "showing 50 of 320" rather than just "50".
-  int topicLength = 0;
-  final int limit = 50;
-
-  /// True while the first page is in flight — drives the skeletons. The
-  /// module used to reach for the global `LoaderDialogs` overlay, which
-  /// pushes a route, from `initState` while the shell was still building.
-  bool isLoading = true;
-
-  /// True while a further page is in flight, so "Load more" can show a
-  /// spinner without blanking the rows already on screen.
-  bool isLoadingMore = false;
-
-  /// Set while a search is showing, because searching queries the server
-  /// separately and paging does not apply to the result.
-  bool isSearching = false;
-
-  Timer? _debounce;
-  bool _disposed = false;
-
-  bool get hasMore => !isSearching && topicList.length < topicLength;
+  // ---- Paging hooks (see PagedListViewModel) -----------------------------
 
   @override
-  void dispose() {
-    _debounce?.cancel();
-    _disposed = true;
-    super.dispose();
-  }
+  String get itemsLabel => "topics";
 
-  /// Safe to call from any point in the frame — [TopicList] is mounted from
-  /// `Sidebar.screenList[selectedIndex]` *during* a build.
   @override
-  void notifyListeners() {
-    if (_disposed) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_disposed) return;
-        super.notifyListeners();
-      });
-      return;
-    }
-    super.notifyListeners();
-  }
+  Future<List<TopicModel>> fetchFirstPage(int limit) =>
+      _topicRepo.getFirstTopicList(limit);
 
-  /// Loads the first page and the total count together.
-  Future<void> getFirstTopicList() async {
-    isLoading = true;
-    isSearching = false;
-    notifyListeners();
-    try {
-      topicList = await _topicRepo.getFirstTopicList(limit);
-      topicLength = await _topicRepo.getTopicListLength();
-    } catch (e) {
-      Helper.showSnackBarMessage(
-          msg: "Error while fetching topics", isSuccess: false);
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
-  }
+  @override
+  Future<List<TopicModel>> fetchNextPage(int limit) =>
+      _topicRepo.getNextTopicList(limit);
 
-  /// Appends the next page. This is what the old "Next" button did too —
-  /// it grew one list rather than turning a page, which is why its
-  /// "Previous" counterpart could only ever chop rows back off the end.
-  Future<void> getNextTopicList() async {
-    if (isLoadingMore || !hasMore) return;
+  @override
+  Future<int> fetchTotalCount() => _topicRepo.getTopicListLength();
 
-    isLoadingMore = true;
-    notifyListeners();
-    try {
-      topicList.addAll(await _topicRepo.getNextTopicList(limit));
-    } catch (e) {
-      Helper.showSnackBarMessage(
-          msg: "Error while fetching more topics", isSuccess: false);
-    } finally {
-      isLoadingMore = false;
-      notifyListeners();
-    }
-  }
+  @override
+  Future<List<TopicModel>> fetchSearchResults(String query) =>
+      _topicRepo.searchTopic(query);
 
+  // ---- Module-specific names used by screens and tests -------------------
+
+  /// Topics currently on screen (a page, or search results).
+  List<TopicModel> get topicList => items;
+
+  /// Total topics in the collection.
+  int get topicLength => totalCount;
+
+  /// Loads the first page of topics.
+  Future<void> getFirstTopicList() => loadFirstPage();
+
+  /// Appends the next page of topics.
+  Future<void> getNextTopicList() => loadNextPage();
+
+  /// Debounced prefix search on the topic code.
+  Future<void> searchTopic({required String searchText}) => search(searchText);
+
+  // ---- Form dropdown data ------------------------------------------------
+
+  /// Loads the subjects of [courseCode] into [subjectList]. On failure the
+  /// list is simply emptied.
   Future<void> getSubjectList({required String courseCode}) async {
     try {
       subjectList = await _topicRepo.getSubjectList(courseCode: courseCode);
@@ -109,6 +72,8 @@ class TopicViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Loads the units of [subjectCode] into [unitList]. On failure the list
+  /// is simply emptied.
   Future<void> getUnitList({required String subjectCode}) async {
     try {
       unitList = await _topicRepo.getUnitList(subjectCode: subjectCode);
@@ -118,6 +83,10 @@ class TopicViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  // ---- Create / update / delete ------------------------------------------
+
+  /// Adds a new topic document. Returns `false` (and shows a toast) on
+  /// failure.
   Future<bool> createTopic(TopicModel topicModel) async {
     try {
       await _topicRepo.addTopic(topicModel);
@@ -129,6 +98,8 @@ class TopicViewModel with ChangeNotifier {
     }
   }
 
+  /// Saves the edited topic. Returns `false` (and shows a toast) on
+  /// failure.
   Future<bool> updateTopic(TopicModel topicModel, String docId) async {
     try {
       await _topicRepo.updateTopic(topicModel, docId);
@@ -140,15 +111,13 @@ class TopicViewModel with ChangeNotifier {
     }
   }
 
-  /// The row is only dropped from the list once the delete has actually
-  /// gone through. The old version removed it first and reported success
-  /// from `whenComplete`, which runs on failure too — a failed delete left
-  /// the topic in Firestore but gone from the screen.
+  /// Deletes the topic. The row is removed from the list (and the total
+  /// lowered) only after Firestore confirms the delete.
   Future<bool> deleteTopic(String docId) async {
     try {
       await _topicRepo.deleteTopic(docId);
-      topicList.removeWhere((element) => element.docId == docId);
-      if (topicLength > 0) topicLength--;
+      items.removeWhere((element) => element.docId == docId);
+      if (totalCount > 0) totalCount--;
       notifyListeners();
       return true;
     } catch (e) {
@@ -158,8 +127,11 @@ class TopicViewModel with ChangeNotifier {
     }
   }
 
-  /// Writes one content array and mirrors it onto the in-memory model, so
-  /// the list's counts are right without refetching the whole page.
+  // ---- Attached content ----------------------------------------------------
+
+  /// Saves one content array ([kind] = videos, PDFs, …) and mirrors it onto
+  /// the in-memory [topicModel], so the list's counts update without a
+  /// refetch.
   Future<bool> saveContentCodes(
       TopicModel topicModel, ContentKind kind, List<String> codes) async {
     try {
@@ -175,63 +147,15 @@ class TopicViewModel with ChangeNotifier {
     }
   }
 
-  /// Which of [codes] actually exist in their own collection, as
-  /// `code -> title`. Anything missing from the result is a code that
-  /// points at nothing.
+  /// Looks up which of [codes] exist in their own collection, returned as
+  /// `code -> title`. A code missing from the result points at nothing.
+  /// Returns an empty map on failure.
   Future<Map<String, String>> resolveContentTitles(
       ContentKind kind, List<String> codes) async {
     try {
       return await _topicRepo.resolveContentTitles(kind, codes);
     } catch (e) {
       return <String, String>{};
-    }
-  }
-
-  /// What the search box last held. Kept here rather than on the list
-  /// screen so it survives the round trip to Add/Edit, and so [refresh]
-  /// puts the same results back instead of the unfiltered first page.
-  String searchText = "";
-
-  /// Debounced prefix search on the topic code, run server-side because
-  /// the collection is paged and most of it is not in memory.
-  Future<void> searchTopic({required String searchText}) async {
-    this.searchText = searchText;
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), _runSearch);
-  }
-
-  /// Reloads what the list is showing: the current search's results if
-  /// there is one, otherwise the first page. The list calls this after
-  /// Add/Edit rather than refetching the first page over a search.
-  Future<void> refresh() {
-    _debounce?.cancel();
-    return _runSearch();
-  }
-
-  Future<void> _runSearch() async {
-    final String query = searchText.trim();
-    if (query.isEmpty) {
-      await getFirstTopicList();
-      return;
-    }
-
-    isSearching = true;
-    isLoading = true;
-    notifyListeners();
-    try {
-      final results = await _topicRepo.searchTopic(query.toUpperCase());
-      // A newer search (or a refresh) has taken over meanwhile.
-      if (query != searchText.trim()) return;
-      topicList = results;
-    } catch (e) {
-      topicList = [];
-      // The old catch popped the current route before showing this —
-      // a failed search took the whole page off the navigator.
-      Helper.showSnackBarMessage(
-          msg: "Error while searching topics", isSuccess: false);
-    } finally {
-      isLoading = false;
-      notifyListeners();
     }
   }
 }

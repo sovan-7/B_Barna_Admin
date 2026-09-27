@@ -1,108 +1,64 @@
-import 'dart:async';
-
+import 'package:bbarna/core/viewModel/paged_list_view_model.dart';
 import 'package:bbarna/question/model/question.dart';
 import 'package:bbarna/quiz/model/quiz_model.dart';
 import 'package:bbarna/quiz/repo/quiz_repo.dart';
 import 'package:bbarna/utils/helper.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
-class QuizViewModel with ChangeNotifier {
-  // Constructor-injectable so the paging, search and question-picking logic
-  // can be exercised without real Firebase.
+/// State and actions for the Quiz module.
+///
+/// Two independent parts:
+/// 1. The paged/searchable quiz list (inherited from [PagedListViewModel])
+///    plus add, update and delete.
+/// 2. The question picker used on the Add/Edit Quiz form: which questions
+///    are on the quiz ([quizQuestionList]) and which search results can
+///    still be added ([questionList]).
+class QuizViewModel extends PagedListViewModel<QuizModel> {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
   final QuizRepo _quizRepo;
+
   QuizViewModel({QuizRepo? quizRepo}) : _quizRepo = quizRepo ?? QuizRepo();
 
-  List<QuizModel> quizList = [];
-
-  /// How many the collection holds in total, so the list can say
-  /// "showing 50 of 320" rather than just "50".
-  int quizLength = 0;
-  final int limit = 50;
-
-  bool isLoading = true;
-  bool isLoadingMore = false;
-  bool isSearching = false;
-
-  Timer? _debounce;
-  bool _disposed = false;
-
-  bool get hasMore => !isSearching && quizList.length < quizLength;
-
-  // ---- Question picking ------------------------------------------------
-
-  /// Questions found by the picker's own search, minus anything already on
-  /// the quiz.
-  List<Question> questionList = [];
-
-  /// The questions currently on the quiz.
-  List<Question> quizQuestionList = [];
-
-  /// True while either question query is in flight — the picker used to
-  /// push the global loader dialog for these, from inside a build.
-  bool isLoadingQuestions = false;
-
-  /// The codes the quiz will be saved with.
-  List<String> get selectedQuestionCodeList => [
-        for (final Question question in quizQuestionList)
-          question.questionCode.trim(),
-      ];
+  // ---- Paging hooks (see PagedListViewModel) -----------------------------
 
   @override
-  void dispose() {
-    _debounce?.cancel();
-    _disposed = true;
-    super.dispose();
-  }
+  String get itemsLabel => "quizzes";
 
-  /// Safe to call from any point in the frame — [QuizList] is mounted from
-  /// `Sidebar.screenList[selectedIndex]` *during* a build.
   @override
-  void notifyListeners() {
-    if (_disposed) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_disposed) return;
-        super.notifyListeners();
-      });
-      return;
-    }
-    super.notifyListeners();
-  }
+  Future<List<QuizModel>> fetchFirstPage(int limit) =>
+      _quizRepo.getFirstQuizList(limit);
 
-  Future<void> getFirstQuizList() async {
-    isLoading = true;
-    isSearching = false;
-    notifyListeners();
-    try {
-      quizList = await _quizRepo.getFirstQuizList(limit);
-      quizLength = await _quizRepo.getQuizListLength();
-    } catch (e) {
-      Helper.showSnackBarMessage(
-          msg: "Error while fetching quizzes", isSuccess: false);
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
-  }
+  @override
+  Future<List<QuizModel>> fetchNextPage(int limit) =>
+      _quizRepo.getNextQuizList(limit);
 
-  Future<void> getNextQuizList() async {
-    if (isLoadingMore || !hasMore) return;
+  @override
+  Future<int> fetchTotalCount() => _quizRepo.getQuizListLength();
 
-    isLoadingMore = true;
-    notifyListeners();
-    try {
-      quizList.addAll(await _quizRepo.getNextQuizList(limit));
-    } catch (e) {
-      Helper.showSnackBarMessage(
-          msg: "Error while fetching more quizzes", isSuccess: false);
-    } finally {
-      isLoadingMore = false;
-      notifyListeners();
-    }
-  }
+  @override
+  Future<List<QuizModel>> fetchSearchResults(String query) =>
+      _quizRepo.searchQuiz(query);
 
+  // ---- Module-specific names used by screens and tests -------------------
+
+  /// Quizzes currently on screen (a page, or search results).
+  List<QuizModel> get quizList => items;
+
+  /// Total quizzes in the collection.
+  int get quizLength => totalCount;
+
+  /// Loads the first page of quizzes.
+  Future<void> getFirstQuizList() => loadFirstPage();
+
+  /// Appends the next page of quizzes.
+  Future<void> getNextQuizList() => loadNextPage();
+
+  /// Debounced prefix search on the quiz code.
+  Future<void> searchQuiz({required String searchText}) => search(searchText);
+
+  // ---- Create / update / delete ------------------------------------------
+
+  /// Adds a new quiz document. Returns `false` (and shows a toast) on
+  /// failure.
   Future<bool> addQuiz(QuizModel quizModel) async {
     try {
       await _quizRepo.addQuiz(quizModel);
@@ -114,6 +70,7 @@ class QuizViewModel with ChangeNotifier {
     }
   }
 
+  /// Saves the edited quiz. Returns `false` (and shows a toast) on failure.
   Future<bool> updateQuiz(QuizModel quizModel, String docId) async {
     try {
       await _quizRepo.updateQuiz(quizModel, docId);
@@ -125,6 +82,8 @@ class QuizViewModel with ChangeNotifier {
     }
   }
 
+  /// Deletes the quiz document. Returns `false` (and shows a toast) on
+  /// failure.
   Future<bool> deleteQuiz(String docId) async {
     try {
       await _quizRepo.deleteQuiz(docId);
@@ -136,57 +95,28 @@ class QuizViewModel with ChangeNotifier {
     }
   }
 
-  /// What the search box last held. Kept here rather than on the list
-  /// screen so it survives the round trip to Add/Edit, and so [refresh]
-  /// puts the same results back instead of the unfiltered first page.
-  String searchText = "";
+  // ---- Question picker state ---------------------------------------------
 
-  /// Debounced prefix search on the quiz code, run server-side because the
-  /// collection is paged and most of it is not in memory.
-  Future<void> searchQuiz({required String searchText}) async {
-    this.searchText = searchText;
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), _runSearch);
-  }
+  /// Questions found by the picker's search, minus anything already on the
+  /// quiz.
+  List<Question> questionList = [];
 
-  /// Reloads what the list is showing: the current search's results if
-  /// there is one, otherwise the first page. The list calls this after
-  /// Add/Edit rather than refetching the first page over a search.
-  Future<void> refresh() {
-    _debounce?.cancel();
-    return _runSearch();
-  }
+  /// The questions currently on the quiz, in the order they were added.
+  List<Question> quizQuestionList = [];
 
-  Future<void> _runSearch() async {
-    final String query = searchText.trim();
-    if (query.isEmpty) {
-      await getFirstQuizList();
-      return;
-    }
+  /// True while either question query (load or search) is in flight.
+  bool isLoadingQuestions = false;
 
-    isSearching = true;
-    isLoading = true;
-    notifyListeners();
-    try {
-      final results = await _quizRepo.searchQuiz(query.toUpperCase());
-      // A newer search (or a refresh) has taken over meanwhile.
-      if (query != searchText.trim()) return;
-      quizList = results;
-    } catch (e) {
-      quizList = [];
-      // The old catch popped the current route before showing this —
-      // a failed search took the whole page off the navigator.
-      Helper.showSnackBarMessage(
-          msg: "Error while searching quizzes", isSuccess: false);
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
-  }
+  /// The question codes the quiz will be saved with (trimmed).
+  List<String> get selectedQuestionCodeList => [
+        for (final Question question in quizQuestionList)
+          question.questionCode.trim(),
+      ];
 
-  // ---- The question picker --------------------------------------------
+  // ---- Question picker actions -------------------------------------------
 
-  /// Loads the questions a quiz already holds.
+  /// Loads the questions an existing quiz already holds (Edit Quiz). Also
+  /// clears any leftover search results.
   Future<void> loadQuizQuestions(List<String> questionCodeList) async {
     quizQuestionList = [];
     questionList = [];
@@ -208,7 +138,8 @@ class QuizViewModel with ChangeNotifier {
     }
   }
 
-  /// Searches for questions to add, hiding any already on the quiz.
+  /// Searches questions by code prefix, hiding any already on the quiz.
+  /// An empty [questionCode] just clears the results.
   Future<void> searchQuestions(String questionCode) async {
     if (questionCode.trim().isEmpty) {
       questionList = [];
@@ -221,6 +152,7 @@ class QuizViewModel with ChangeNotifier {
     try {
       final List<Question> found =
           await _quizRepo.searchQuestions(questionCode.trim().toUpperCase());
+      // Filter out questions that are already on the quiz.
       final Set<String> already = selectedQuestionCodeList.toSet();
       questionList = found
           .where((question) => !already.contains(question.questionCode.trim()))
@@ -235,11 +167,8 @@ class QuizViewModel with ChangeNotifier {
     }
   }
 
-  /// Moves a found question onto the quiz.
-  ///
-  /// The old picker toggled an `isSelected` flag on the row and left the
-  /// question in both lists, so what was actually on the quiz had to be
-  /// reconstructed from two half-selected lists at save time.
+  /// Moves one found question onto the quiz (and out of the results).
+  /// Ignored if the question is already on the quiz.
   void addQuestion(Question question) {
     if (selectedQuestionCodeList.contains(question.questionCode.trim())) return;
     quizQuestionList = [...quizQuestionList, question];
@@ -249,6 +178,7 @@ class QuizViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Takes a question off the quiz.
   void removeQuestion(Question question) {
     quizQuestionList = quizQuestionList
         .where((candidate) => candidate.questionCode != question.questionCode)
@@ -256,12 +186,16 @@ class QuizViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Adds every current search result to the quiz.
   void addAllFoundQuestions() {
+    // Iterate over a copy: addQuestion rewrites questionList as it goes.
     for (final Question question in [...questionList]) {
       addQuestion(question);
     }
   }
 
+  /// Resets the picker when the form closes (no notify — nobody is
+  /// listening by then).
   void clearQuestionPicker() {
     questionList = [];
     quizQuestionList = [];

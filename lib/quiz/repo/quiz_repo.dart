@@ -1,101 +1,80 @@
+import 'package:bbarna/core/repo/firestore_pager.dart';
 import 'package:bbarna/question/model/question.dart';
 import 'package:bbarna/quiz/model/quiz_model.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Firestore access for the `quiz` collection, plus the `question` lookups
+/// the quiz form's question picker needs.
+///
+/// Every method throws on failure; [QuizViewModel] catches and reports.
 class QuizRepo {
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
 
-  /// Returns the new document's id — no caller wants the reference itself,
-  /// and being a sealed Firestore type it cannot be faked in a test.
+  /// The `quiz` collection.
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _fireStore.collection(quiz);
+
+  /// The `question` collection (read-only here).
+  CollectionReference<Map<String, dynamic>> get _questions =>
+      _fireStore.collection(question);
+
+  /// Newest-first paging with the cursor kept here, not in the view model.
+  late final FirestorePager _pager = FirestorePager(_collection);
+
+  /// Converts raw quiz documents into models.
+  List<QuizModel> _toModels(List<FirestoreDoc> docs) =>
+      docs.map((doc) => QuizModel.fromDocumentSnapshot(doc)).toList();
+
+  /// Converts raw question documents into models.
+  List<Question> _toQuestions(Iterable<FirestoreDoc> docs) =>
+      docs.map((doc) => Question.fromDocumentSnapshot(doc)).toList();
+
+  // ---- Quizzes -------------------------------------------------------------
+
+  /// Adds a quiz and returns the new document's id.
   Future<String> addQuiz(QuizModel quizModel) async {
     final DocumentReference<Map<String, dynamic>> doc =
-        await _fireStore.collection(quiz).add(quizModel.toMap());
+        await _collection.add(quizModel.toMap());
     return doc.id;
   }
 
-  /// The paging cursor lives here rather than in the view model.
-  ///
-  /// It is a Firestore [DocumentSnapshot] — a sealed type — so a view model
-  /// that held it could not be exercised without real Firebase.
-  DocumentSnapshot<Map<String, dynamic>>? _cursor;
+  /// First page, newest first. Resets the paging cursor.
+  Future<List<QuizModel>> getFirstQuizList(int limit) async =>
+      _toModels(await _pager.firstPage(limit));
 
-  /// First page, newest first. Resets the cursor.
-  Future<List<QuizModel>> getFirstQuizList(int limit) async {
-    final QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(quiz)
-        .orderBy("timeStamp", descending: true)
-        .limit(limit)
-        .get();
-    _cursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
-    return snapshot.docs
-        .map((doc) => QuizModel.fromDocumentSnapshot(doc))
-        .toList();
-  }
+  /// The page after the last one returned (empty when there is none).
+  Future<List<QuizModel>> getNextQuizList(int limit) async =>
+      _toModels(await _pager.nextPage(limit));
 
-  /// The page after the last one returned. Empty when there is no cursor
-  /// yet or nothing further to read.
-  Future<List<QuizModel>> getNextQuizList(int limit) async {
-    final DocumentSnapshot<Map<String, dynamic>>? cursor = _cursor;
-    if (cursor == null) return const [];
-
-    final QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(quiz)
-        .orderBy("timeStamp", descending: true)
-        .startAfterDocument(cursor)
-        .limit(limit)
-        .get();
-    if (snapshot.docs.isNotEmpty) _cursor = snapshot.docs.last;
-    return snapshot.docs
-        .map((doc) => QuizModel.fromDocumentSnapshot(doc))
-        .toList();
-  }
-
+  /// Overwrites the quiz's fields.
   Future<void> updateQuiz(QuizModel quizModel, String docId) async {
-    await _fireStore.collection(quiz).doc(docId).update(quizModel.toMap());
+    await _collection.doc(docId).update(quizModel.toMap());
   }
 
+  /// Deletes the quiz document.
   Future<void> deleteQuiz(String docId) async {
-    await _fireStore.collection(quiz).doc(docId).delete();
+    await _collection.doc(docId).delete();
   }
 
-  Future<int> getQuizListLength() async {
-    AggregateQuerySnapshot countSnapshot =
-        await _fireStore.collection(quiz).count().get();
-    return countSnapshot.count ?? 0;
-  }
+  /// Total quizzes in the collection.
+  Future<int> getQuizListLength() => countDocuments(_collection);
 
-  /// Prefix match on `quiz_code`, server-side — the collection is paged
-  /// precisely because it is too big to filter in memory.
-  Future<List<QuizModel>> searchQuiz(String searchText) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(quiz)
-        .where("quiz_code", isGreaterThanOrEqualTo: searchText)
-        .where("quiz_code", isLessThan: '${searchText}z')
-        .get();
-    return snapshot.docs
-        .map((docSnapshot) => QuizModel.fromDocumentSnapshot(docSnapshot))
-        .toList();
-  }
+  /// Quizzes whose `quiz_code` starts with [searchText].
+  Future<List<QuizModel>> searchQuiz(String searchText) async =>
+      _toModels(await prefixSearch(_collection, "quiz_code", searchText));
 
-  /// Questions whose code starts with [questionCode].
+  // ---- Questions (for the picker) -----------------------------------------
+
+  /// Questions whose `question_code` starts with [questionCode].
+  Future<List<Question>> searchQuestions(String questionCode) async =>
+      _toQuestions(
+          await prefixSearch(_questions, "question_code", questionCode));
+
+  /// The questions named by [codes].
   ///
-  /// This and [getQuestionsByCodes] were inline `FirebaseFirestore.instance`
-  /// queries in the view model; they belong here with the rest of the data
-  /// access.
-  Future<List<Question>> searchQuestions(String questionCode) async {
-    final QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(question)
-        .where("question_code", isGreaterThanOrEqualTo: questionCode)
-        .where("question_code", isLessThan: '${questionCode}z')
-        .get();
-    return snapshot.docs
-        .map((doc) => Question.fromDocumentSnapshot(doc))
-        .toList();
-  }
-
-  /// The questions named by [codes], fetched in chunks — Firestore's
-  /// `whereIn` takes at most 30 values.
+  /// Firestore's `whereIn` accepts at most 30 values, so the codes are
+  /// queried in chunks of 25 and the results concatenated.
   Future<List<Question>> getQuestionsByCodes(List<String> codes) async {
     const int chunkSize = 25;
     final List<Question> questions = [];
@@ -105,12 +84,9 @@ class QuizRepo {
           i, i + chunkSize > codes.length ? codes.length : i + chunkSize);
       if (chunk.isEmpty) continue;
 
-      final QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-          .collection(question)
-          .where("question_code", whereIn: chunk)
-          .get();
-      questions.addAll(
-          snapshot.docs.map((doc) => Question.fromDocumentSnapshot(doc)));
+      final QuerySnapshot<Map<String, dynamic>> snapshot =
+          await _questions.where("question_code", whereIn: chunk).get();
+      questions.addAll(_toQuestions(snapshot.docs));
     }
     return questions;
   }

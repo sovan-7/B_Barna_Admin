@@ -1,58 +1,37 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:bbarna/core/mixins/safe_notifier.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/teacher/model/teacher_model.dart';
 import 'package:bbarna/teacher/repo/teacher_repo.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
-class TeacherViewModel with ChangeNotifier {
-  // Constructor-injectable, unlike every other ViewModel in this codebase
-  // (which instantiate their repo directly) — the minimal seam needed to
-  // unit-test the orchestration below (hash-before-write, upload-then-add
-  // ordering) without touching real Firebase.
+/// State and actions for the Teacher module: the full teacher list with a
+/// local search, and add / update / delete. Passwords are SHA-256 hashed
+/// here before they reach the repo.
+class TeacherViewModel extends ChangeNotifier with SafeNotifier {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
   final TeacherRepo _teacherRepo;
   TeacherViewModel({TeacherRepo? teacherRepo})
       : _teacherRepo = teacherRepo ?? TeacherRepo();
 
+  /// Teachers currently shown (after the search filter).
   List<TeacherModel> teacherList = [];
+
+  /// Every teacher, unfiltered; the search filters this.
   List<TeacherModel> copyTeacherList = [];
 
-  /// Drives the list's own skeletons. The module used to reach for the
-  /// global [LoaderDialogs] overlay, which pushes a route — from
-  /// `initState`, while the sidebar shell was still building.
+  /// True while the list is loading (drives the skeleton rows).
   bool isLoading = true;
 
-  bool _disposed = false;
-
-  @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
-  }
-
-  /// Safe to call from any point in the frame — [TeacherList] is mounted
-  /// from `Sidebar.screenList[selectedIndex]` *during* a build.
-  @override
-  void notifyListeners() {
-    if (_disposed) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_disposed) return;
-        super.notifyListeners();
-      });
-      return;
-    }
-    super.notifyListeners();
-  }
-
-  /// Returns true on success. On failure, shows a snackbar explaining why
-  /// and returns false — the caller (AddTeacher screen) decides what to do
-  /// next (e.g. stay on the form).
+  /// Creates a teacher: uploads the photo, hashes the password, then adds
+  /// the document (whose id is the normalised username).
+  ///
+  /// Returns true on success. On failure shows a toast explaining why and
+  /// returns false, so the form can stay open.
   Future<bool> addTeacher({
     required String name,
     required String username,
@@ -74,7 +53,8 @@ class TeacherViewModel with ChangeNotifier {
       return false;
     }
 
-    final String hashedPassword = sha256.convert(utf8.encode(password)).toString();
+    final String hashedPassword =
+        sha256.convert(utf8.encode(password)).toString();
 
     final TeacherModel model = TeacherModel(
       docId: normalizedUsername,
@@ -103,8 +83,8 @@ class TeacherViewModel with ChangeNotifier {
     return true;
   }
 
-  /// Returns true on success. On failure, shows a snackbar and returns false
-  /// — same contract as [addTeacher]. Username/docId never change here (see
+  /// Saves an edited teacher. Returns true on success; on failure shows a
+  /// toast and returns false — same contract as [addTeacher]. Username/docId never change here (see
   /// [TeacherRepo.updateTeacher]); [newPassword] left null or empty keeps
   /// [original]'s existing hash instead of re-hashing an empty string, and
   /// [newImage] left null keeps [original]'s existing photo instead of
@@ -157,6 +137,7 @@ class TeacherViewModel with ChangeNotifier {
     return true;
   }
 
+  /// Loads every teacher and re-applies the search.
   Future<void> getTeacherList() async {
     isLoading = true;
     notifyListeners();
@@ -165,8 +146,6 @@ class TeacherViewModel with ChangeNotifier {
       copyTeacherList = List<TeacherModel>.from(teacherList);
       _applySearch();
     } catch (e) {
-      // The old version had no catch at all, so a failed fetch threw out of
-      // an unawaited call and left the loader dialog up for good.
       Helper.showSnackBarMessage(
           msg: "Error while fetching teachers", isSuccess: false);
     } finally {
@@ -175,12 +154,9 @@ class TeacherViewModel with ChangeNotifier {
     }
   }
 
-  /// Returns true on success, and drops the teacher from both lists.
-  ///
-  /// It used to announce "Teacher deleted successfully" from a
-  /// `whenComplete`, which runs whether the delete succeeded or threw. It
-  /// also left `copyTeacherList` holding the deleted teacher, so clearing
-  /// the search brought them back.
+  /// Deletes the teacher and, on success, drops them from both the shown
+  /// and the unfiltered list (so clearing the search does not bring them
+  /// back). Returns false (and shows a toast) on failure.
   Future<bool> deleteTeacher(String username) async {
     try {
       await _teacherRepo.deleteTeacher(username);
@@ -201,12 +177,14 @@ class TeacherViewModel with ChangeNotifier {
   /// re-applied after every refetch instead of showing everything.
   String searchText = "";
 
+  /// Filters [teacherList] by name or username (case-insensitive).
   void searchTeacher({required String searchText}) {
     this.searchText = searchText;
     _applySearch();
     notifyListeners();
   }
 
+  /// Rebuilds [teacherList] from [copyTeacherList] using [searchText].
   void _applySearch() {
     final String query = searchText.toLowerCase().trim();
     if (query.isEmpty) {

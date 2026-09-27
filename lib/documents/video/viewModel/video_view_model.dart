@@ -1,94 +1,59 @@
-import 'dart:async';
-
+import 'package:bbarna/core/viewModel/paged_list_view_model.dart';
 import 'package:bbarna/documents/video/model/video_model.dart';
 import 'package:bbarna/documents/video/repo/video_repo.dart';
 import 'package:bbarna/utils/helper.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
-class VideoViewModel with ChangeNotifier {
-  // Constructor-injectable so the paging, search and save logic can be
-  // exercised without real Firebase.
+/// State and actions for the Video module: the paged/searchable video list
+/// (inherited from [PagedListViewModel]) plus add, update and delete.
+/// Videos are links, so there is no file upload here.
+class VideoViewModel extends PagedListViewModel<VideoModel> {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
   final VideoRepo _videoRepo;
-  VideoViewModel({VideoRepo? videoRepo}) : _videoRepo = videoRepo ?? VideoRepo();
 
-  List<VideoModel> videoList = [];
+  VideoViewModel({VideoRepo? videoRepo})
+      : _videoRepo = videoRepo ?? VideoRepo();
 
-  /// How many the collection holds in total, so the list can say
-  /// "showing 50 of 320" rather than just "50".
-  int videoListLength = 0;
-  final int limit = 50;
-
-  /// Drives the skeletons. The module used to reach for the global
-  /// [LoaderDialogs] overlay, which pushes a route, from `initState` while
-  /// the sidebar shell was still building.
-  bool isLoading = true;
-  bool isLoadingMore = false;
-
-  /// Set while a search is showing, because searching queries the server
-  /// separately and paging does not apply to the result.
-  bool isSearching = false;
-
-  Timer? _debounce;
-  bool _disposed = false;
-
-  bool get hasMore => !isSearching && videoList.length < videoListLength;
+  // ---- Paging hooks (see PagedListViewModel) -----------------------------
 
   @override
-  void dispose() {
-    _debounce?.cancel();
-    _disposed = true;
-    super.dispose();
-  }
+  String get itemsLabel => "videos";
 
-  /// Safe to call from any point in the frame — [VideoList] is mounted from
-  /// `Sidebar.screenList[selectedIndex]` *during* a build.
   @override
-  void notifyListeners() {
-    if (_disposed) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_disposed) return;
-        super.notifyListeners();
-      });
-      return;
-    }
-    super.notifyListeners();
-  }
+  Future<List<VideoModel>> fetchFirstPage(int limit) =>
+      _videoRepo.getFirstVideoList(limit);
 
-  Future<void> getFirstVideoList() async {
-    isLoading = true;
-    isSearching = false;
-    notifyListeners();
-    try {
-      videoList = await _videoRepo.getFirstVideoList(limit);
-      videoListLength = await _videoRepo.getVideoListLength();
-    } catch (e) {
-      Helper.showSnackBarMessage(
-          msg: "Error while fetching videos", isSuccess: false);
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
-  }
+  @override
+  Future<List<VideoModel>> fetchNextPage(int limit) =>
+      _videoRepo.getNextVideoList(limit);
 
-  Future<void> getNextVideoList() async {
-    if (isLoadingMore || !hasMore) return;
+  @override
+  Future<int> fetchTotalCount() => _videoRepo.getVideoListLength();
 
-    isLoadingMore = true;
-    notifyListeners();
-    try {
-      videoList.addAll(await _videoRepo.getNextVideoList(limit));
-    } catch (e) {
-      Helper.showSnackBarMessage(
-          msg: "Error while fetching more videos", isSuccess: false);
-    } finally {
-      isLoadingMore = false;
-      notifyListeners();
-    }
-  }
+  @override
+  Future<List<VideoModel>> fetchSearchResults(String query) =>
+      _videoRepo.searchVideo(query);
 
+  // ---- Module-specific names used by screens and tests -------------------
+
+  /// Videos currently on screen (a page, or search results).
+  List<VideoModel> get videoList => items;
+
+  /// Total videos in the collection.
+  int get videoListLength => totalCount;
+
+  /// Loads the first page of videos.
+  Future<void> getFirstVideoList() => loadFirstPage();
+
+  /// Appends the next page of videos.
+  Future<void> getNextVideoList() => loadNextPage();
+
+  /// Debounced prefix search on the video code.
+  Future<void> searchVideo({required String searchText}) => search(searchText);
+
+  // ---- Create / update / delete ------------------------------------------
+
+  /// Adds a new video document. Returns `false` (and shows a toast) on
+  /// failure.
   Future<bool> addVideo(VideoModel videoModel) async {
     try {
       await _videoRepo.addVideo(videoModel);
@@ -100,6 +65,8 @@ class VideoViewModel with ChangeNotifier {
     }
   }
 
+  /// Saves the edited video. Returns `false` (and shows a toast) on
+  /// failure.
   Future<bool> updateVideo(VideoModel videoModel, String docId) async {
     try {
       await _videoRepo.updateVideo(videoModel, docId);
@@ -111,6 +78,8 @@ class VideoViewModel with ChangeNotifier {
     }
   }
 
+  /// Deletes the video document. Returns `false` (and shows a toast) on
+  /// failure.
   Future<bool> deleteVideo(String docId) async {
     try {
       await _videoRepo.deleteVideo(docId);
@@ -119,54 +88,6 @@ class VideoViewModel with ChangeNotifier {
       Helper.showSnackBarMessage(
           msg: "Error while deleting the video", isSuccess: false);
       return false;
-    }
-  }
-
-  /// What the search box last held. Kept here rather than on the list
-  /// screen so it survives the round trip to Add/Edit, and so [refresh]
-  /// puts the same results back instead of the unfiltered first page.
-  String searchText = "";
-
-  /// Debounced prefix search on the video code, run server-side because
-  /// the collection is paged and most of it is not in memory.
-  Future<void> searchVideo({required String searchText}) async {
-    this.searchText = searchText;
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), _runSearch);
-  }
-
-  /// Reloads what the list is showing: the current search's results if
-  /// there is one, otherwise the first page. The list calls this after
-  /// Add/Edit rather than refetching the first page over a search.
-  Future<void> refresh() {
-    _debounce?.cancel();
-    return _runSearch();
-  }
-
-  Future<void> _runSearch() async {
-    final String query = searchText.trim();
-    if (query.isEmpty) {
-      await getFirstVideoList();
-      return;
-    }
-
-    isSearching = true;
-    isLoading = true;
-    notifyListeners();
-    try {
-      final results = await _videoRepo.searchVideo(query.toUpperCase());
-      // A newer search (or a refresh) has taken over meanwhile.
-      if (query != searchText.trim()) return;
-      videoList = results;
-    } catch (e) {
-      videoList = [];
-      // The old catch popped the current route before showing this —
-      // a failed search took the whole page off the navigator.
-      Helper.showSnackBarMessage(
-          msg: "Error while searching videos", isSuccess: false);
-    } finally {
-      isLoading = false;
-      notifyListeners();
     }
   }
 }

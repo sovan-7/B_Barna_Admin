@@ -20,20 +20,28 @@ enum StudentSort {
   lastActive,
 }
 
+/// Firestore details of each [StudentSort].
 extension StudentSortField on StudentSort {
+  /// Field the query orders on.
   String get field => switch (this) {
         StudentSort.name => "name",
         StudentSort.lastActive => "login_time",
       };
 
+  /// Whether the order is descending (newest sign-in first).
   bool get descending => this == StudentSort.lastActive;
 
+  /// Text shown in the sort menu.
   String get label => switch (this) {
         StudentSort.name => "Name",
         StudentSort.lastActive => "Last active",
       };
 }
 
+/// Firestore access for students, their enrolments, and the course /
+/// subject / unit lookups the enrol picker needs.
+///
+/// Every method throws on failure; [StudentViewModel] catches and reports.
 class StudentRepo {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -45,10 +53,8 @@ class StudentRepo {
   /// a cursor from the name query is meaningless to the login_time one.
   StudentSort _sort = StudentSort.name;
 
-  /// First page in [sort]. Resets the cursor.
-  ///
-  /// The paging queries were written inline in the view model against a
-  /// second `FirebaseFirestore.instance`; they belong here.
+  /// First page in [sort] order. Resets the cursor and remembers [sort]
+  /// for [getNextStudentList].
   Future<List<Student>> getFirstStudentList(int limit,
       {StudentSort sort = StudentSort.name}) async {
     _sort = sort;
@@ -96,12 +102,14 @@ class StudentRepo {
         .toList();
   }
 
+  /// Total students in the collection.
   Future<int> getStudentListLength() async {
     AggregateQuerySnapshot countSnapshot =
         await _firestore.collection(student).count().get();
     return countSnapshot.count ?? 0;
   }
 
+  /// Deletes the student document.
   Future<void> deleteStudent(String studentId) async {
     await _firestore.collection(student).doc(studentId).delete();
   }
@@ -114,6 +122,7 @@ class StudentRepo {
         .update({"device_count": 0});
   }
 
+  /// Every course (enrol picker).
   Future<List<CourseModel>> getCourseList() async {
     QuerySnapshot<Map<String, dynamic>> snapshot =
         await _firestore.collection(course).get();
@@ -122,6 +131,7 @@ class StudentRepo {
         .toList();
   }
 
+  /// Subjects whose `course_code` is [courseId] (enrol picker).
   Future<List<SubjectModel>> getSubjectList(String courseId) async {
     QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection(subject)
@@ -132,10 +142,12 @@ class StudentRepo {
         .toList();
   }
 
+  /// Visible units (`willShow == true`) that belong to [subjectCode]
+  /// (enrol picker).
   Future<List<UnitModel>> getUnitList({required String subjectCode}) async {
     QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection(unit)
-        .where("subjectCodeList", arrayContains: subjectCode )
+        .where("subjectCodeList", arrayContains: subjectCode)
         .where("willShow", isEqualTo: true)
         .get();
     return snapshot.docs
@@ -143,11 +155,8 @@ class StudentRepo {
         .toList();
   }
 
-  /// The student's enrolment document, or null when they have none.
-  ///
-  /// It used to return `snapshot.docs.first` unguarded, which throws a
-  /// StateError for any student who has never been enrolled in anything —
-  /// that is, every student, the first time you open their settings.
+  /// The student's enrolment document, or null when they have none (a
+  /// student who was never enrolled has no document at all).
   Future<EnrolledCourseBaseModel?> getEnrolledCourseList(
       String studentId) async {
     final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
@@ -158,16 +167,11 @@ class StudentRepo {
     return EnrolledCourseBaseModel.fromDocumentSnapshot(snapshot.docs.first);
   }
 
-  /// Appends [newCourse] to the student's enrolment document, creating a
-  /// properly shaped one if they have none yet.
-  ///
-  /// The old fallback did `studentsRef.add(newCourse)` — it wrote the bare
-  /// *course* map as a top-level document, with no `student_id` and no
-  /// `course_list`, so a student's very first enrolment produced a document
-  /// nothing could read back. It also swallowed the failure and did not
-  /// await the write.
-  Future<void> addCourse(
-      Map<String, dynamic> newCourse, String studentId, String studentName) async {
+  /// Appends [newCourse] to the student's enrolment document. For a first
+  /// enrolment it creates the document with `student_id`, `student_name`
+  /// and a one-item `course_list`.
+  Future<void> addCourse(Map<String, dynamic> newCourse, String studentId,
+      String studentName) async {
     final CollectionReference<Map<String, dynamic>> enrolments =
         _firestore.collection(enrolledCourse);
     final QuerySnapshot<Map<String, dynamic>> snapshot =
@@ -187,11 +191,13 @@ class StudentRepo {
     });
   }
 
-  Future<void> updateEnrolment(
-      String docId, Map<String, dynamic> data) async {
+  /// Overwrites enrolment document [docId] with [data].
+  Future<void> updateEnrolment(String docId, Map<String, dynamic> data) async {
     await _firestore.collection(enrolledCourse).doc(docId).update(data);
   }
 
+  /// Deletes enrolment document [docId] (used when the last subject is
+  /// removed).
   Future<void> deleteEnrolment(String docId) async {
     await _firestore.collection(enrolledCourse).doc(docId).delete();
   }

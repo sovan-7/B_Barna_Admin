@@ -1,3 +1,4 @@
+import 'package:bbarna/core/mixins/safe_notifier.dart';
 import 'package:bbarna/core/widgets/loader_dialog.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/resources/constant.dart';
@@ -8,24 +9,40 @@ import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/units/model/unit_model.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
-class StudentViewModel with ChangeNotifier {
-  // Constructor-injectable so the paging, search and enrolment logic can be
-  // exercised without real Firebase.
+/// State and actions for the Student module.
+///
+/// Two parts:
+/// 1. **The list** – paged (300 per page) with a *local* search over the
+///    loaded pages (name / phone / email), and two sort orders.
+/// 2. **Enrolment** – the student settings screen: picking a course →
+///    subject → units to enrol in, and editing or removing existing
+///    enrolments.
+class StudentViewModel extends ChangeNotifier with SafeNotifier {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
   final StudentRepo _studentRepo;
   StudentViewModel({StudentRepo? studentRepo})
       : _studentRepo = studentRepo ?? StudentRepo();
 
+  // ---- List state -----------------------------------------------------
+
+  /// Students currently shown (the loaded pages after the search filter).
   List<Student> studentList = [];
+
+  /// Every loaded student, unfiltered; the search filters this.
   List<Student> copyStudentList = [];
 
   /// How many the collection holds in total, so the list can say
   /// "showing 300 of 4,200" rather than just "300".
   int studentListLength = 0;
+
+  /// Students fetched per page.
   final int limit = 300;
 
+  /// True while the first page is loading (drives the skeleton rows).
   bool isLoading = true;
+
+  /// True while a further page is loading.
   bool isLoadingMore = false;
 
   /// Search is a local filter over the loaded pages — students are looked
@@ -61,50 +78,8 @@ class StudentViewModel with ChangeNotifier {
     return total < studentList.length ? studentList.length : total;
   }
 
+  /// Whether another page can be loaded (never while searching).
   bool get hasMore => !isSearching && studentList.length < reachableTotal;
-
-  // ---- Enrolment (used by the student settings screens) ---------------
-  List<CourseModel> courseList = [];
-  List<SubjectModel> subjectList = [];
-  List<UnitModel> unitList = [];
-  List<String> selectedUnitList = [];
-  List<String> editedUnitList = [];
-  EnrolledCourseBaseModel? enrolledCourseBaseModel;
-  int selectedUnitLength = 0;
-  int selectedEditedUnitListLength = 0;
-  List<UnitModel> selectedEditUnitList = [];
-  List<UnitModel> editUnitList = [];
-  EnrolledCourseModel? selectedSubjectModel;
-
-  bool _disposed = false;
-
-  @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
-  }
-
-  /// Safe to call from any point in the frame — [StudentList] is mounted
-  /// from `Sidebar.screenList[selectedIndex]` *during* a build.
-  @override
-  void notifyListeners() {
-    if (_disposed) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_disposed) return;
-        super.notifyListeners();
-      });
-      return;
-    }
-    super.notifyListeners();
-  }
-
-  void clearStudentData() {
-    enrolledCourseBaseModel = null;
-    selectedEditUnitList = [];
-    unitList = [];
-  }
 
   // ---- The list -------------------------------------------------------
 
@@ -117,6 +92,8 @@ class StudentViewModel with ChangeNotifier {
     await fetchFirstStudentList();
   }
 
+  /// Loads the first page in the current [sort] order, re-applies the
+  /// search, and refreshes the counts.
   Future<void> fetchFirstStudentList() async {
     isLoading = true;
     isSearching = false;
@@ -138,6 +115,7 @@ class StudentViewModel with ChangeNotifier {
     }
   }
 
+  /// Appends the next page (no-op while loading or when nothing is left).
   Future<void> fetchNextStudentList() async {
     if (isLoadingMore || !hasMore) return;
 
@@ -155,8 +133,8 @@ class StudentViewModel with ChangeNotifier {
     }
   }
 
-  /// Kept for the screens that called it directly; the count now arrives
-  /// with the first page.
+  /// Refreshes just [studentListLength]. [fetchFirstStudentList] already
+  /// does this; kept for screens that call it on its own.
   Future<void> getStudentListLength() async {
     try {
       studentListLength = await _studentRepo.getStudentListLength();
@@ -169,12 +147,14 @@ class StudentViewModel with ChangeNotifier {
   /// re-applied after every refetch instead of showing everything.
   String searchText = "";
 
+  /// Filters the loaded students locally by name, phone or email.
   void searchStudent({required String searchText}) {
     this.searchText = searchText;
     _applySearch();
     notifyListeners();
   }
 
+  /// Rebuilds [studentList] from [copyStudentList] using [searchText].
   void _applySearch() {
     final String query = searchText.toLowerCase().trim();
     isSearching = query.isNotEmpty;
@@ -190,13 +170,9 @@ class StudentViewModel with ChangeNotifier {
     }
   }
 
-  /// Deletes by document id and drops that row from both lists.
-  ///
-  /// The list widget used to delete straight through
-  /// `FirebaseFirestore.instance` and then call `removeStudent(index)`,
-  /// which removed whatever row happened to sit at that index — and left
-  /// `copyStudentList` holding the deleted student, so clearing the search
-  /// brought them back.
+  /// Deletes by document id and, on success, drops that student from both
+  /// the shown and the unfiltered list (so clearing the search does not
+  /// bring them back) and lowers the total.
   Future<bool> deleteStudent(String studentId) async {
     try {
       await _studentRepo.deleteStudent(studentId);
@@ -213,7 +189,8 @@ class StudentViewModel with ChangeNotifier {
     }
   }
 
-  /// Signs the student out of every device.
+  /// Signs the student out of every device by resetting their device
+  /// count, and mirrors that on the loaded row.
   Future<bool> clearDeviceCount(String studentId) async {
     try {
       await _studentRepo.clearDeviceCount(studentId);
@@ -229,12 +206,64 @@ class StudentViewModel with ChangeNotifier {
     }
   }
 
-  // ---- Enrolment ------------------------------------------------------
+  // ---- Enrolment state (student settings screen) ---------------------
+  //
+  // The picker lists (courseList → subjectList → unitList) feed the
+  // "Enrol" card. Unit selection is tracked positionally: selectedUnitList
+  // has one slot per unit in unitList, holding the unit code when ticked
+  // and "" when not. The "edit" lists do the same for an existing
+  // enrolment's units.
 
+  /// Courses offered in the enrol picker.
+  List<CourseModel> courseList = [];
+
+  /// Subjects of the course picked in the enrol card.
+  List<SubjectModel> subjectList = [];
+
+  /// Units of the subject picked in the enrol card.
+  List<UnitModel> unitList = [];
+
+  /// One slot per [unitList] entry: the unit code if ticked, else "".
+  List<String> selectedUnitList = [];
+
+  /// One slot per [selectedEditUnitList] entry: the unit code if ticked,
+  /// else "" (editing an existing enrolment).
+  List<String> editedUnitList = [];
+
+  /// The student's enrolment document (all enrolled subjects), or null
+  /// when they have none.
+  EnrolledCourseBaseModel? enrolledCourseBaseModel;
+
+  /// How many units are ticked in [selectedUnitList].
+  int selectedUnitLength = 0;
+
+  /// How many units are ticked in [editedUnitList].
+  int selectedEditedUnitListLength = 0;
+
+  /// All units of the enrolled subject being edited.
+  List<UnitModel> selectedEditUnitList = [];
+
+  /// Units handed to the edit dialog by the screen.
+  List<UnitModel> editUnitList = [];
+
+  /// The enrolled subject currently being edited.
+  EnrolledCourseModel? selectedSubjectModel;
+
+  /// Resets the per-student enrolment state when the settings screen opens
+  /// for a different student.
+  void clearStudentData() {
+    enrolledCourseBaseModel = null;
+    selectedEditUnitList = [];
+    unitList = [];
+  }
+
+  // ---- Enrolment actions ------------------------------------------------
+
+  /// Loads the student's enrolment document into
+  /// [enrolledCourseBaseModel] (null when they have none or on error).
   Future<void> getEnrolledCourseList(String studentId) async {
     try {
-      // Null when the student has no enrolments — the repo used to take
-      // `docs.first` unguarded and throw.
+      // The repo returns null when the student has no enrolments.
       enrolledCourseBaseModel =
           await _studentRepo.getEnrolledCourseList(studentId);
     } catch (e) {
@@ -243,11 +272,9 @@ class StudentViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Loads the courses for the enrolment picker.
-  ///
-  /// This used to push the global loader dialog and pop it on completion.
-  /// It is called from a screen's `initState`, and the dialog is scheduled
-  /// 100ms out — so a fetch that finished first popped the *page* instead.
+  /// Loads the courses for the enrol picker. Uses no loader dialog: it is
+  /// called from `initState`, where a delayed dialog could end up popping
+  /// the page instead of itself.
   Future<void> getCourseList() async {
     try {
       courseList = await _studentRepo.getCourseList();
@@ -258,6 +285,7 @@ class StudentViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Loads the subjects of [courseCode] and clears the unit picker.
   Future<void> getSubjectList(String courseCode) async {
     try {
       subjectList = await _studentRepo.getSubjectList(courseCode);
@@ -268,6 +296,7 @@ class StudentViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Loads the units of [subjectCode] with none ticked.
   Future<void> getUnitList({required String subjectCode}) async {
     clearUnitList();
     notifyListeners();
@@ -282,6 +311,7 @@ class StudentViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Empties the unit picker.
   // Reassign rather than `.clear()`: `selectedUnitList` comes from
   // `List.filled`, which is fixed-length and throws on clear.
   void clearUnitList() {
@@ -289,10 +319,14 @@ class StudentViewModel with ChangeNotifier {
     unitList = [];
     selectedUnitLength = 0;
   }
+
+  /// Empties the subject picker.
   void clearSubjectList() {
     subjectList = [];
-    selectedSubjectModel=null;
+    selectedSubjectModel = null;
   }
+
+  /// Ticks / unticks unit [index] in the enrol card.
   void updateCheckList(int index) {
     selectedUnitList[index] =
         selectedUnitList[index] == "" ? unitList[index].code : "";
@@ -301,6 +335,8 @@ class StudentViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// "Select all" in the enrol card: ticks every unit, or unticks all of
+  /// them if every one was already ticked.
   void setAllCheckList() {
     final bool selectAll = selectedUnitList.contains("");
     for (int i = 0; i < unitList.length; i++) {
@@ -311,6 +347,9 @@ class StudentViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Enrols the student in [subjectCode] with the ticked units, valid until
+  /// [accessTill] (epoch ms), then reloads their enrolments. Shows the
+  /// global loader dialog while saving.
   Future<void> enrolledCourse(
     String subjectCode,
     String subjectName,
@@ -341,6 +380,8 @@ class StudentViewModel with ChangeNotifier {
     }
   }
 
+  /// Removes enrolled subject [courseId]. If it was the last one, the whole
+  /// enrolment document is deleted. Pops the open confirmation dialog.
   Future<void> removeCourse(String courseId) async {
     final EnrolledCourseBaseModel? enrolment = enrolledCourseBaseModel;
     if (enrolment == null) return;
@@ -365,6 +406,8 @@ class StudentViewModel with ChangeNotifier {
     }
   }
 
+  /// Prepares the "edit units" dialog for enrolled subject [subjectCode]:
+  /// loads all its units and pre-ticks the ones already enrolled.
   Future<void> setEditedUnitList(String subjectCode) async {
     selectedEditUnitList = [];
     selectedSubjectModel = enrolledCourseBaseModel?.enrolledCourseList
@@ -390,6 +433,8 @@ class StudentViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// "Select all" in the edit dialog (same toggle rule as
+  /// [setAllCheckList]).
   void updateEditedUnitList() {
     final bool selectAll = editedUnitList.contains("");
     for (int i = 0; i < editedUnitList.length; i++) {
@@ -400,6 +445,7 @@ class StudentViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Ticks / unticks unit [index] in the edit dialog.
   void updateEditedCheckList(int index) {
     editedUnitList[index] =
         editedUnitList[index] == "" ? selectedEditUnitList[index].code : "";
@@ -408,11 +454,14 @@ class StudentViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Stores the units the edit dialog should show.
   void setEditUnitData(List<UnitModel> unitData) {
     editUnitList = unitData;
     notifyListeners();
   }
 
+  /// Saves the edit dialog: replaces enrolled subject [courseId]'s unit
+  /// list with the ticked units. Shows the global loader dialog.
   Future<void> updateEditUnitCourse(String courseId) async {
     final EnrolledCourseBaseModel? enrolment = enrolledCourseBaseModel;
     if (enrolment == null) return;

@@ -1,99 +1,78 @@
 import 'dart:typed_data';
+
+import 'package:bbarna/core/repo/firestore_pager.dart';
+import 'package:bbarna/core/repo/storage_upload.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/units/model/unit_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+/// Firestore / Storage access for the `unit` collection, plus the subject
+/// lookup the unit form's "Subject" dropdown needs.
+///
+/// Every method throws on failure; [UnitViewModel] catches and reports.
 class UnitRepo {
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
   final Reference storageReference = FirebaseStorage.instance.ref();
 
-  /// Returns the new document's id — no caller wants the reference itself,
-  /// and being a sealed Firestore type it cannot be faked in a test.
+  /// The `unit` collection.
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _fireStore.collection(unit);
+
+  /// Newest-first paging with the cursor kept here, not in the view model.
+  late final FirestorePager _pager = FirestorePager(_collection);
+
+  /// Converts raw documents into models.
+  List<UnitModel> _toModels(List<FirestoreDoc> docs) =>
+      docs.map((doc) => UnitModel.fromDocumentSnapshot(doc)).toList();
+
+  /// Adds a unit and returns the new document's id.
   Future<String> addUnit(UnitModel unitModel) async {
     final DocumentReference<Map<String, dynamic>> doc =
-        await _fireStore.collection(unit).add(unitModel.toMap());
+        await _collection.add(unitModel.toMap());
     return doc.id;
   }
 
-  /// The paging cursor lives here rather than in the view model.
-  ///
-  /// It is a Firestore [DocumentSnapshot] — a sealed type — so a view model
-  /// that held it could not be exercised without real Firebase. Keeping it
-  /// behind the repo means the pages come back as plain models.
-  DocumentSnapshot<Map<String, dynamic>>? _cursor;
+  /// First page, newest first. Resets the paging cursor.
+  Future<List<UnitModel>> getFirstUnitList(int limit) async =>
+      _toModels(await _pager.firstPage(limit));
 
-  /// First page, newest first. Resets the cursor.
-  Future<List<UnitModel>> getFirstUnitList(int limit) async {
-    final QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(unit)
-        .orderBy("timeStamp", descending: true)
-        .limit(limit)
-        .get();
-    _cursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
-    return snapshot.docs
-        .map((doc) => UnitModel.fromDocumentSnapshot(doc))
-        .toList();
-  }
+  /// The page after the last one returned (empty when there is none).
+  Future<List<UnitModel>> getNextUnitList(int limit) async =>
+      _toModels(await _pager.nextPage(limit));
 
-  /// The page after the last one returned. Empty when there is no cursor
-  /// yet or nothing further to read.
-  Future<List<UnitModel>> getNextUnitList(int limit) async {
-    final DocumentSnapshot<Map<String, dynamic>>? cursor = _cursor;
-    if (cursor == null) return const [];
-
-    final QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(unit)
-        .orderBy("timeStamp", descending: true)
-        .startAfterDocument(cursor)
-        .limit(limit)
-        .get();
-    if (snapshot.docs.isNotEmpty) _cursor = snapshot.docs.last;
-    return snapshot.docs
-        .map((doc) => UnitModel.fromDocumentSnapshot(doc))
-        .toList();
-  }
-
-  /// Uploads [image] and points the unit document at it.
-  ///
-  /// Keyed by [unitId], not by unit code. The old path was
-  /// `img_unit_$unitCode`, and unit codes are not unique across subjects —
-  /// two units sharing a code silently overwrote each other's picture.
-  ///
-  /// Throws on failure rather than swallowing it: the caller used to report
-  /// "Unit added successfully" straight over the top of the error.
+  /// Uploads [image] to `images/img_unit_<unitId>` and stores its download
+  /// URL as `unit_image`. Keyed by document id because unit codes are not
+  /// unique across subjects.
   Future<void> uploadUnitImage(Uint8List image, String unitId) async {
-    final Reference referenceDirImages = storageReference.child("images");
-    final Reference referenceImageToUpload =
-        referenceDirImages.child("img_unit_$unitId");
-
-    final metadata = SettableMetadata(contentType: "image/jpeg");
-    await referenceImageToUpload.putData(image, metadata);
-    final String imageUrl = await referenceImageToUpload.getDownloadURL();
-    await _fireStore
-        .collection(unit)
-        .doc(unitId)
-        .update({"unit_image": imageUrl});
+    final String url = await uploadToStorage(
+      storageReference.child("images").child("img_unit_$unitId"),
+      image,
+      contentType: jpegContentType,
+    );
+    await _collection.doc(unitId).update({"unit_image": url});
   }
 
+  /// Overwrites the unit's fields.
   Future<void> updateUnit(UnitModel unitModel, String unitId) async {
-    await _fireStore.collection(unit).doc(unitId).update(unitModel.toMap());
+    await _collection.doc(unitId).update(unitModel.toMap());
   }
 
-  /// Flips one flag. The lock used to be a raw `FirebaseFirestore.instance`
-  /// call made from inside the list widget.
+  /// Sets one boolean [field] (e.g. `lock_status`) on a unit.
   Future<void> setUnitFlag(String unitId, String field, bool value) async {
-    await _fireStore.collection(unit).doc(unitId).update({field: value});
+    await _collection.doc(unitId).update({field: value});
   }
 
+  /// Deletes the unit document.
   Future<void> deleteUnit(String unitId) async {
-    await _fireStore.collection(unit).doc(unitId).delete();
+    await _collection.doc(unitId).delete();
   }
 
+  /// All subjects whose `course_code` is [courseCode].
   Future<List<SubjectModel>> getSubjectListByCourseCode(
       String courseCode) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
         .collection(subject)
         .where("course_code", isEqualTo: courseCode)
         .get();
@@ -102,22 +81,10 @@ class UnitRepo {
         .toList();
   }
 
-  Future<int> getUnitListLength() async {
-    AggregateQuerySnapshot countSnapshot =
-        await _fireStore.collection(unit).count().get();
-    return countSnapshot.count ?? 0;
-  }
+  /// Total units in the collection.
+  Future<int> getUnitListLength() => countDocuments(_collection);
 
-  /// Prefix match on `unit_code`, server-side — the collection is paged
-  /// precisely because it is too big to filter in memory.
-  Future<List<UnitModel>> searchUnit(String searchText) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(unit)
-        .where("unit_code", isGreaterThanOrEqualTo: searchText)
-        .where("unit_code", isLessThan: '${searchText}z')
-        .get();
-    return snapshot.docs
-        .map((docSnapshot) => UnitModel.fromDocumentSnapshot(docSnapshot))
-        .toList();
-  }
+  /// Units whose `unit_code` starts with [searchText].
+  Future<List<UnitModel>> searchUnit(String searchText) async =>
+      _toModels(await prefixSearch(_collection, "unit_code", searchText));
 }

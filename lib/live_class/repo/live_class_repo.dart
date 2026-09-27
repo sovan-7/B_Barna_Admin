@@ -3,14 +3,16 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// A teacher as the class form needs them: a name to show and the document
-/// id to store.
-///
-/// The form used to work in bare names, so nothing could record *which*
-/// teacher was picked — and the student app needs the id to mark who is
-/// teaching in the live room's chat and people list.
+/// id to store (the student app uses the id to mark who is teaching in the
+/// live room's chat and people list).
 class LiveClassTeacher {
+  /// Teacher document id.
   final String id;
+
+  /// Display name.
   final String name;
+
+  /// Phone number; empty when not set.
   final String phoneNumber;
   const LiveClassTeacher(
       {required this.id, required this.name, this.phoneNumber = ""});
@@ -19,22 +21,27 @@ class LiveClassTeacher {
 /// A subject as the class form needs it: the name shown on the student's
 /// class card, and the code stored alongside it.
 class LiveClassSubject {
+  /// Subject code stored on the class.
   final String code;
+
+  /// Subject name printed on the student's class card.
   final String name;
   const LiveClassSubject({required this.code, required this.name});
 }
 
+/// Firestore access for live classes, plus the teacher / subject lookups
+/// the class form's dropdowns need. Firestore is injectable for tests.
+///
+/// Every method throws on failure; [LiveClassViewModel] catches and
+/// reports.
 class LiveClassRepo {
   final FirebaseFirestore _fireStore;
 
   LiveClassRepo({FirebaseFirestore? firestore})
       : _fireStore = firestore ?? FirebaseFirestore.instance;
 
-  /// Adds the doc with server-stamped `createdAt`/`updatedAt` so ordering
-  /// can't be skewed by a wrong clock on the admin's machine.
-  /// Returns void rather than the new DocumentReference: no caller wants
-  /// the reference, and handing back a sealed Firestore type forces every
-  /// test that stubs this method to fake one.
+  /// Adds the class with server-stamped `createdAt`/`updatedAt`, so a wrong
+  /// clock on the admin's machine cannot skew ordering.
   Future<void> addLiveClass(LiveClassModel liveClassModel) async {
     await _fireStore.collection(liveClasses).add({
       ...liveClassModel.toMap(),
@@ -53,10 +60,9 @@ class LiveClassRepo {
 
   /// Rewrites a class that is still in the old shape.
   ///
-  /// Beyond a plain [updateLiveClass] it also deletes the four superseded
-  /// keys. `update()` merges, so without this the document would carry both
-  /// spellings of every field forever — and the next person reading it would
-  /// have no way to tell which one is authoritative.
+  /// Like [updateLiveClass], but also deletes the four superseded keys —
+  /// `update()` merges, so otherwise the document would keep both
+  /// spellings of every field.
   Future<void> migrateToAppSchema(LiveClassModel liveClassModel) async {
     await _fireStore.collection(liveClasses).doc(liveClassModel.docId).update({
       ...liveClassModel.toMap(),
@@ -68,18 +74,17 @@ class LiveClassRepo {
     });
   }
 
+  /// Deletes the class document.
   Future<void> deleteLiveClass(String docId) async {
     await _fireStore.collection(liveClasses).doc(docId).delete();
   }
 
-  /// Newest-scheduled first. The whole collection is fetched in one go (no
-  /// paging) — same shape as the Teacher module, and appropriate while a
-  /// class list stays in the tens/low hundreds.
+  /// Every class, newest-scheduled first. The whole collection is fetched
+  /// at once (no paging).
   ///
-  /// Sorted here rather than with `orderBy`. A Firestore `orderBy` silently
-  /// drops every document missing the field, so ordering on `startTime`
-  /// would have hidden every class saved before the schema was aligned —
-  /// exactly the documents an admin needs to find in order to re-save them.
+  /// Sorted in memory rather than with `orderBy`: Firestore's `orderBy`
+  /// silently drops documents missing the field, which would hide classes
+  /// still saved in the old shape.
   Future<List<LiveClassModel>> getLiveClassList() async {
     final QuerySnapshot<Map<String, dynamic>> snapshot =
         await _fireStore.collection(liveClasses).get();
@@ -90,9 +95,8 @@ class LiveClassRepo {
     return classes;
   }
 
-  /// The Teacher dropdown on the add/edit form, read straight from the
-  /// `teacher` collection (same cross-collection read VideoRepo does for
-  /// subjects). Sorted case-insensitively; blanks dropped.
+  /// Options for the Teacher dropdown, read from the `teacher` collection.
+  /// Sorted case-insensitively; blank / default names are dropped.
   Future<List<LiveClassTeacher>> getTeachers() async {
     final QuerySnapshot<Map<String, dynamic>> snapshot =
         await _fireStore.collection(teacher).get();
@@ -100,17 +104,16 @@ class LiveClassRepo {
         .map((doc) => LiveClassTeacher(
             id: doc.id,
             name: (doc.data()["name"] ?? "").toString().trim(),
-            phoneNumber:
-                (doc.data()["phone_number"] ?? "").toString().trim()))
+            phoneNumber: (doc.data()["phone_number"] ?? "").toString().trim()))
         .where((t) => t.name.isNotEmpty && t.name != stringDefault)
         .toList();
-    teachers.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    teachers
+        .sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return teachers;
   }
 
-  /// The Subject dropdown on the add/edit form. The app prints the subject's
-  /// name on every class card, so a class saved without one shows a blank
-  /// line where the subject belongs.
+  /// Options for the Subject dropdown, read from the `subject` collection.
+  /// Sorted case-insensitively; blank / default names are dropped.
   Future<List<LiveClassSubject>> getSubjects() async {
     final QuerySnapshot<Map<String, dynamic>> snapshot =
         await _fireStore.collection(subject).get();
@@ -121,7 +124,8 @@ class LiveClassRepo {
             ))
         .where((s) => s.name.isNotEmpty && s.name != stringDefault)
         .toList();
-    subjects.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    subjects
+        .sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return subjects;
   }
 }

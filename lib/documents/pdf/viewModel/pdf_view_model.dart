@@ -1,97 +1,62 @@
-import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:bbarna/core/viewModel/paged_list_view_model.dart';
 import 'package:bbarna/documents/pdf/model/pdf_model.dart';
 import 'package:bbarna/documents/pdf/repo/pdf_repo.dart';
 import 'package:bbarna/utils/helper.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
-class PdfViewModel with ChangeNotifier {
-  // Constructor-injectable so the paging, search and save logic can be
-  // exercised without real Firebase.
+/// State and actions for the PDF module: the paged/searchable PDF list
+/// (inherited from [PagedListViewModel]) plus create, update, delete and
+/// the lock / downloadable toggles.
+class PdfViewModel extends PagedListViewModel<PdfModel> {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
   final PdfRepo _pdfRepo;
+
   PdfViewModel({PdfRepo? pdfRepo}) : _pdfRepo = pdfRepo ?? PdfRepo();
 
-  List<PdfModel> pdfList = [];
-
-  /// How many the collection holds in total, so the list can say
-  /// "showing 50 of 320" rather than just "50".
-  int pdfListLength = 0;
-  final int limit = 50;
-
-  bool isLoading = true;
-  bool isLoadingMore = false;
-
-  /// Set while a search is showing, because searching queries the server
-  /// separately and paging does not apply to the result.
-  bool isSearching = false;
-
-  Timer? _debounce;
-  bool _disposed = false;
-
-  bool get hasMore => !isSearching && pdfList.length < pdfListLength;
+  // ---- Paging hooks (see PagedListViewModel) -----------------------------
 
   @override
-  void dispose() {
-    _debounce?.cancel();
-    _disposed = true;
-    super.dispose();
-  }
+  String get itemsLabel => "PDFs";
 
-  /// Safe to call from any point in the frame — [PDFList] is mounted from
-  /// `Sidebar.screenList[selectedIndex]` *during* a build.
   @override
-  void notifyListeners() {
-    if (_disposed) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_disposed) return;
-        super.notifyListeners();
-      });
-      return;
-    }
-    super.notifyListeners();
-  }
+  Future<List<PdfModel>> fetchFirstPage(int limit) =>
+      _pdfRepo.getFirstPdfList(limit);
 
-  Future<void> getFirstPdfList() async {
-    isLoading = true;
-    isSearching = false;
-    notifyListeners();
-    try {
-      pdfList = await _pdfRepo.getFirstPdfList(limit);
-      pdfListLength = await _pdfRepo.getPdfListLength();
-    } catch (e) {
-      Helper.showSnackBarMessage(
-          msg: "Error while fetching PDFs", isSuccess: false);
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
-  }
+  @override
+  Future<List<PdfModel>> fetchNextPage(int limit) =>
+      _pdfRepo.getNextPdfList(limit);
 
-  Future<void> getNextPdfList() async {
-    if (isLoadingMore || !hasMore) return;
+  @override
+  Future<int> fetchTotalCount() => _pdfRepo.getPdfListLength();
 
-    isLoadingMore = true;
-    notifyListeners();
-    try {
-      pdfList.addAll(await _pdfRepo.getNextPdfList(limit));
-    } catch (e) {
-      Helper.showSnackBarMessage(
-          msg: "Error while fetching more PDFs", isSuccess: false);
-    } finally {
-      isLoadingMore = false;
-      notifyListeners();
-    }
-  }
+  @override
+  Future<List<PdfModel>> fetchSearchResults(String query) =>
+      _pdfRepo.searchPdf(query);
+
+  // ---- Module-specific names used by screens and tests -------------------
+
+  /// PDFs currently on screen (a page, or search results).
+  List<PdfModel> get pdfList => items;
+
+  /// Total PDFs in the collection.
+  int get pdfListLength => totalCount;
+
+  /// Loads the first page of PDFs.
+  Future<void> getFirstPdfList() => loadFirstPage();
+
+  /// Appends the next page of PDFs.
+  Future<void> getNextPdfList() => loadNextPage();
+
+  /// Debounced prefix search on the PDF code.
+  Future<void> searchPdf({required String searchText}) => search(searchText);
+
+  // ---- Create / update / delete ------------------------------------------
 
   /// Creates the document and uploads its file as one operation.
   ///
-  /// A PDF row exists only to point at a file, so a document whose upload
-  /// failed is not a partial PDF — it is a broken row. The empty document
-  /// is removed again and the caller is told the truth.
+  /// A PDF row exists only to point at a file, so if the upload fails the
+  /// new (empty) document is deleted again and `false` is returned.
   Future<bool> createPdf(PdfModel pdfModel, Uint8List file) async {
     String? docId;
     try {
@@ -99,6 +64,7 @@ class PdfViewModel with ChangeNotifier {
       await _pdfRepo.uploadPdf(file, docId);
       return true;
     } catch (e) {
+      // Roll back the half-created row; ignore a failure to do so.
       if (docId != null) {
         try {
           await _pdfRepo.deletePdf(docId);
@@ -110,8 +76,8 @@ class PdfViewModel with ChangeNotifier {
     }
   }
 
-  /// [file] is null when the admin did not pick a new one — the existing
-  /// file is then left exactly as it is.
+  /// Saves the edited fields. [file] is null when the admin did not pick a
+  /// new file — the existing one is then left exactly as it is.
   Future<bool> updatePdf(PdfModel pdfModel, String docId,
       {Uint8List? file}) async {
     try {
@@ -127,6 +93,8 @@ class PdfViewModel with ChangeNotifier {
     }
   }
 
+  /// Deletes the PDF document. Returns `false` (and shows a toast) on
+  /// failure.
   Future<bool> deletePdf(String docId) async {
     try {
       await _pdfRepo.deletePdf(docId);
@@ -138,9 +106,10 @@ class PdfViewModel with ChangeNotifier {
     }
   }
 
-  /// Flips the lock and updates the row in place. The old toggle wrote to
-  /// Firestore and did nothing else at all — not even a refetch — so the
-  /// padlock stayed as it was until you left the screen and came back.
+  // ---- Flags ---------------------------------------------------------------
+
+  /// Flips `is_locked` in Firestore and, on success, on the in-memory row
+  /// so the padlock updates without a refetch.
   Future<bool> toggleLocked(PdfModel pdfModel) async {
     final bool next = !pdfModel.isLocked;
     final bool ok = await _setFlag(pdfModel.docId, "is_locked", next);
@@ -151,6 +120,7 @@ class PdfViewModel with ChangeNotifier {
     return ok;
   }
 
+  /// Flips `is_downloadable` the same way as [toggleLocked].
   Future<bool> toggleDownloadable(PdfModel pdfModel) async {
     final bool next = !pdfModel.isDownloadable;
     final bool ok = await _setFlag(pdfModel.docId, "is_downloadable", next);
@@ -161,6 +131,8 @@ class PdfViewModel with ChangeNotifier {
     return ok;
   }
 
+  /// Writes one boolean [field] on the document; toasts and returns
+  /// `false` on failure.
   Future<bool> _setFlag(String docId, String field, bool value) async {
     try {
       await _pdfRepo.setPdfFlag(docId, field, value);
@@ -169,54 +141,6 @@ class PdfViewModel with ChangeNotifier {
       Helper.showSnackBarMessage(
           msg: "Error while updating the PDF", isSuccess: false);
       return false;
-    }
-  }
-
-  /// What the search box last held. Kept here rather than on the list
-  /// screen so it survives the round trip to Add/Edit, and so [refresh]
-  /// puts the same results back instead of the unfiltered first page.
-  String searchText = "";
-
-  /// Debounced prefix search on the PDF code, run server-side because the
-  /// collection is paged and most of it is not in memory.
-  Future<void> searchPdf({required String searchText}) async {
-    this.searchText = searchText;
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), _runSearch);
-  }
-
-  /// Reloads what the list is showing: the current search's results if
-  /// there is one, otherwise the first page. The list calls this after
-  /// Add/Edit rather than refetching the first page over a search.
-  Future<void> refresh() {
-    _debounce?.cancel();
-    return _runSearch();
-  }
-
-  Future<void> _runSearch() async {
-    final String query = searchText.trim();
-    if (query.isEmpty) {
-      await getFirstPdfList();
-      return;
-    }
-
-    isSearching = true;
-    isLoading = true;
-    notifyListeners();
-    try {
-      final results = await _pdfRepo.searchPdf(query.toUpperCase());
-      // A newer search (or a refresh) has taken over meanwhile.
-      if (query != searchText.trim()) return;
-      pdfList = results;
-    } catch (e) {
-      pdfList = [];
-      // The old catch popped the current route before showing this —
-      // a failed search took the whole page off the navigator.
-      Helper.showSnackBarMessage(
-          msg: "Error while searching PDFs", isSuccess: false);
-    } finally {
-      isLoading = false;
-      notifyListeners();
     }
   }
 }

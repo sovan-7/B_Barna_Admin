@@ -1,52 +1,30 @@
 import 'dart:typed_data';
 
+import 'package:bbarna/core/mixins/safe_notifier.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/course/repo/course_repo.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
-class CourseViewModel with ChangeNotifier {
-  // Constructor-injectable so the list, search and save logic can be
-  // exercised without real Firebase.
+/// State and actions for the Course module: the full course list with a
+/// local search, create/update/delete with image upload, and the lock
+/// toggle. Other forms read [allCourses] for their "Course" dropdown.
+class CourseViewModel extends ChangeNotifier with SafeNotifier {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
   final CourseRepo _courseRepo;
   CourseViewModel({CourseRepo? courseRepo})
       : _courseRepo = courseRepo ?? CourseRepo();
 
+  /// Courses currently shown (after the search filter), newest first.
   List<CourseModel> courseList = [];
+
+  /// Every course, unfiltered; the search filters this.
   List<CourseModel> copyCourseList = [];
 
-  /// Drives the list's own skeletons. The module used to reach for the
-  /// global [LoaderDialogs] overlay, which pushes a route — from
-  /// `initState`, while the sidebar shell was still building.
+  /// True while the list is loading (drives the skeleton rows).
   bool isLoading = true;
 
-  bool _disposed = false;
-
-  @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
-  }
-
-  /// Safe to call from any point in the frame — [CourseList] is mounted
-  /// from `Sidebar.screenList[selectedIndex]` *during* a build, so a
-  /// synchronous notify from there would throw "setState() called during
-  /// build".
-  @override
-  void notifyListeners() {
-    if (_disposed) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_disposed) return;
-        super.notifyListeners();
-      });
-      return;
-    }
-    super.notifyListeners();
-  }
-
+  /// Loads every course, sorts newest first and re-applies the search.
   Future<void> getCourseList() async {
     isLoading = true;
     notifyListeners();
@@ -64,11 +42,9 @@ class CourseViewModel with ChangeNotifier {
     }
   }
 
-  /// Creates the document and uploads its image as one operation.
-  ///
-  /// A course whose image upload failed is a row the list can only render
-  /// as a broken thumbnail, so the empty document is removed again and the
-  /// caller is told the truth instead of "added successfully".
+  /// Creates the document and uploads its image as one operation. If the
+  /// upload fails the new document is deleted again (so the list never
+  /// shows a broken thumbnail) and `false` is returned.
   Future<bool> createCourse(CourseModel courseModel, Uint8List image) async {
     String? docId;
     try {
@@ -104,6 +80,7 @@ class CourseViewModel with ChangeNotifier {
     }
   }
 
+  /// Deletes the course. Returns `false` (and shows a toast) on failure.
   Future<bool> deleteCourse(String courseId) async {
     try {
       await _courseRepo.deleteCourse(courseId);
@@ -141,12 +118,14 @@ class CourseViewModel with ChangeNotifier {
   /// [courseList] would offer them only the courses a search matched.
   List<CourseModel> get allCourses => copyCourseList;
 
+  /// Filters [courseList] by code or name (case-insensitive).
   void searchCourse({required String searchText}) {
     this.searchText = searchText;
     _applySearch();
     notifyListeners();
   }
 
+  /// Rebuilds [courseList] from [copyCourseList] using [searchText].
   void _applySearch() {
     final String query = searchText.toLowerCase().trim();
     if (query.isEmpty) {
@@ -160,7 +139,7 @@ class CourseViewModel with ChangeNotifier {
     }
   }
 
-  /// Newest first.
+  /// Sorts [courseList] newest first.
   void filterCourse() {
     courseList.sort((a, b) => b.timeStamp.compareTo(a.timeStamp));
   }

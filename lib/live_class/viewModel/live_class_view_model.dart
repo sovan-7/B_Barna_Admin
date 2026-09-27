@@ -1,67 +1,40 @@
+import 'package:bbarna/core/mixins/safe_notifier.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
 import 'package:bbarna/live_class/repo/live_class_repo.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
-class LiveClassViewModel with ChangeNotifier {
-  // Constructor-injectable like TeacherViewModel (and unlike the older
-  // ViewModels, which new their repo inline) so the list/status logic below
-  // can be exercised without real Firebase.
+/// State and actions for the Live Class module: the class list split into
+/// Upcoming / Live / Past tabs with a local search, add / update / delete,
+/// the teacher and subject dropdown data, and the one-off "sync classes
+/// for the app" migration.
+class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
   final LiveClassRepo _liveClassRepo;
   LiveClassViewModel({LiveClassRepo? liveClassRepo})
       : _liveClassRepo = liveClassRepo ?? LiveClassRepo();
 
-  bool _disposed = false;
-
-  @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
-  }
-
-  /// Safe to call from any point in the frame.
-  ///
-  /// [LiveClassList] is mounted from `Sidebar.screenList[selectedIndex]`
-  /// *during* a build, and the refresh entry points below (a route's
-  /// `whenComplete`, the search field, tab selection) can each land while
-  /// the framework is mid-build — notifying then throws "setState() or
-  /// markNeedsBuild() called during build" and the list is left showing a
-  /// stale frame. Deferring to the end of the current frame keeps every
-  /// caller free of scheduling concerns; outside a build it notifies
-  /// synchronously as usual.
-  @override
-  void notifyListeners() {
-    if (_disposed) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_disposed) return;
-        super.notifyListeners();
-      });
-      return;
-    }
-    super.notifyListeners();
-  }
-
+  /// Classes currently shown (after the search filter).
   List<LiveClassModel> liveClassList = [];
+
+  /// Every class, unfiltered; the search filters this.
   List<LiveClassModel> copyLiveClassList = [];
+
+  /// Options for the form's Teacher dropdown.
   List<LiveClassTeacher> teachers = [];
+
+  /// Options for the form's Subject dropdown.
   List<LiveClassSubject> subjects = [];
 
-  /// Drives the inline spinner/empty state on [LiveClassList]. This module
-  /// deliberately uses an in-place loading flag rather than the global
-  /// LoaderDialogs overlay: the list is embedded in the sidebar shell, so
-  /// there is no pushed route for the dialog's `Navigator.pop` to unwind.
-  ///
-  /// Starts true so the first frame — rendered before the deferred
-  /// [getLiveClassList] in LiveClassList.initState runs — shows the loader
-  /// rather than flashing "No upcoming classes".
+  /// True while the list is loading (drives the skeleton cards). Starts
+  /// true so the first frame shows the loader rather than flashing
+  /// "No upcoming classes".
   bool isLoading = true;
 
   /// The tab currently selected on the list screen.
   LiveClassStatus selectedStatus = LiveClassStatus.upcoming;
 
+  /// Loads every class and re-applies the search.
   Future<void> getLiveClassList() async {
     isLoading = true;
     notifyListeners();
@@ -77,6 +50,7 @@ class LiveClassViewModel with ChangeNotifier {
     }
   }
 
+  /// Loads the Teacher dropdown options (empty on failure).
   Future<void> getTeachers() async {
     try {
       teachers = await _liveClassRepo.getTeachers();
@@ -86,6 +60,7 @@ class LiveClassViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Loads the Subject dropdown options (empty on failure).
   Future<void> getSubjects() async {
     try {
       subjects = await _liveClassRepo.getSubjects();
@@ -139,6 +114,7 @@ class LiveClassViewModel with ChangeNotifier {
     return migrated;
   }
 
+  /// Switches the list to the [status] tab.
   void selectStatus(LiveClassStatus status) {
     selectedStatus = status;
     notifyListeners();
@@ -157,11 +133,12 @@ class LiveClassViewModel with ChangeNotifier {
     return filtered;
   }
 
+  /// How many classes are in [status] (shown on the tab).
   int countFor(LiveClassStatus status, {DateTime? now}) =>
       classesFor(status, now: now).length;
 
-  /// Returns true on success; on failure shows a snackbar and returns false,
-  /// leaving the caller on the form (same contract as TeacherViewModel).
+  /// Adds a class. Returns true on success; on failure shows a toast and
+  /// returns false, leaving the caller on the form.
   Future<bool> addLiveClass(LiveClassModel liveClassModel) async {
     try {
       await _liveClassRepo.addLiveClass(liveClassModel);
@@ -173,6 +150,7 @@ class LiveClassViewModel with ChangeNotifier {
     }
   }
 
+  /// Saves an edited class (same contract as [addLiveClass]).
   Future<bool> updateLiveClass(LiveClassModel liveClassModel) async {
     try {
       await _liveClassRepo.updateLiveClass(liveClassModel);
@@ -184,6 +162,7 @@ class LiveClassViewModel with ChangeNotifier {
     }
   }
 
+  /// Deletes a class (same contract as [addLiveClass]).
   Future<bool> deleteLiveClass(String docId) async {
     try {
       await _liveClassRepo.deleteLiveClass(docId);
@@ -195,19 +174,20 @@ class LiveClassViewModel with ChangeNotifier {
     }
   }
 
-  /// Local filter over the already-fetched list (matches title or teacher),
-  /// mirroring TeacherViewModel.searchTeacher.
   /// What the search box last held. Kept here rather than on the list
   /// screen so it survives the round trip to Add/Edit, and is
   /// re-applied after every refetch instead of showing everything.
   String searchText = "";
 
+  /// Filters the loaded classes by title or teacher name
+  /// (case-insensitive).
   void searchLiveClass({required String searchText}) {
     this.searchText = searchText;
     _applySearch();
     notifyListeners();
   }
 
+  /// Rebuilds [liveClassList] from [copyLiveClassList] using [searchText].
   void _applySearch() {
     final String query = searchText.toLowerCase().trim();
     if (query.isEmpty) {
