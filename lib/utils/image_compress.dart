@@ -3,16 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
-/// Longest side, in pixels, that pictures are stored at.
-class ImageSizes {
-  const ImageSizes._();
-
-  /// Course / subject / unit / teacher pictures (shown as thumbnails).
-  static const int thumbnail = 800;
-
-  /// Home-carousel banners (shown full width).
-  static const int banner = 1920;
-}
+export 'package:bbarna/utils/image_sizes.dart';
 
 /// An image ready to upload, with the content type that matches its bytes.
 class PreparedImage {

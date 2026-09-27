@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:bbarna/utils/image_compress.dart';
+// Deferred: the image codec is large, so on web it is downloaded only when
+// a picture is actually uploaded, not with the app.
+import 'package:bbarna/utils/image_compress.dart' deferred as compress;
 import 'package:firebase_storage/firebase_storage.dart';
 
 /// Content type used when the file type is not detected.
@@ -29,15 +31,15 @@ Future<String> uploadToStorage(
 }
 
 /// Shrinks a picture to at most [maxSide] pixels on its longest side (see
-/// [prepareImageForUpload]) and uploads it with the matching content type.
+/// `prepareImageForUpload`) and uploads it with the matching content type.
 /// Returns the download URL.
 Future<String> uploadImageToStorage(
   Reference reference,
   Uint8List data, {
   required int maxSide,
 }) async {
-  final PreparedImage image =
-      await prepareImageForUpload(data, maxSide: maxSide);
+  await compress.loadLibrary();
+  final image = await compress.prepareImageForUpload(data, maxSide: maxSide);
   return uploadToStorage(reference, image.bytes,
       contentType: image.contentType);
 }
