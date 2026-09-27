@@ -171,6 +171,16 @@ class _QuizFormState extends State<QuizForm> {
   /// Validates, then creates or updates the item. Closes the page on
   /// success; on failure the view model has already shown why.
   Future<void> _onSubmit(QuizViewModel quizViewModel) async {
+    // Never save while the quiz's own questions are unknown: the list would
+    // be empty and the quiz would lose its questions.
+    if (!quizViewModel.attachedQuestionsReady) {
+      Helper.showSnackBarMessage(
+          msg: quizViewModel.isLoadingAttached
+              ? "Wait for the quiz's questions to load before saving"
+              : "The quiz's questions didn't load — retry before saving",
+          isSuccess: false);
+      return;
+    }
     final Map<_Field, String> errors = _validate();
     if (errors.isNotEmpty) {
       setState(() {

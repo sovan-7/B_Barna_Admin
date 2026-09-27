@@ -318,6 +318,45 @@ void main() {
       expect(saved.status, 'LIVE');
     });
 
+    testWidgets(
+        'a quiz whose questions failed to load cannot be saved until retried',
+        (tester) async {
+      when(() => repo.updateQuiz(any(), any())).thenAnswer((_) async {});
+      when(() => repo.getQuestionsByCodes(any()))
+          .thenThrow(Exception('offline'));
+      final QuizModel quiz = _quiz('c', 'MOCK-04', 'Has questions',
+          questionCodes: ["Q-01", "Q-02"]);
+
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(tester, const Size(1024, 900), EditQuiz(quizData: quiz), vm);
+
+      expect(find.text("Couldn't load this quiz's questions"), findsOneWidget);
+      expect(find.text('No questions attached yet'), findsNothing);
+
+      // Saving now would wipe the questions, so it is refused.
+      await tester.ensureVisible(find.byKey(const Key('quiz_save_button')));
+      await tester.tap(find.byKey(const Key('quiz_save_button')));
+      await tester.pump();
+      verifyNever(() => repo.updateQuiz(any(), any()));
+
+      // Retry loads them, and saving keeps them.
+      when(() => repo.getQuestionsByCodes(any())).thenAnswer((_) async => [
+            _question('Q-01', '<p>One</p>'),
+            _question('Q-02', '<p>Two</p>'),
+          ]);
+      await tester.ensureVisible(find.byKey(const Key('field_retry')));
+      await tester.tap(find.byKey(const Key('field_retry')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('quiz_save_button')));
+      await tester.pump();
+      await tester.pump();
+
+      final QuizModel saved =
+          verify(() => repo.updateQuiz(captureAny(), 'c')).captured.single
+              as QuizModel;
+      expect(saved.questionCodeList, ['Q-01', 'Q-02']);
+    });
+
     testWidgets('the question count is derived from the questions attached',
         (tester) async {
       when(() => repo.updateQuiz(any(), any())).thenAnswer((_) async {});

@@ -105,8 +105,32 @@ class QuizViewModel extends PagedListViewModel<QuizModel> {
   /// The questions currently on the quiz, in the order they were added.
   List<Question> quizQuestionList = [];
 
+  /// True while the questions already on the quiz are loading (Edit).
+  bool isLoadingAttached = false;
+
+  /// Why the questions already on the quiz could not be loaded, or null.
+  /// While set, saving is blocked: the quiz would otherwise be saved with
+  /// no questions.
+  String? attachedError;
+
+  /// True while a question search is running.
+  bool isSearchingQuestions = false;
+
+  /// Why the last question search failed, or null.
+  String? questionSearchError;
+
+  /// The codes last passed to [loadQuizQuestions], for [retryAttached].
+  List<String> _attachedCodes = const [];
+
+  /// Counts searches, so only the newest one updates the results.
+  int _questionSearchSeq = 0;
+
   /// True while either question query (load or search) is in flight.
-  bool isLoadingQuestions = false;
+  bool get isLoadingQuestions => isLoadingAttached || isSearchingQuestions;
+
+  /// Whether the quiz's own question list is known, so it can be saved.
+  bool get attachedQuestionsReady =>
+      !isLoadingAttached && attachedError == null;
 
   /// The question codes the quiz will be saved with (trimmed).
   List<String> get selectedQuestionCodeList => [
@@ -119,52 +143,67 @@ class QuizViewModel extends PagedListViewModel<QuizModel> {
   /// Loads the questions an existing quiz already holds (Edit Quiz). Also
   /// clears any leftover search results.
   Future<void> loadQuizQuestions(List<String> questionCodeList) async {
+    _attachedCodes = questionCodeList;
     quizQuestionList = [];
     questionList = [];
+    attachedError = null;
     if (questionCodeList.isEmpty) {
       notifyListeners();
       return;
     }
 
-    isLoadingQuestions = true;
+    isLoadingAttached = true;
     notifyListeners();
     try {
       quizQuestionList = await _quizRepo.getQuestionsByCodes(questionCodeList);
     } catch (e) {
+      attachedError = "Couldn't load this quiz's questions";
       Helper.showSnackBarMessage(
           msg: "Error while fetching the quiz's questions", isSuccess: false);
     } finally {
-      isLoadingQuestions = false;
+      isLoadingAttached = false;
       notifyListeners();
     }
   }
 
+  /// Loads the quiz's own questions again after a failure.
+  Future<void> retryAttached() => loadQuizQuestions(_attachedCodes);
+
   /// Searches questions by code prefix, hiding any already on the quiz.
   /// An empty [questionCode] just clears the results.
   Future<void> searchQuestions(String questionCode) async {
+    final int seq = ++_questionSearchSeq;
+    questionSearchError = null;
     if (questionCode.trim().isEmpty) {
       questionList = [];
+      isSearchingQuestions = false;
       notifyListeners();
       return;
     }
 
-    isLoadingQuestions = true;
+    isSearchingQuestions = true;
     notifyListeners();
     try {
       final List<Question> found =
           await _quizRepo.searchQuestions(questionCode.trim().toUpperCase());
+      // A newer search has taken over meanwhile.
+      if (seq != _questionSearchSeq) return;
       // Filter out questions that are already on the quiz.
       final Set<String> already = selectedQuestionCodeList.toSet();
       questionList = found
           .where((question) => !already.contains(question.questionCode.trim()))
           .toList();
     } catch (e) {
+      if (seq != _questionSearchSeq) return;
       questionList = [];
+      questionSearchError = "Couldn't search questions";
       Helper.showSnackBarMessage(
           msg: "Error while searching questions", isSuccess: false);
     } finally {
-      isLoadingQuestions = false;
-      notifyListeners();
+      if (seq == _questionSearchSeq) {
+        isSearchingQuestions = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -209,5 +248,7 @@ class QuizViewModel extends PagedListViewModel<QuizModel> {
   void clearQuestionPicker() {
     questionList = [];
     quizQuestionList = [];
+    attachedError = null;
+    questionSearchError = null;
   }
 }

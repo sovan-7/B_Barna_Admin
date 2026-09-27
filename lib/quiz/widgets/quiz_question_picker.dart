@@ -1,3 +1,4 @@
+import 'package:bbarna/core/widgets/form/form_fields.dart';
 import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/question/model/question.dart';
 import 'package:bbarna/quiz/viewModel/quiz_view_model.dart';
@@ -47,7 +48,7 @@ class _QuizQuestionPickerState extends State<QuizQuestionPicker> {
             fontSize: 12, fontWeight: FontWeight.w600, color: AppTokens.ink),
       ),
       children: [
-        if (widget.quizViewModel.isLoadingQuestions)
+        if (widget.quizViewModel.isLoadingAttached)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 18),
             child: Center(
@@ -58,6 +59,13 @@ class _QuizQuestionPickerState extends State<QuizQuestionPicker> {
                     strokeWidth: 2.2, color: AppTokens.inkFaint),
               ),
             ),
+          )
+        // The quiz's own questions failed to load: say so, with Retry
+        // (saving is blocked until they load).
+        else if (widget.quizViewModel.attachedError != null)
+          LoadErrorLine(
+            message: widget.quizViewModel.attachedError!,
+            onRetry: widget.quizViewModel.retryAttached,
           )
         else if (attached.isEmpty)
           Container(
@@ -195,8 +203,23 @@ class _QuizQuestionPickerState extends State<QuizQuestionPicker> {
               attached: false,
               onTap: () => widget.quizViewModel.addQuestion(question),
             ),
-        ] else if (widget.searchController.text.trim().isNotEmpty &&
-            !widget.quizViewModel.isLoadingQuestions) ...[
+        ] else if (widget.quizViewModel.isSearchingQuestions) ...[
+          const SizedBox(height: AppTokens.gapMd),
+          const Center(
+            child: SizedBox(
+              height: 18,
+              width: 18,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: AppTokens.inkFaint),
+            ),
+          ),
+        ] else if (widget.quizViewModel.questionSearchError != null) ...[
+          LoadErrorLine(
+            message: widget.quizViewModel.questionSearchError!,
+            onRetry: () => widget.quizViewModel
+                .searchQuestions(widget.searchController.text),
+          ),
+        ] else if (widget.searchController.text.trim().isNotEmpty) ...[
           const SizedBox(height: AppTokens.gapMd),
           const Text(
             "Nothing new for that code — questions already on the quiz are "
