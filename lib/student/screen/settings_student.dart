@@ -6,7 +6,7 @@ import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/student/screen/enrolled_unit_list.dart';
-import 'package:bbarna/student/viewModel/student_viewmodel.dart';
+import 'package:bbarna/student/viewModel/student_view_model.dart';
 import 'package:bbarna/student/widgets/enrolled_subjects_card.dart';
 import 'package:bbarna/student/widgets/slide_dialog.dart';
 import 'package:bbarna/subject/model/subject_model.dart';

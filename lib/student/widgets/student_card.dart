@@ -8,7 +8,7 @@ import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/student/model/student_model.dart';
 import 'package:bbarna/student/screen/settings_student.dart';
-import 'package:bbarna/student/viewModel/student_viewmodel.dart';
+import 'package:bbarna/student/viewModel/student_view_model.dart';
 import 'package:bbarna/student/widgets/student_activity.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';

@@ -1,7 +1,7 @@
 import 'package:bbarna/core/widgets/list_page/paged_list_screen.dart';
 import 'package:bbarna/question/model/question.dart';
-import 'package:bbarna/question/question_viewmodel/question_viewmodel.dart';
 import 'package:bbarna/question/screen/add_question.dart';
+import 'package:bbarna/question/viewModel/question_view_model.dart';
 import 'package:bbarna/question/widgets/question_card.dart';
 import 'package:flutter/material.dart';
 

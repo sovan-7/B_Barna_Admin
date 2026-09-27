@@ -10,7 +10,7 @@ import 'package:bbarna/student/widgets/enrolment_validity.dart';
 import 'package:bbarna/student/widgets/student_activity.dart';
 import 'package:bbarna/student/widgets/unit_picker_dialog.dart';
 import 'package:bbarna/units/model/unit_model.dart';
-import 'package:bbarna/student/viewModel/student_viewmodel.dart';
+import 'package:bbarna/student/viewModel/student_view_model.dart';
 import 'package:bbarna/student/widgets/student_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -1,7 +1,7 @@
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/question/model/question.dart';
 import 'package:bbarna/question/model/question_draft.dart';
-import 'package:bbarna/question/question_viewmodel/question_viewmodel.dart';
+import 'package:bbarna/question/viewModel/question_view_model.dart';
 import 'package:bbarna/question/repo/question_repo.dart';
 import 'package:bbarna/question/screen/question_list.dart';
 import 'package:bbarna/question/widgets/question_card.dart';

@@ -1,6 +1,6 @@
 import 'package:bbarna/banners/model/banners_model.dart';
 import 'package:bbarna/banners/screen/add_banner.dart';
-import 'package:bbarna/banners/viewModel/banners_viewmodel.dart';
+import 'package:bbarna/banners/viewModel/banners_view_model.dart';
 import 'package:bbarna/banners/widgets/banner_card.dart';
 import 'package:bbarna/core/widgets/add_widget.dart';
 import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';

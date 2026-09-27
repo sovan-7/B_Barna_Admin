@@ -5,7 +5,7 @@ import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/student/model/enrolled_course_model.dart';
 import 'package:bbarna/student/screen/edit_enrolled_unit.dart';
-import 'package:bbarna/student/viewModel/student_viewmodel.dart';
+import 'package:bbarna/student/viewModel/student_view_model.dart';
 import 'package:bbarna/student/widgets/enrolment_validity.dart';
 import 'package:bbarna/student/widgets/slide_dialog.dart';
 import 'package:flutter/material.dart';

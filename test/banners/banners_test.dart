@@ -4,7 +4,7 @@ import 'package:bbarna/banners/model/banners_model.dart';
 import 'package:bbarna/banners/repo/banners_repo.dart';
 import 'package:bbarna/banners/screen/add_banner.dart';
 import 'package:bbarna/banners/screen/banner_list.dart';
-import 'package:bbarna/banners/viewModel/banners_viewmodel.dart';
+import 'package:bbarna/banners/viewModel/banners_view_model.dart';
 import 'package:bbarna/banners/widgets/banner_card.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:flutter/material.dart';

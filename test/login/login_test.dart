@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:bbarna/banners/model/banners_model.dart';
 import 'package:bbarna/banners/repo/banners_repo.dart';
-import 'package:bbarna/banners/viewModel/banners_viewmodel.dart';
+import 'package:bbarna/banners/viewModel/banners_view_model.dart';
 import 'package:bbarna/core/widgets/sidebar.dart';
 import 'package:bbarna/login/model/login_result.dart';
 import 'package:bbarna/login/repo/login_repo.dart';

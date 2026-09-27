@@ -4,7 +4,7 @@ import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/question/model/question.dart';
 import 'package:bbarna/question/model/question_draft.dart';
-import 'package:bbarna/question/question_viewmodel/question_viewmodel.dart';
+import 'package:bbarna/question/viewModel/question_view_model.dart';
 import 'package:bbarna/question/widgets/question_rich_field.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';

@@ -1,4 +1,4 @@
-import 'package:bbarna/banners/viewModel/banners_viewmodel.dart';
+import 'package:bbarna/banners/viewModel/banners_view_model.dart';
 import 'package:bbarna/core/widgets/sidebar.dart';
 import 'package:bbarna/course/viewModel/course_view_model.dart';
 import 'package:bbarna/documents/audio/viewModel/audio_view_model.dart';
@@ -7,10 +7,10 @@ import 'package:bbarna/documents/video/viewModel/video_view_model.dart';
 import 'package:bbarna/live_class/viewModel/live_class_view_model.dart';
 import 'package:bbarna/login/screen/login_screen.dart';
 import 'package:bbarna/login/viewModel/login_view_model.dart';
-import 'package:bbarna/question/question_viewmodel/question_viewmodel.dart';
+import 'package:bbarna/question/viewModel/question_view_model.dart';
 import 'package:bbarna/quiz/viewModel/quiz_view_model.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:bbarna/student/viewModel/student_viewmodel.dart';
+import 'package:bbarna/student/viewModel/student_view_model.dart';
 import 'package:bbarna/subject/viewModel/subject_view_model.dart';
 import 'package:bbarna/teacher/viewModel/teacher_view_model.dart';
 import 'package:bbarna/topic/viewModel/topic_view_model.dart';

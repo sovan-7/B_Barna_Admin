@@ -4,11 +4,11 @@ import 'package:bbarna/core/widgets/list_page/list_page_header.dart';
 import 'package:bbarna/core/widgets/list_page/list_search_field.dart';
 import 'package:bbarna/core/widgets/list_page/list_skeleton.dart';
 import 'package:bbarna/core/widgets/paged_list_footer.dart';
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/student/model/student_model.dart';
 import 'package:bbarna/student/repo/student_repo.dart';
-import 'package:bbarna/student/viewModel/student_viewmodel.dart';
+import 'package:bbarna/student/viewModel/student_view_model.dart';
 import 'package:bbarna/student/widgets/student_card.dart';
-import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 

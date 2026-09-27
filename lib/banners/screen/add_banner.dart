@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:bbarna/banners/viewModel/banners_viewmodel.dart';
+import 'package:bbarna/banners/viewModel/banners_view_model.dart';
 import 'package:bbarna/core/widgets/app_header.dart';
 import 'package:bbarna/core/widgets/sidebar.dart';
 import 'package:bbarna/resources/app_tokens.dart';
@@ -92,7 +92,8 @@ class _AddBannerState extends State<AddBanner> {
           ),
           Expanded(
             child: Row(children: [
-              if (!isCompact) const Expanded(child: ExtraSideBar(sidebarIndex: 0)),
+              if (!isCompact)
+                const Expanded(child: ExtraSideBar(sidebarIndex: 0)),
               Expanded(
                 flex: 5,
                 child: Consumer<BannersViewModel>(
@@ -104,9 +105,8 @@ class _AddBannerState extends State<AddBanner> {
           ),
         ]),
       ),
-      drawer: isCompact
-          ? const Drawer(child: ExtraSideBar(sidebarIndex: 0))
-          : null,
+      drawer:
+          isCompact ? const Drawer(child: ExtraSideBar(sidebarIndex: 0)) : null,
     );
   }
 
@@ -236,8 +236,7 @@ class _AddBannerState extends State<AddBanner> {
             ),
             child: hasImage
                 ? ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(AppTokens.radiusMd - 1),
+                    borderRadius: BorderRadius.circular(AppTokens.radiusMd - 1),
                     child: Image.memory(selectedImageBytes!,
                         fit: BoxFit.cover, width: double.infinity),
                   )
@@ -328,8 +327,8 @@ class _AddBannerState extends State<AddBanner> {
 
   Widget _actionBar(BannersViewModel bannersViewModel, double width) {
     return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: width < 700 ? 16 : 32, vertical: 14),
+      padding:
+          EdgeInsets.symmetric(horizontal: width < 700 ? 16 : 32, vertical: 14),
       decoration: const BoxDecoration(
         color: AppTokens.surface,
         border: Border(top: BorderSide(color: AppTokens.hairline)),
@@ -364,36 +363,31 @@ class _AddBannerState extends State<AddBanner> {
   Widget _saveButton(BannersViewModel bannersViewModel,
       {required bool expand}) {
     final Widget button = ConstrainedBox(
-                constraints:
-                    const BoxConstraints(minWidth: 140, minHeight: 42),
-                child: ElevatedButton(
-                  key: const Key('banner_save_button'),
-                  onPressed:
-                      _isSaving ? null : () => _onSave(bannersViewModel),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTokens.ink,
-                    disabledBackgroundColor:
-                        AppTokens.ink.withValues(alpha: .55),
-                    foregroundColor: Colors.white,
-                    disabledForegroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppTokens.radiusMd)),
-                  ),
-                  child: _isSaving
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2.2, color: Colors.white),
-                        )
-                      : const Text("Upload banner",
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 13.5, fontWeight: FontWeight.w600)),
-                ),
-              );
+      constraints: const BoxConstraints(minWidth: 140, minHeight: 42),
+      child: ElevatedButton(
+        key: const Key('banner_save_button'),
+        onPressed: _isSaving ? null : () => _onSave(bannersViewModel),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTokens.ink,
+          disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
+          foregroundColor: Colors.white,
+          disabledForegroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
+        ),
+        child: _isSaving
+            ? const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2.2, color: Colors.white),
+              )
+            : const Text("Upload banner",
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+      ),
+    );
 
     return expand ? Expanded(child: button) : button;
   }
