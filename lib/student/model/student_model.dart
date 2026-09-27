@@ -112,5 +112,3 @@ class Address {
         city = map["city"],
         state = map["state"];
 }
-
-

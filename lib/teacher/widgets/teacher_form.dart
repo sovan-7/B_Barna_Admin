@@ -6,6 +6,7 @@ import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/teacher/model/teacher_model.dart';
 import 'package:bbarna/teacher/viewModel/teacher_view_model.dart';
+import 'package:bbarna/teacher/widgets/teacher_form_fields.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -371,297 +372,54 @@ class _TeacherFormState extends TeacherFormTestHooks {
     );
   }
 
-  /// The photo, previewed round the way it appears in the list.
+  /// Round photo preview with Choose / Replace / Remove.
   Widget _avatarField() {
-    final String? error = _errors[_Field.photo];
-    final bool hasNew = selectedImageBytes != null;
-    final String existingUrl = widget.existing?.imageUrl ?? "";
-    final bool hasExisting = existingUrl.trim().isNotEmpty;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Material(
-          color: AppTokens.surfaceMuted,
-          shape: const CircleBorder(),
-          child: InkWell(
-            onTap: isSaving ? null : _onSelectImage,
-            customBorder: const CircleBorder(),
-            child: Container(
-              height: 88,
-              width: 88,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: error != null
-                        ? AppTokens.danger
-                        : AppTokens.inkFaint.withValues(alpha: .4)),
-              ),
-              child: ClipOval(
-                child: hasNew
-                    ? Image.memory(selectedImageBytes!, fit: BoxFit.cover)
-                    : hasExisting
-                        ? Image.network(existingUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (c, e, s) => _avatarPlaceholder())
-                        : _avatarPlaceholder(),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                hasNew
-                    ? (selectedImageFile?.name ?? "Selected photo")
-                    : hasExisting
-                        ? "Using the current photo"
-                        : "No photo chosen",
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppTokens.ink),
-              ),
-              const SizedBox(height: 3),
-              const Text("JPG or PNG, up to 5MB.",
-                  style: TextStyle(
-                      fontSize: 11.5, height: 1.35, color: AppTokens.inkFaint)),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  OutlinedButton(
-                    key: const Key('teacher_choose_photo'),
-                    onPressed: isSaving ? null : _onSelectImage,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTokens.ink,
-                      side: const BorderSide(color: AppTokens.hairline),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTokens.radiusSm)),
-                    ),
-                    child: Text(
-                        hasNew || hasExisting ? "Replace" : "Choose photo",
-                        style: const TextStyle(fontSize: 12.5)),
-                  ),
-                  if (hasNew) ...[
-                    const SizedBox(width: AppTokens.gapSm),
-                    TextButton(
-                      onPressed: isSaving
-                          ? null
-                          : () => setState(() {
-                                selectedImageFile = null;
-                                selectedImageBytes = null;
-                              }),
-                      style: TextButton.styleFrom(
-                          foregroundColor: AppTokens.danger,
-                          padding: const EdgeInsets.symmetric(horizontal: 10)),
-                      child: const Text("Remove",
-                          style: TextStyle(fontSize: 12.5)),
-                    ),
-                  ],
-                ],
-              ),
-              if (error != null) ...[
-                const SizedBox(height: 6),
-                Text(error, style: AppTokens.errorText),
-              ],
-            ],
-          ),
-        ),
-      ],
+    return TeacherPhotoField(
+      bytes: selectedImageBytes,
+      fileName: selectedImageFile?.name,
+      existingUrl: widget.existing?.imageUrl ?? "",
+      error: _errors[_Field.photo],
+      enabled: !isSaving,
+      onPick: _onSelectImage,
+      onRemove: () => setState(() {
+        selectedImageFile = null;
+        selectedImageBytes = null;
+      }),
     );
   }
 
-  Widget _avatarPlaceholder() => Container(
-        color: AppTokens.surfaceMuted,
-        alignment: Alignment.center,
-        child: const Icon(Icons.add_a_photo_outlined,
-            size: 24, color: AppTokens.inkFaint),
-      );
-
-  /// Each role says what it grants, so the choice is not a guess.
+  /// Admin / Subadmin radio cards.
   Widget _roleField() {
-    return Column(
-      children: [
-        for (final String role in roleList) ...[
-          _roleOption(role),
-          if (role != roleList.last) const SizedBox(height: AppTokens.gapSm),
-        ],
-      ],
+    return TeacherRoleSelector(
+      selectedRole: selectedRole,
+      enabled: !isSaving,
+      onSelect: (role) => setState(() => selectedRole = role),
     );
   }
 
-  Widget _roleOption(String role) {
-    final bool selected = selectedRole == role;
-    final bool isAdmin = role == roleAdmin;
-    final Color accent =
-        isAdmin ? const Color(0xFFB54708) : const Color(0xFF2563EB);
-
-    return Material(
-      color: selected ? accent.withValues(alpha: .07) : AppTokens.surface,
-      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-      child: InkWell(
-        key: Key('role_option_$role'),
-        onTap: isSaving ? null : () => setState(() => selectedRole = role),
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            border: Border.all(
-                color: selected
-                    ? accent.withValues(alpha: .55)
-                    : AppTokens.hairline,
-                width: selected ? 1.4 : 1),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                  selected
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                  size: 18,
-                  color: selected ? accent : AppTokens.inkFaint),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(isAdmin ? "Admin" : "Subadmin",
-                        style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: selected ? accent : AppTokens.ink)),
-                    const SizedBox(height: 2),
-                    Text(
-                      isAdmin
-                          ? "Full access, including managing other teachers."
-                          : "Only the modules ticked below.",
-                      style: const TextStyle(
-                          fontSize: 11.5,
-                          height: 1.35,
-                          color: AppTokens.inkFaint),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Module access, with a select-all and a live count.
-  ///
-  /// Ticking thirteen boxes one at a time was the only way to give someone
-  /// full access before.
+  /// Module chips with a live count and Select all / Clear all.
   Widget _moduleSection() {
-    final String? error = _errors[_Field.modules];
-    final bool allSelected = selectedModules.length == moduleList.length;
-
-    return FormSection(
-      title: "MODULE ACCESS",
-      trailing: TextButton(
-        key: const Key('teacher_toggle_all_modules'),
-        onPressed: isSaving
-            ? null
-            : () {
-                setState(() {
-                  if (allSelected) {
-                    selectedModules.clear();
-                  } else {
-                    selectedModules.addAll(moduleList);
-                  }
-                });
-                _revalidate();
-              },
-        style: TextButton.styleFrom(
-            foregroundColor: AppTokens.inkMuted,
-            padding: const EdgeInsets.symmetric(horizontal: 8)),
-        child: Text(allSelected ? "Clear all" : "Select all",
-            style: const TextStyle(fontSize: 12.5)),
-      ),
-      children: [
-        Text(
-          "${selectedModules.length} of ${moduleList.length} selected",
-          style: const TextStyle(fontSize: 11.5, color: AppTokens.inkFaint),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: AppTokens.gapSm,
-          runSpacing: AppTokens.gapSm,
-          children: [
-            for (int i = 0; i < moduleList.length; i++) _moduleChip(i),
-          ],
-        ),
-        if (error != null) ...[
-          const SizedBox(height: AppTokens.gapSm),
-          Text(error, style: AppTokens.errorText),
-        ],
-      ],
-    );
-  }
-
-  Widget _moduleChip(int index) {
-    final String module = moduleList[index];
-    final bool selected = selectedModules.contains(module);
-    const Color accent = Color(0xFF2563EB);
-
-    return Material(
-      color: selected ? accent.withValues(alpha: .10) : AppTokens.surface,
-      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-      child: InkWell(
-        // Keyed by the stored module name, which is what a teacher's
-        // access list holds.
-        key: Key('module_checkbox_$module'),
-        onTap: isSaving
-            ? null
-            : () {
-                setState(() {
-                  if (selected) {
-                    selectedModules.remove(module);
-                  } else {
-                    selectedModules.add(module);
-                  }
-                });
-                _revalidate();
-              },
-        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-            border: Border.all(
-                color: selected
-                    ? accent.withValues(alpha: .5)
-                    : AppTokens.hairline,
-                width: selected ? 1.3 : 1),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(selected ? Icons.check_circle : moduleIconList[index],
-                  size: 14, color: selected ? accent : AppTokens.inkFaint),
-              const SizedBox(width: 7),
-              Text(
-                // The human label, not the stored SHOUTY constant.
-                moduleDisplayList[index],
-                style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: selected ? accent : AppTokens.inkMuted),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return ModuleAccessSection(
+      selectedModules: selectedModules,
+      error: _errors[_Field.modules],
+      enabled: !isSaving,
+      onToggleAll: () {
+        final bool allSelected = selectedModules.length == moduleList.length;
+        setState(() {
+          if (allSelected) {
+            selectedModules.clear();
+          } else {
+            selectedModules.addAll(moduleList);
+          }
+        });
+        _revalidate();
+      },
+      onToggle: (module) {
+        setState(() {
+          if (!selectedModules.remove(module)) selectedModules.add(module);
+        });
+        _revalidate();
+      },
     );
   }
 

@@ -47,11 +47,9 @@ class UnitPickerDialog extends StatelessWidget {
   bool isSelected(int index) =>
       index < selection.length && selection[index] == units[index].code;
 
-  int get selectedCount =>
-      selection.where((code) => code.isNotEmpty).length;
+  int get selectedCount => selection.where((code) => code.isNotEmpty).length;
 
-  bool get allSelected =>
-      units.isNotEmpty && selectedCount == units.length;
+  bool get allSelected => units.isNotEmpty && selectedCount == units.length;
 
   @override
   Widget build(BuildContext context) {
@@ -121,8 +119,7 @@ class UnitPickerDialog extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppTokens.radiusSm),
               child: const Padding(
                 padding: EdgeInsets.all(6),
-                child:
-                    Icon(Icons.close, size: 18, color: AppTokens.inkMuted),
+                child: Icon(Icons.close, size: 18, color: AppTokens.inkMuted),
               ),
             ),
           ),
@@ -233,13 +230,10 @@ class UnitPickerDialog extends StatelessWidget {
                 ),
                 const SizedBox(width: AppTokens.gapSm),
                 Icon(
-                  selected
-                      ? Icons.check_box
-                      : Icons.check_box_outline_blank,
+                  selected ? Icons.check_box : Icons.check_box_outline_blank,
                   size: 20,
-                  color: selected
-                      ? const Color(0xFF2563EB)
-                      : AppTokens.inkFaint,
+                  color:
+                      selected ? const Color(0xFF2563EB) : AppTokens.inkFaint,
                 ),
               ],
             ),
@@ -261,8 +255,7 @@ class UnitPickerDialog extends StatelessWidget {
         child: unit.image.trim().isEmpty
             ? _fallback(unit)
             : Image.network(unit.image,
-                fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => _fallback(unit)),
+                fit: BoxFit.cover, errorBuilder: (c, e, s) => _fallback(unit)),
       ),
     );
   }
@@ -293,8 +286,7 @@ class UnitPickerDialog extends StatelessWidget {
               // count anywhere, so how much was ticked was a guess.
               "$selectedCount of ${units.length} selected",
               overflow: TextOverflow.ellipsis,
-              style:
-                  const TextStyle(fontSize: 12.5, color: AppTokens.inkMuted),
+              style: const TextStyle(fontSize: 12.5, color: AppTokens.inkMuted),
             ),
           ),
           const Spacer(),
@@ -318,14 +310,13 @@ class UnitPickerDialog extends StatelessWidget {
               foregroundColor: Colors.white,
               disabledForegroundColor: Colors.white,
               elevation: 0,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
             ),
             child: Text(saveLabel,
-                style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w600)),
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

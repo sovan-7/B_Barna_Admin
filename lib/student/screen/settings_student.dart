@@ -1,16 +1,14 @@
 import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
 import 'package:bbarna/core/widgets/form/form_fields.dart';
 import 'package:bbarna/core/widgets/form/form_page_body.dart';
-import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/core/widgets/valid_till_picker.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:bbarna/student/model/enrolled_course_model.dart';
-import 'package:bbarna/student/screen/edit_enrolled_unit.dart';
 import 'package:bbarna/student/screen/enrolled_unit_list.dart';
 import 'package:bbarna/student/viewModel/student_viewmodel.dart';
-import 'package:bbarna/student/widgets/enrolment_validity.dart';
+import 'package:bbarna/student/widgets/enrolled_subjects_card.dart';
+import 'package:bbarna/student/widgets/slide_dialog.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
@@ -45,12 +43,6 @@ class _SettingStudentState extends State<SettingStudent> {
   String _selectedSubjectImage = "";
 
   DateTime? _validTill;
-
-  /// Which enrolled rows are showing "time left" rather than the date.
-  ///
-  /// This was a single bool shared by every row, so tapping one row's chip
-  /// flipped all of them at once.
-  final Set<String> _showingRemaining = {};
 
   final Map<_Field, String> _errors = {};
 
@@ -190,7 +182,10 @@ class _SettingStudentState extends State<SettingStudent> {
               const SizedBox(height: AppTokens.gapLg),
               _enrolCard(studentViewModel, width),
               const SizedBox(height: AppTokens.gapMd),
-              _enrolledCard(studentViewModel),
+              EnrolledSubjectsCard(
+                studentViewModel: studentViewModel,
+                studentId: widget.studentId,
+              ),
               const SizedBox(height: AppTokens.gapXl),
             ],
           ),
@@ -383,7 +378,7 @@ class _SettingStudentState extends State<SettingStudent> {
               ? "$selected of $total units"
               : "Select units",
       onTap: () async {
-        await _showSlideDialog(const EnrolledUnitList());
+        await showSlideDialog(context, const EnrolledUnitList());
         if (mounted) _revalidate(studentViewModel);
       },
     );
@@ -488,312 +483,6 @@ class _SettingStudentState extends State<SettingStudent> {
           Text(error, style: AppTokens.errorText),
         ],
       ],
-    );
-  }
-
-  Future<void> _showSlideDialog(Widget child) {
-    return showGeneralDialog(
-      context: context,
-      barrierLabel: "Barrier",
-      barrierDismissible: true,
-      // Transparent left the page fully lit behind the dialog, so it never
-      // read as a layer on top.
-      barrierColor: Colors.black.withValues(alpha: .35),
-      transitionDuration: const Duration(milliseconds: 220),
-      pageBuilder: (_, __, ___) => Center(child: child),
-      transitionBuilder: (_, anim, __, dialog) => FadeTransition(
-        opacity: anim,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: .96, end: 1)
-              .animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
-          child: dialog,
-        ),
-      ),
-    );
-  }
-
-  // ---- Enrolled -------------------------------------------------------
-
-  Widget _enrolledCard(StudentViewModel studentViewModel) {
-    final List<EnrolledCourseModel> enrolled =
-        studentViewModel.enrolledCourseBaseModel?.enrolledCourseList ??
-            const [];
-
-    return FormSection(
-      title: "ENROLLED SUBJECTS",
-      trailing: Text(
-        enrolled.isEmpty
-            ? "None"
-            : "${enrolled.length} subject${enrolled.length == 1 ? '' : 's'}",
-        style: const TextStyle(
-            fontSize: 12, fontWeight: FontWeight.w600, color: AppTokens.ink),
-      ),
-      children: [
-        if (enrolled.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-            decoration: BoxDecoration(
-              color: AppTokens.surfaceMuted,
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-              border: Border.all(color: AppTokens.hairline),
-            ),
-            child: const Column(
-              children: [
-                Icon(Icons.school_outlined,
-                    size: 24, color: AppTokens.inkFaint),
-                SizedBox(height: 8),
-                Text("Not enrolled in anything yet",
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppTokens.ink)),
-                SizedBox(height: 3),
-                Text("Use the form above to give this student a subject.",
-                    style:
-                        TextStyle(fontSize: 11.5, color: AppTokens.inkFaint)),
-              ],
-            ),
-          )
-        else
-          for (final EnrolledCourseModel course in enrolled)
-            _enrolledRow(studentViewModel, course),
-      ],
-    );
-  }
-
-  Widget _enrolledRow(
-      StudentViewModel studentViewModel, EnrolledCourseModel course) {
-    final bool showRemaining = _showingRemaining.contains(course.subjectCode);
-    final bool expired = EnrolmentValidity.hasExpired(course.accessTill);
-    final String? date = EnrolmentValidity.formatDate(course.accessTill);
-    final String? remaining =
-        EnrolmentValidity.formatRemaining(course.accessTill);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppTokens.gapSm),
-      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-      decoration: BoxDecoration(
-        color: AppTokens.surface,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: AppTokens.hairline),
-      ),
-      child: Row(
-        children: [
-          _thumbnail(course),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  course.subjectName.isEmpty ||
-                          course.subjectName == stringDefault
-                      ? "Untitled subject"
-                      : course.subjectName,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppTokens.ink),
-                ),
-                const SizedBox(height: 2),
-                Text(course.subjectCode,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.3,
-                        color: AppTokens.inkFaint)),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppTokens.gapSm),
-          _unitChip(course),
-          const SizedBox(width: 6),
-          _validityChip(course, showRemaining, expired, date, remaining),
-          const SizedBox(width: AppTokens.gapSm),
-          _rowActions(studentViewModel, course),
-        ],
-      ),
-    );
-  }
-
-  Widget _thumbnail(EnrolledCourseModel course) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-      child: SizedBox(
-        height: 38,
-        width: 38,
-        child: course.subjectImage.trim().isEmpty
-            ? _thumbFallback(course)
-            // A fixed square, cropped. It was 50px with `BoxFit.fill` and
-            // a 60px fallback, so a broken image squashed the picture and
-            // changed the row height.
-            : Image.network(course.subjectImage,
-                fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => _thumbFallback(course)),
-      ),
-    );
-  }
-
-  Widget _thumbFallback(EnrolledCourseModel course) => Container(
-        color: AppTokens.surfaceMuted,
-        alignment: Alignment.center,
-        child: Text(
-          course.subjectCode.isEmpty
-              ? "?"
-              : course.subjectCode.characters.first.toUpperCase(),
-          style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppTokens.inkFaint),
-        ),
-      );
-
-  Widget _unitChip(EnrolledCourseModel course) {
-    final int units = course.unitCodeList.length;
-    final bool none = units == 0;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: none
-            ? AppTokens.danger.withValues(alpha: .10)
-            : AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        border: Border.all(
-            color: none
-                ? AppTokens.danger.withValues(alpha: .28)
-                : AppTokens.hairline),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.layers_outlined,
-              size: 12, color: none ? AppTokens.danger : AppTokens.inkMuted),
-          const SizedBox(width: 5),
-          Text(none ? "No units" : "$units unit${units == 1 ? '' : 's'}",
-              style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: none ? AppTokens.danger : AppTokens.inkMuted)),
-        ],
-      ),
-    );
-  }
-
-  /// Tapping swaps this row between the end date and the time left. It
-  /// used to flip a flag shared by every row at once.
-  Widget _validityChip(EnrolledCourseModel course, bool showRemaining,
-      bool expired, String? date, String? remaining) {
-    final Color color = expired
-        ? AppTokens.danger
-        : (date == null ? AppTokens.inkFaint : const Color(0xFF108460));
-    final String label = date == null
-        ? "No end date"
-        : showRemaining
-            ? (remaining ?? "—")
-            : date;
-
-    return Tooltip(
-      message: date == null
-          ? "This enrolment has no end date"
-          : showRemaining
-              ? "Show the end date"
-              : "Show the time left",
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        child: InkWell(
-          key: Key('enrolled_validity_${course.subjectCode}'),
-          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-          onTap: date == null
-              ? null
-              : () => setState(() {
-                    if (!_showingRemaining.remove(course.subjectCode)) {
-                      _showingRemaining.add(course.subjectCode);
-                    }
-                  }),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: .10),
-              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-              border: Border.all(color: color.withValues(alpha: .28)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(expired ? Icons.event_busy : Icons.event_available,
-                    size: 12, color: color),
-                const SizedBox(width: 5),
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: color)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _rowActions(
-      StudentViewModel studentViewModel, EnrolledCourseModel course) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Tooltip(
-          message: "Edit units",
-          child: InkWell(
-            key: Key('enrolled_edit_${course.subjectCode}'),
-            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-            // Straight into the picker. It used to raise a "Are you sure
-            // want to edit ?" confirmation first — a destructive-action
-            // dialog in front of a reversible one.
-            onTap: () async {
-              await studentViewModel.setEditedUnitList(course.subjectCode);
-              if (!mounted) return;
-              await _showSlideDialog(const EditEnrolledUnit());
-            },
-            child: const Padding(
-              padding: EdgeInsets.all(6),
-              child: Icon(Icons.edit_outlined,
-                  size: 17, color: AppTokens.inkMuted),
-            ),
-          ),
-        ),
-        const SizedBox(width: 2),
-        Tooltip(
-          message: "Remove this subject",
-          child: InkWell(
-            key: Key('enrolled_remove_${course.subjectCode}'),
-            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-            onTap: () => _confirmRemove(studentViewModel, course),
-            child: const Padding(
-              padding: EdgeInsets.all(6),
-              child:
-                  Icon(Icons.delete_outline, size: 17, color: AppTokens.danger),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _confirmRemove(
-      StudentViewModel studentViewModel, EnrolledCourseModel course) {
-    final String subjectCode = course.subjectCode;
-    RemoveAlert.showRemoveAlert(
-      title: course.subjectName,
-      description: "Are you sure want to delete ?",
-      onPressYes: () async {
-        await studentViewModel.removeCourse(subjectCode);
-        await studentViewModel.getEnrolledCourseList(widget.studentId);
-      },
     );
   }
 }
