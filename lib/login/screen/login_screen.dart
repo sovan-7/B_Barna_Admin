@@ -88,9 +88,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Read from MediaQuery (not the SizeConfig cache) so the layout follows
+    // Read from MediaQuery so the layout follows
     // window resizes.
-    final double width = MediaQuery.of(context).size.width;
+    final double width = MediaQuery.sizeOf(context).width;
     final bool isCompact = width < AppTokens.compactBreakpoint;
 
     return Scaffold(
@@ -119,8 +119,8 @@ class _LoginScreenState extends State<LoginScreen> {
         padding: EdgeInsets.symmetric(horizontal: isCompact ? 20 : 40),
         child: ConstrainedBox(
           constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height -
-                  MediaQuery.of(context).padding.vertical),
+              minHeight: MediaQuery.sizeOf(context).height -
+                  MediaQuery.paddingOf(context).vertical),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 380),

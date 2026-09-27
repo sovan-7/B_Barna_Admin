@@ -4,6 +4,7 @@ import 'package:bbarna/core/widgets/form/form_fields.dart';
 import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/image_sizing.dart';
 import 'package:flutter/material.dart';
 
 /// The teacher's photo: a round preview (the shape it has in the list)
@@ -73,9 +74,13 @@ class TeacherPhotoField extends StatelessWidget {
               ),
               child: ClipOval(
                 child: hasNew
-                    ? Image.memory(bytes, fit: BoxFit.cover)
+                    ? Image(
+                        image: sizedForBox(context, MemoryImage(bytes), 88),
+                        fit: BoxFit.cover)
                     : hasExisting
-                        ? Image.network(existingUrl,
+                        ? Image(
+                            image: sizedForBox(
+                                context, NetworkImage(existingUrl), 88),
                             fit: BoxFit.cover,
                             errorBuilder: (c, e, s) => _placeholder())
                         : _placeholder(),

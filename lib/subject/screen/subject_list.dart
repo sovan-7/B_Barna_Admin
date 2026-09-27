@@ -86,10 +86,11 @@ class _SubjectListState extends State<SubjectList> {
     });
   }
 
-  /// Filters the list and rebuilds (for the clear button / empty wording).
+  /// Filters the list (the view model rebuilds the page).
   void _search(SubjectViewModel subjectViewModel, String text) {
+    // The view model notifies straight away, which rebuilds this page
+    // (clear button and empty-state wording included) — no setState needed.
     subjectViewModel.searchSubject(searchText: text);
-    setState(() {});
   }
 
   /// Opens Add Subject and reloads the list if something was

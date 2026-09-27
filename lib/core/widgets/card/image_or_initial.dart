@@ -1,4 +1,5 @@
 import 'package:bbarna/resources/app_tokens.dart';
+import 'package:bbarna/utils/image_sizing.dart';
 import 'package:flutter/material.dart';
 
 /// A square picture from [imageUrl], clipped to [radius].
@@ -40,8 +41,9 @@ class ImageOrInitial extends StatelessWidget {
         width: size,
         child: imageUrl.trim().isEmpty
             ? _fallback()
-            : Image.network(
-                imageUrl,
+            // Decoded at thumbnail size, not the stored photo's size.
+            : Image(
+                image: sizedForBox(context, NetworkImage(imageUrl), size),
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stack) => _fallback(),
               ),

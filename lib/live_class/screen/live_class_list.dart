@@ -248,7 +248,6 @@ class _LiveClassListState extends State<LiveClassList> {
   /// segmented control never squeezes the search field into a stub.
   Widget _toolbar(LiveClassViewModel liveClassViewModel) {
     return LayoutBuilder(builder: (context, constraints) {
-      final Widget tabs = _tabs(liveClassViewModel);
       final Widget search = _search(liveClassViewModel);
 
       if (constraints.maxWidth < 760) {
@@ -268,7 +267,7 @@ class _LiveClassListState extends State<LiveClassList> {
       }
       return Row(
         children: [
-          tabs,
+          _tabs(liveClassViewModel),
           const Spacer(),
           SizedBox(width: 300, child: search),
         ],
@@ -389,9 +388,9 @@ class _LiveClassListState extends State<LiveClassList> {
                     TextStyle(fontSize: 13, color: LiveClassTheme.inkFaint),
               ),
               onChanged: (_) {
+                // Notifies straight away; that rebuild covers this page.
                 liveClassViewModel.searchLiveClass(
                     searchText: searchController.text);
-                setState(() {});
               },
             ),
           ),
@@ -399,9 +398,9 @@ class _LiveClassListState extends State<LiveClassList> {
             InkWell(
               onTap: () {
                 searchController.clear();
+                // Notifies straight away; that rebuild covers this page.
                 liveClassViewModel.searchLiveClass(
                     searchText: searchController.text);
-                setState(() {});
               },
               borderRadius: BorderRadius.circular(LiveClassTheme.radiusPill),
               child: const Padding(
@@ -439,14 +438,17 @@ class _LiveClassListState extends State<LiveClassList> {
             visible.sublist(i, end > visible.length ? visible.length : end));
       }
 
-      return SingleChildScrollView(
+      // Built lazily, a row at a time, so only visible rows are laid out;
+      // each row repaints on its own (e.g. a live badge's pulse).
+      return ListView.builder(
         padding: const EdgeInsets.only(bottom: LiveClassTheme.gapMd),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (int r = 0; r < rows.length; r++) ...[
-              if (r > 0) const SizedBox(height: LiveClassTheme.gapMd),
-              IntrinsicHeight(
+        itemCount: rows.length,
+        itemBuilder: (context, r) => Padding(
+          padding: EdgeInsets.only(top: r > 0 ? LiveClassTheme.gapMd : 0),
+          child: RepaintBoundary(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -465,8 +467,8 @@ class _LiveClassListState extends State<LiveClassList> {
                   ],
                 ),
               ),
-            ],
-          ],
+            ),
+          ),
         ),
       );
     });

@@ -40,7 +40,7 @@ class _AdminFormScaffoldState extends State<AdminFormScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
+    final double width = MediaQuery.sizeOf(context).width;
     final bool isCompact = width < AppTokens.compactBreakpoint;
 
     return Scaffold(

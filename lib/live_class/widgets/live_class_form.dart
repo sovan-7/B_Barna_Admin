@@ -345,7 +345,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
     // more precise than dragging a clock face with a mouse. Touch-sized
     // windows still get the dial, and either can be toggled from the
     // dialog itself.
-    final bool hasKeyboard = MediaQuery.of(context).size.width >= 700;
+    final bool hasKeyboard = MediaQuery.sizeOf(context).width >= 700;
 
     return showTimePicker(
       context: context,
@@ -390,7 +390,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
+    final double width = MediaQuery.sizeOf(context).width;
 
     return Scaffold(
       key: key,

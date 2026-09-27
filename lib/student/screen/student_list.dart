@@ -88,11 +88,11 @@ class _StudentListState extends State<StudentList> {
     });
   }
 
-  /// Filters the loaded students and rebuilds (for the clear button /
-  /// empty wording).
+  /// Filters the list (the view model rebuilds the page).
   void _search(StudentViewModel studentViewModel, String text) {
+    // The view model notifies straight away, which rebuilds this page
+    // (clear button and empty-state wording included) — no setState needed.
     studentViewModel.searchStudent(searchText: text);
-    setState(() {});
   }
 
   /// Title, total count, a subtitle that names the current order, and the

@@ -91,7 +91,7 @@ class _TopicContentSectionState extends State<TopicContentSection> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isNarrow = MediaQuery.of(context).size.width < 560;
+    final bool isNarrow = MediaQuery.sizeOf(context).width < 560;
 
     return Container(
       width: double.infinity,

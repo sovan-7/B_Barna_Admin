@@ -35,7 +35,7 @@ class _AdminCardShellState extends State<AdminCardShell> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isCompact = MediaQuery.of(context).size.width < 900;
+    final bool isCompact = MediaQuery.sizeOf(context).width < 900;
     final CardLayoutInfo layout = CardLayoutInfo(
       isCompact: isCompact,
       showActions: _hovered || isCompact,

@@ -1,6 +1,7 @@
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/units/model/unit_model.dart';
+import 'package:bbarna/utils/image_sizing.dart';
 import 'package:flutter/material.dart';
 
 /// The unit picker used by both the "enrol" and the "edit units" flows;
@@ -60,7 +61,7 @@ class UnitPickerDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Size screen = MediaQuery.of(context).size;
+    final Size screen = MediaQuery.sizeOf(context);
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -262,8 +263,11 @@ class UnitPickerDialog extends StatelessWidget {
         width: 38,
         child: unit.image.trim().isEmpty
             ? _fallback(unit)
-            : Image.network(unit.image,
-                fit: BoxFit.cover, errorBuilder: (c, e, s) => _fallback(unit)),
+            : Builder(
+                builder: (context) => Image(
+                    image: sizedForBox(context, NetworkImage(unit.image), 38),
+                    fit: BoxFit.cover,
+                    errorBuilder: (c, e, s) => _fallback(unit))),
       ),
     );
   }

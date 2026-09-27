@@ -140,8 +140,13 @@ class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
   }
 
   /// How many classes are in [status] (shown on the tab).
-  int countFor(LiveClassStatus status, {DateTime? now}) =>
-      classesFor(status, now: now).length;
+  int countFor(LiveClassStatus status, {DateTime? now}) {
+    // Counting needs no sort, unlike [classesFor].
+    final DateTime at = now ?? DateTime.now();
+    return liveClassList
+        .where((liveClass) => liveClass.statusAt(at) == status)
+        .length;
+  }
 
   /// Adds a class. Returns true on success; on failure shows a toast and
   /// returns false, leaving the caller on the form.

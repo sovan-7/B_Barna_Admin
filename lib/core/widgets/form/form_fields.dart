@@ -1,5 +1,6 @@
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/utils/formatters.dart';
+import 'package:bbarna/utils/image_sizing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -297,9 +298,13 @@ class FormImagePickerField extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(AppTokens.radiusMd - 1),
                   child: hasNew
-                      ? Image.memory(bytes, fit: BoxFit.cover)
+                      ? Image(
+                          image: sizedForBox(context, MemoryImage(bytes), 108),
+                          fit: BoxFit.cover)
                       : hasExisting
-                          ? Image.network(existingUrl,
+                          ? Image(
+                              image: sizedForBox(
+                                  context, NetworkImage(existingUrl), 108),
                               fit: BoxFit.cover,
                               errorBuilder: (c, e, s) => _placeholder())
                           : _placeholder(),

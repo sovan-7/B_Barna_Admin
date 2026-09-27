@@ -81,10 +81,11 @@ class _CourseListState extends State<CourseList> {
     });
   }
 
-  /// Filters the list and rebuilds (for the clear button / empty wording).
+  /// Filters the list (the view model rebuilds the page).
   void _search(CourseViewModel courseViewModel, String text) {
+    // The view model notifies straight away, which rebuilds this page
+    // (clear button and empty-state wording included) — no setState needed.
     courseViewModel.searchCourse(searchText: text);
-    setState(() {});
   }
 
   /// Opens Add Course and reloads the list if something was

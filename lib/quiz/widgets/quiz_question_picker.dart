@@ -286,7 +286,17 @@ class _QuizQuestionPickerState extends State<QuizQuestionPicker> {
 
   /// The question body with its HTML stripped ("Untitled question" when
   /// empty).
-  static String _plainText(String html) {
+  ///
+  /// Cached, since every row is re-parsed on each rebuild otherwise.
+  static String _plainText(String html) =>
+      _plainCache[html] ??= _parsePlainText(html);
+
+  /// Parsed texts, keyed by the HTML they came from.
+  static final Map<String, String> _plainCache = <String, String>{};
+
+  /// The uncached conversion behind [_plainText].
+  static String _parsePlainText(String html) {
+    if (_plainCache.length >= 2000) _plainCache.clear();
     if (html.trim().isEmpty || html == stringDefault) {
       return "Untitled question";
     }

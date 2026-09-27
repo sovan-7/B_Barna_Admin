@@ -79,10 +79,11 @@ class _TeacherListState extends State<TeacherList> {
     });
   }
 
-  /// Filters the list and rebuilds (for the clear button / empty wording).
+  /// Filters the list (the view model rebuilds the page).
   void _search(TeacherViewModel teacherViewModel, String text) {
+    // The view model notifies straight away, which rebuilds this page
+    // (clear button and empty-state wording included) — no setState needed.
     teacherViewModel.searchTeacher(searchText: text);
-    setState(() {});
   }
 
   /// Opens Add Teacher and reloads the list if something was

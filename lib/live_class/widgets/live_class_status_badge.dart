@@ -86,6 +86,10 @@ class _PulsingDotState extends State<_PulsingDot>
     duration: const Duration(milliseconds: 1400),
   )..repeat(reverse: true);
 
+  /// The fade, built once rather than on every build.
+  late final Animation<double> _opacity = Tween<double>(begin: 1, end: .35)
+      .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+
   @override
   void dispose() {
     _controller.dispose();
@@ -95,8 +99,7 @@ class _PulsingDotState extends State<_PulsingDot>
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
-      opacity: Tween<double>(begin: 1, end: .35).animate(
-          CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
+      opacity: _opacity,
       child: Container(
         height: 6,
         width: 6,

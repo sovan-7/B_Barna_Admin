@@ -7,6 +7,9 @@ import 'package:intl/intl.dart';
 class StudentActivity {
   const StudentActivity._();
 
+  /// Format for "Active 12 Mar 2026" (created once, not per row).
+  static final DateFormat _date = DateFormat('d MMM yyyy');
+
   /// A short label for [lastLoginAt], or null when the student has never
   /// signed in.
   ///
@@ -35,7 +38,7 @@ class StudentActivity {
       return "Active $weeks week${weeks == 1 ? '' : 's'} ago";
     }
     // Past a month the exact date is more use than "5 weeks ago".
-    return "Active ${DateFormat('d MMM yyyy').format(lastLoginAt)}";
+    return "Active ${_date.format(lastLoginAt)}";
   }
 
   /// What the row says when there is no sign-in to report.

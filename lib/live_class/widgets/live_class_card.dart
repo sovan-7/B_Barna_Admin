@@ -45,7 +45,7 @@ class _LiveClassCardState extends State<LiveClassCard> {
     final Color accent = LiveClassTheme.accentFor(status);
     final bool isLive = status == LiveClassStatus.live;
     final bool isPast = status == LiveClassStatus.past;
-    final bool canHover = MediaQuery.of(context).size.width > 900;
+    final bool canHover = MediaQuery.sizeOf(context).width > 900;
     final bool showActions = _hovered || !canHover;
 
     return MouseRegion(

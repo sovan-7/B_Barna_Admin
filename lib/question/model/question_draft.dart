@@ -168,17 +168,34 @@ class QuestionDraft {
 
   /// Rich text with its markup removed, for emptiness checks and for
   /// showing a question as one line in a list.
+  ///
+  /// Results are cached (list rows ask for the same text on every rebuild).
   static String plainText(String html) {
+    final String? cached = _plainCache[html];
+    if (cached != null) return cached;
+    if (_plainCache.length >= 2000) _plainCache.clear();
+    return _plainCache[html] = _toPlainText(html);
+  }
+
+  /// Converted texts, keyed by the HTML they came from.
+  static final Map<String, String> _plainCache = <String, String>{};
+
+  static final RegExp _lineBreak = RegExp(r'<br\s*/?>', caseSensitive: false);
+  static final RegExp _tag = RegExp(r'<[^>]*>');
+  static final RegExp _spaces = RegExp(r'\s+');
+
+  /// The uncached conversion behind [plainText].
+  static String _toPlainText(String html) {
     final String text = html
-        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), ' ')
-        .replaceAll(RegExp(r'<[^>]*>'), ' ')
+        .replaceAll(_lineBreak, ' ')
+        .replaceAll(_tag, ' ')
         .replaceAll('&nbsp;', ' ')
         .replaceAll('&amp;', '&')
         .replaceAll('&lt;', '<')
         .replaceAll('&gt;', '>')
         .replaceAll('&#39;', "'")
         .replaceAll('&quot;', '"')
-        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll(_spaces, ' ')
         .trim();
     return text;
   }

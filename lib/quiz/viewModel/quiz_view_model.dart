@@ -189,10 +189,19 @@ class QuizViewModel extends PagedListViewModel<QuizModel> {
 
   /// Adds every current search result to the quiz.
   void addAllFoundQuestions() {
-    // Iterate over a copy: addQuestion rewrites questionList as it goes.
-    for (final Question question in [...questionList]) {
-      addQuestion(question);
-    }
+    // One pass and one notify, rather than addQuestion per result.
+    final Set<String> already = selectedQuestionCodeList.toSet();
+    final List<Question> toAdd = [
+      for (final Question question in questionList)
+        if (already.add(question.questionCode.trim())) question,
+    ];
+    if (toAdd.isEmpty) return;
+    quizQuestionList = [...quizQuestionList, ...toAdd];
+    final Set<String> added = {for (final q in toAdd) q.questionCode};
+    questionList = questionList
+        .where((candidate) => !added.contains(candidate.questionCode))
+        .toList();
+    notifyListeners();
   }
 
   /// Resets the picker when the form closes (no notify — nobody is

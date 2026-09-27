@@ -154,10 +154,11 @@ class _ToastStack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final MediaQueryData media = MediaQuery.of(context);
+    final Size size = MediaQuery.sizeOf(context);
+    final EdgeInsets padding = MediaQuery.paddingOf(context);
     // Full width on a phone, where a 380px card pinned to one corner
     // would leave almost nothing beside it.
-    final bool isNarrow = media.size.width < 560;
+    final bool isNarrow = size.width < 560;
 
     return ValueListenableBuilder<List<_ToastData>>(
       valueListenable: AppToast._notifier,
@@ -165,7 +166,7 @@ class _ToastStack extends StatelessWidget {
         if (toasts.isEmpty) return const SizedBox.shrink();
 
         return Positioned(
-          top: media.padding.top + 16,
+          top: padding.top + 16,
           right: 16,
           left: isNarrow ? 16 : null,
           child: Align(

@@ -34,7 +34,7 @@ class _BannerCardState extends State<BannerCard> {
 
   @override
   Widget build(BuildContext context) {
-    final bool canHover = MediaQuery.of(context).size.width > 900;
+    final bool canHover = MediaQuery.sizeOf(context).width > 900;
     final bool showActions = _hovered || !canHover;
 
     return MouseRegion(
