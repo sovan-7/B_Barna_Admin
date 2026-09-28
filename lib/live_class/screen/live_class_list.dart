@@ -1,5 +1,6 @@
 import 'package:bbarna/core/widgets/add_widget.dart';
 import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
+import 'package:bbarna/core/widgets/list_page/shimmer.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
 import 'package:bbarna/live_class/screen/add_live_class.dart';
 import 'package:bbarna/live_class/viewModel/live_class_view_model.dart';
@@ -503,13 +504,17 @@ class _SkeletonGrid extends StatelessWidget {
           : (constraints.maxWidth - LiveClassTheme.gapMd * (columns - 1)) /
               columns;
 
-      return Wrap(
-        spacing: LiveClassTheme.gapMd,
-        runSpacing: LiveClassTheme.gapMd,
-        children: [
-          for (int i = 0; i < columns * 2; i++)
-            SizedBox(width: itemWidth, child: const _SkeletonCard()),
-        ],
+      // One shimmer over the whole grid, so the band sweeps across every
+      // card in step.
+      return Shimmer(
+        child: Wrap(
+          spacing: LiveClassTheme.gapMd,
+          runSpacing: LiveClassTheme.gapMd,
+          children: [
+            for (int i = 0; i < columns * 2; i++)
+              SizedBox(width: itemWidth, child: const _SkeletonCard()),
+          ],
+        ),
       );
     });
   }

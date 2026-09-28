@@ -7,6 +7,7 @@ import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_frame.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_header.dart';
+import 'package:bbarna/core/widgets/list_page/shimmer.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
@@ -171,27 +172,29 @@ class _SkeletonGrid extends StatelessWidget {
           ? constraints.maxWidth
           : (constraints.maxWidth - AppTokens.gapMd * (columns - 1)) / columns;
 
-      return Wrap(
-        spacing: AppTokens.gapMd,
-        runSpacing: AppTokens.gapMd,
-        children: [
-          // Two rows' worth — enough to read as "loading", not so many that
-          // the page scrolls before there is anything to scroll.
-          for (int i = 0; i < columns * 2; i++)
-            SizedBox(
-              width: tileWidth,
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppTokens.surfaceMuted,
-                    borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                    border: Border.all(color: AppTokens.hairline),
+      return Shimmer(
+        child: Wrap(
+          spacing: AppTokens.gapMd,
+          runSpacing: AppTokens.gapMd,
+          children: [
+            // Two rows' worth — enough to read as "loading", not so many that
+            // the page scrolls before there is anything to scroll.
+            for (int i = 0; i < columns * 2; i++)
+              SizedBox(
+                width: tileWidth,
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppTokens.surfaceMuted,
+                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                      border: Border.all(color: AppTokens.hairline),
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       );
     });
   }
