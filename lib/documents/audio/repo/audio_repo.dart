@@ -56,18 +56,13 @@ class AudioRepo {
   /// Uploads [audioData] and stores its download URL on document
   /// [audioId]. The storage file is keyed by document id (ids are unique,
   /// codes are not).
-  ///
-  /// NOTE: this still writes to `pdf/pdf_<id>` with a PDF content type and
-  /// saves the URL as `pdf_link`, while [AudioModel] reads `audio_link`.
-  /// That is a known bug, left as-is here because this change is a
-  /// behaviour-preserving refactor.
   Future<void> uploadAudio(Uint8List audioData, String audioId) async {
     final String url = await uploadToStorage(
-      storageReference.child("pdf").child("pdf_$audioId"),
+      storageReference.child("audio").child("audio_$audioId"),
       audioData,
-      contentType: 'application/pdf',
+      contentType: sniffAudioContentType(audioData),
     );
-    await _collection.doc(audioId).update({"pdf_link": url});
+    await _collection.doc(audioId).update({"audio_link": url});
   }
 
   /// Total clips in the collection.
@@ -76,4 +71,20 @@ class AudioRepo {
   /// Clips whose `audio_code` starts with [searchText].
   Future<List<AudioModel>> searchAudio(String searchText) async =>
       _toModels(await prefixSearch(_collection, "audio_code", searchText));
+}
+
+/// Content type from the file's first bytes, for the formats the Audio form
+/// accepts (mp3, m4a, wav, aac). Defaults to MP3.
+String sniffAudioContentType(Uint8List bytes) {
+  bool startsWith(String ascii, [int offset = 0]) =>
+      bytes.length >= offset + ascii.length &&
+      String.fromCharCodes(bytes.sublist(offset, offset + ascii.length)) ==
+          ascii;
+  if (startsWith("RIFF") && startsWith("WAVE", 8)) return "audio/wav";
+  if (startsWith("ftyp", 4)) return "audio/mp4";
+  // ADTS AAC: 12-bit sync word, then layer bits 00 (MP3 frames have 01).
+  if (bytes.length >= 2 && bytes[0] == 0xFF && (bytes[1] & 0xF6) == 0xF0) {
+    return "audio/aac";
+  }
+  return "audio/mpeg";
 }

@@ -56,7 +56,18 @@ class AudioModel {
         code = doc.data()!["audio_code"] ?? stringDefault,
         description = doc.data()!["audio_description"] ?? stringDefault,
         title = doc.data()!["audio_title"] ?? stringDefault,
-        link = doc.data()!["audio_link"] ?? stringDefault,
+        link = _link(doc.data()!),
         audioType = doc.data()!["audio_type"] ?? stringDefault,
         timeStamp = doc.data()!["timeStamp"] ?? intDefault;
+
+  /// `audio_link`, or — for clips uploaded while the upload wrongly saved
+  /// the URL as `pdf_link` — that field instead. The next save of such a
+  /// clip writes it back as `audio_link`.
+  static String _link(Map<String, dynamic> data) {
+    final String? link = data["audio_link"] as String?;
+    if (link != null && link.trim().isNotEmpty && link != stringDefault) {
+      return link;
+    }
+    return data["pdf_link"] as String? ?? link ?? stringDefault;
+  }
 }
