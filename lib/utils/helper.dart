@@ -1,5 +1,6 @@
 import 'package:bbarna/core/widgets/app_toast.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/session.dart';
 
 /// Small app-wide helpers: toasts and the locally stored
 /// sidebar / module-access preferences.
@@ -46,25 +47,31 @@ class Helper {
     }
   }
 
-  /// Positions within [moduleList] the signed-in teacher may see, read
-  /// from the module list stored at login.
+  /// Positions within [moduleList] the signed-in teacher may see.
   ///
-  /// Falls back to every index (unrestricted) when nothing was stored —
-  /// older sessions/accounts without module access, or when
-  /// [sharedPreferences] is not initialised (e.g. widget tests).
+  /// An admin sees every module. Their stored module list is deliberately
+  /// not consulted: it was saved when their account was last edited, so a
+  /// module added to the panel since then (Books, say) would otherwise
+  /// stay hidden from the very person who has to grant it to others.
+  ///
+  /// Anyone else sees only the modules in the list stored at login, and
+  /// never Teachers: managing accounts (and so creating admins) is the
+  /// admin's alone, whatever the list says. An empty or missing list, or a
+  /// store that cannot be read, grants nothing.
   static List<int> allowedModuleIndices() {
-    List<String>? access;
-    try {
-      access = sharedPreferences.getStringList(moduleAccessPrefsKey);
-    } catch (_) {
-      access = null;
-    }
-    if (access == null || access.isEmpty) {
+    if (Session.isAdmin) {
       return List<int>.generate(moduleList.length, (i) => i);
+    }
+
+    List<String> access;
+    try {
+      access = sharedPreferences.getStringList(moduleAccessPrefsKey) ?? [];
+    } catch (_) {
+      access = [];
     }
     return [
       for (int i = 0; i < moduleList.length; i++)
-        if (access.contains(moduleList[i])) i,
+        if (i != teacherModuleIndex && access.contains(moduleList[i])) i,
     ];
   }
 }

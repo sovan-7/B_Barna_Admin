@@ -7,4 +7,7 @@ class ImageSizes {
 
   /// Home-carousel banners (shown full width).
   static const int banner = 1920;
+
+  /// Push-notification pictures (Firebase drops images over 1 MB).
+  static const int notification = 1024;
 }

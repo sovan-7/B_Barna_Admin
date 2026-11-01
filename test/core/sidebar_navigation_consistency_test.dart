@@ -4,6 +4,7 @@ import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // NOTE on scope: pumping the real `Sidebar` mounts
 // `screenList[selectedIndex]` (e.g. `BannerList`) eagerly, whose initState
@@ -26,7 +27,19 @@ Future<void> _pumpNav(WidgetTester tester,
 }
 
 void main() {
+  // An admin sees every module; what others see is covered by
+  // module_access_test.dart.
+  setUp(() async {
+    SharedPreferences.setMockInitialValues(
+        <String, Object>{adminIdPrefsKey: 't1', rolePrefsKey: roleAdmin});
+    sharedPreferences = await SharedPreferences.getInstance();
+  });
+
   group('module metadata stays in step', () {
+    test('Teachers is where teacherModuleIndex says it is', () {
+      expect(moduleList[teacherModuleIndex], 'TEACHERS');
+    });
+
     test('every list is index-aligned with moduleList', () {
       expect(moduleDisplayList, hasLength(moduleList.length));
       expect(moduleIconList, hasLength(moduleList.length));
@@ -36,6 +49,12 @@ void main() {
       expect(moduleList[liveClassModuleIndex], 'LIVE CLASSES');
       expect(moduleDisplayList[liveClassModuleIndex], 'Live Classes');
       expect(moduleIconList[liveClassModuleIndex], Icons.live_tv);
+    });
+
+    test('Notifications is where notificationModuleIndex says it is', () {
+      expect(moduleList[notificationModuleIndex], 'NOTIFICATIONS');
+      expect(moduleDisplayList[notificationModuleIndex], 'Notifications');
+      expect(moduleIconList[notificationModuleIndex], Icons.campaign_outlined);
     });
   });
 

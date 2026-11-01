@@ -1,4 +1,6 @@
 import 'package:bbarna/banners/viewModel/banners_view_model.dart';
+import 'package:bbarna/book_orders/viewModel/book_order_view_model.dart';
+import 'package:bbarna/books/viewModel/book_view_model.dart';
 import 'package:bbarna/core/widgets/sidebar.dart';
 import 'package:bbarna/course/viewModel/course_view_model.dart';
 import 'package:bbarna/documents/audio/viewModel/audio_view_model.dart';
@@ -7,6 +9,7 @@ import 'package:bbarna/documents/video/viewModel/video_view_model.dart';
 import 'package:bbarna/live_class/viewModel/live_class_view_model.dart';
 import 'package:bbarna/login/screen/login_screen.dart';
 import 'package:bbarna/login/viewModel/login_view_model.dart';
+import 'package:bbarna/notifications/viewModel/notifications_view_model.dart';
 import 'package:bbarna/question/viewModel/question_view_model.dart';
 import 'package:bbarna/quiz/viewModel/quiz_view_model.dart';
 import 'package:bbarna/resources/constant.dart';
@@ -63,6 +66,9 @@ void main() async {
       ChangeNotifierProvider(create: (_) => StudentViewModel()),
       ChangeNotifierProvider(create: (_) => TeacherViewModel()),
       ChangeNotifierProvider(create: (_) => LiveClassViewModel()),
+      ChangeNotifierProvider(create: (_) => BookViewModel()),
+      ChangeNotifierProvider(create: (_) => BookOrderViewModel()),
+      ChangeNotifierProvider(create: (_) => NotificationsViewModel()),
       ChangeNotifierProvider(create: (_) => LoginViewModel()),
     ],
     child: const MyApp(),

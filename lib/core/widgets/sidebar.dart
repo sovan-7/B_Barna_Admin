@@ -1,6 +1,10 @@
 import 'package:bbarna/banners/screen/banner_list.dart';
+import 'package:bbarna/book_orders/screen/book_order_list.dart';
+import 'package:bbarna/books/screen/book_list.dart';
+import 'package:bbarna/notifications/screen/notification_list.dart';
 import 'package:flutter/material.dart';
 import 'package:bbarna/core/widgets/app_header.dart';
+import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
 import 'package:bbarna/core/widgets/sidebar_widget.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
@@ -34,8 +38,8 @@ class _SidebarState extends State<Sidebar> {
   /// Lets the header's menu button open the drawer.
   final GlobalKey<ScaffoldState> key = GlobalKey();
 
-  /// The module currently shown.
-  int selectedIndex = 0;
+  /// The module currently shown; null when this user may open none.
+  int? selectedIndex;
 
   /// Whether the rail is reduced to icons.
   bool _collapsed = false;
@@ -55,11 +59,19 @@ class _SidebarState extends State<Sidebar> {
     const StudentList(),
     const TeacherList(),
     const LiveClassList(),
+    const BookList(),
+    const BookOrderList(),
+    const NotificationList(),
   ];
 
   @override
   void initState() {
-    selectedIndex = widget.sidebarIndex;
+    // The requested module only if this user may open it (sign-in always
+    // asks for the first one); otherwise the first they may, if any.
+    final List<int> allowed = Helper.allowedModuleIndices();
+    selectedIndex = allowed.contains(widget.sidebarIndex)
+        ? widget.sidebarIndex
+        : (allowed.isEmpty ? null : allowed.first);
     _collapsed = Helper.isSidebarCollapsed();
     super.initState();
   }
@@ -95,13 +107,23 @@ class _SidebarState extends State<Sidebar> {
                   children: [
                     if (!isCompact)
                       SidebarNav(
-                        selectedIndex: selectedIndex,
+                        selectedIndex: selectedIndex ?? -1,
                         collapsed: _collapsed,
                         onToggleCollapsed: _toggleCollapsed,
                         onSelect: (moduleIndex) =>
                             setState(() => selectedIndex = moduleIndex),
                       ),
-                    Expanded(child: screenList[selectedIndex]),
+                    Expanded(
+                      child: selectedIndex == null
+                          ? const ListEmptyState(
+                              icon: Icons.lock_outline,
+                              title: "No modules assigned",
+                              message:
+                                  "Ask an admin to give your account access "
+                                  "to at least one module.",
+                            )
+                          : screenList[selectedIndex!],
+                    ),
                   ],
                 ),
               ),
@@ -113,7 +135,7 @@ class _SidebarState extends State<Sidebar> {
                 width: AppTokens.railWidth,
                 backgroundColor: AppTokens.surface,
                 child: ExtraSideBar(
-                  sidebarIndex: selectedIndex,
+                  sidebarIndex: selectedIndex ?? -1,
                   isFromLogin: true,
                 ),
               )

@@ -39,6 +39,9 @@ class LoginRepo {
     return LoginResult(
       adminId: doc.id,
       moduleAccess: List<String>.from(doc.data()['module_access'] ?? []),
+      // Same fallback as TeacherModel: a document with no role is a
+      // subadmin.
+      role: doc.data()['role'] as String? ?? roleSubadmin,
     );
   }
 }

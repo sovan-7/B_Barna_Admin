@@ -1,9 +1,10 @@
 import 'package:bbarna/login/model/login_result.dart';
 import 'package:bbarna/resources/constant.dart';
 
-/// The signed-in admin's session: the teacher document id and their module
-/// list, both kept in SharedPreferences. All reads and writes of those keys
-/// go through here so signing in and out always handle both.
+/// The signed-in admin's session: the teacher document id, their module
+/// list and their role, all kept in SharedPreferences. All reads and writes
+/// of those keys go through here so signing in and out always handle every
+/// one of them.
 class Session {
   const Session._();
 
@@ -23,13 +24,27 @@ class Session {
   /// Whether someone is signed in.
   static bool get isSignedIn => adminId != null;
 
-  /// Starts a session for the user [result] identifies (writes both keys;
-  /// the counterpart of [signOut]).
+  /// Whether the signed-in user has the [roleAdmin] role.
+  ///
+  /// False for a session started before the role was stored (it has no
+  /// role key); such a session keeps its module list until the next
+  /// sign-in.
+  static bool get isAdmin {
+    try {
+      return sharedPreferences.getString(rolePrefsKey) == roleAdmin;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Starts a session for the user [result] identifies (writes every
+  /// session key; the counterpart of [signOut]).
   static Future<void> signIn(LoginResult result) async {
     try {
       await sharedPreferences.setString(adminIdPrefsKey, result.adminId);
       await sharedPreferences.setStringList(
           moduleAccessPrefsKey, result.moduleAccess);
+      await sharedPreferences.setString(rolePrefsKey, result.role);
     } catch (_) {
       // No store to write to. The sign-in still stands for this session;
       // it just will not survive a reload.
@@ -40,13 +55,14 @@ class Session {
   ///
   /// Only the session keys go: `sidebar_collapsed` is a preference about
   /// this browser, not about who is using it, so the rail stays how it was
-  /// left for whoever signs in next. Module access, on the other hand, is
-  /// the previous user's — leaving it behind would let the next sign-in
-  /// briefly render their sidebar.
+  /// left for whoever signs in next. Module access and role, on the other
+  /// hand, are the previous user's — leaving them behind would let the
+  /// next sign-in briefly render their sidebar.
   static Future<void> signOut() async {
     try {
       await sharedPreferences.remove(adminIdPrefsKey);
       await sharedPreferences.remove(moduleAccessPrefsKey);
+      await sharedPreferences.remove(rolePrefsKey);
     } catch (_) {
       // Nothing to clear — there was no store to clear it from.
     }

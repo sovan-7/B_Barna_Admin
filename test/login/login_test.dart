@@ -9,6 +9,7 @@ import 'package:bbarna/login/repo/login_repo.dart';
 import 'package:bbarna/login/screen/login_screen.dart';
 import 'package:bbarna/login/viewModel/login_view_model.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/utils/helper.dart';
 import 'package:bbarna/utils/session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -250,6 +251,27 @@ void main() {
           ['banners', 'course']);
       expect(find.byType(Sidebar), findsOneWidget);
       expect(find.byType(LoginScreen), findsNothing);
+    });
+
+    testWidgets('a success remembers the role, so an admin sees every module',
+        (tester) async {
+      // An admin whose module list was saved before Books existed.
+      when(() => repo.signIn(any(), any())).thenAnswer((_) async =>
+          const LoginResult(
+              adminId: 'teacher-1',
+              moduleAccess: ['BANNERS', 'COURSES'],
+              role: roleAdmin));
+
+      await _pump(tester, const Size(1024, 768));
+
+      await tester.enterText(find.byKey(const Key('login_username')), 'admin');
+      await tester.enterText(find.byKey(const Key('login_password')), 'pw');
+      await tester.tap(find.byKey(const Key('login_submit')));
+      await tester.pumpAndSettle();
+
+      expect(sharedPreferences.getString(rolePrefsKey), roleAdmin);
+      expect(Session.isAdmin, isTrue);
+      expect(Helper.allowedModuleIndices(), hasLength(moduleList.length));
     });
 
     testWidgets('nothing is left on the stack to go back to', (tester) async {

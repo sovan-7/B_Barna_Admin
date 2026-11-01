@@ -80,6 +80,24 @@ const String teacher = "teacher";
 /// `live_classes` collection.
 const String liveClasses = "live_classes";
 
+/// `books` collection: printed books sold in the student app.
+const String books = "books";
+
+/// `book_orders` collection: paid book orders, written by the student app.
+const String bookOrders = "book_orders";
+
+/// `notifications` collection: push notifications sent from the panel. A
+/// new document is sent to every app user by the `sendAdminNotification`
+/// Cloud Function.
+const String notifications = "notifications";
+
+/// `app_settings` collection: one document per feature with values the
+/// admin can change. `app_settings/books` holds `delivery_charge`.
+const String appSettings = "app_settings";
+
+/// Document id of the book shop's settings inside [appSettings].
+const String bookSettingsDoc = "books";
+
 /// Sidebar module names/icons, index-aligned. [Sidebar] and [ExtraSideBar]
 /// render navigation from this list; [AddTeacher] generates its
 /// module-access checkboxes from the same list so the two never drift apart.
@@ -97,7 +115,25 @@ const List<String> moduleList = [
   "STUDENTS",
   "TEACHERS",
   "LIVE CLASSES",
+  "BOOKS",
+  "BOOK ORDERS",
+  "NOTIFICATIONS",
 ];
+
+/// Position of the Books module within [moduleList] — the value the Book
+/// form passes as `sidebarIndex`. New modules are appended, never
+/// inserted, so the positions of the older ones never move.
+const int bookModuleIndex = 13;
+
+/// Position of the Book orders module within [moduleList].
+const int bookOrderModuleIndex = 14;
+
+/// Position of the Notifications module within [moduleList].
+const int notificationModuleIndex = 15;
+
+/// Position of the Teachers module within [moduleList]. Only an admin may
+/// open it (see `Helper.allowedModuleIndices`).
+const int teacherModuleIndex = 11;
 
 /// Position of the Live Classes module within [moduleList] — the value
 /// every Live Class screen passes as `ExtraSideBar(sidebarIndex: ...)`.
@@ -124,6 +160,9 @@ const List<String> moduleDisplayList = [
   "Students",
   "Teachers",
   "Live Classes",
+  "Books",
+  "Book orders",
+  "Notifications",
 ];
 
 /// Role with full access, including managing teachers.
@@ -142,6 +181,11 @@ const String adminIdPrefsKey = "admin_id";
 /// stored under at login — [Sidebar] and [ExtraSideBar] read it back to
 /// restrict which modules they render.
 const String moduleAccessPrefsKey = "module_access";
+
+/// SharedPreferences key the logged-in teacher's role ([roleAdmin] or
+/// [roleSubadmin]) is stored under at login. An admin is shown every
+/// module, including ones added after their module_access list was saved.
+const String rolePrefsKey = "role";
 
 /// SharedPreferences key remembering whether the navigation rail was left
 /// collapsed, so the choice survives the pushReplacement each add/edit
@@ -173,4 +217,7 @@ const List<IconData> moduleIconList = [
   Icons.people,
   Icons.people_alt_outlined,
   Icons.live_tv,
+  Icons.auto_stories,
+  Icons.local_shipping_outlined,
+  Icons.campaign_outlined,
 ];
