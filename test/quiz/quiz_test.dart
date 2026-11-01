@@ -30,8 +30,17 @@ QuizModel _quiz(
   List<String>? questionCodes,
   int timeStamp = 0,
 }) {
-  final QuizModel model = QuizModel(code, name, status, type, totalTime,
-      timeStamp, totalMarks, deduction, 0, totalQuestion,
+  final QuizModel model = QuizModel(
+      code,
+      name,
+      status,
+      type,
+      totalTime,
+      timeStamp,
+      totalMarks,
+      deduction,
+      0,
+      totalQuestion,
       questionCodes ?? ["Q-01", "Q-02"]);
   model.docId = id;
   return model;
@@ -89,8 +98,10 @@ void main() {
 
   setUp(() {
     repo = MockQuizRepo();
-    when(() => repo.getFirstQuizList(any())).thenAnswer((_) async => _fixture());
+    when(() => repo.getFirstQuizList(any()))
+        .thenAnswer((_) async => _fixture());
     when(() => repo.getQuizListLength()).thenAnswer((_) async => 3);
+    when(() => repo.quizIdsWithCode(any())).thenAnswer((_) async => []);
     when(() => repo.getQuestionsByCodes(any())).thenAnswer((_) async => [
           _question('Q-01', '<p>What is the SI unit of force?</p>'),
           _question('Q-02', '<p>State the first law of motion.</p>'),
@@ -214,8 +225,8 @@ void main() {
 
       expect(find.text('No questions attached yet'), findsOneWidget);
 
-      await tester.ensureVisible(
-          find.byKey(const Key('quiz_question_search_button')));
+      await tester
+          .ensureVisible(find.byKey(const Key('quiz_question_search_button')));
       await tester.pumpAndSettle();
       await tester.enterText(
           find.byKey(const Key('quiz_question_search')), 'q-07');
@@ -238,8 +249,7 @@ void main() {
       expect(find.byKey(const Key('quiz_remove_Q-07')), findsOneWidget);
     });
 
-    testWidgets('a search hides questions already on the quiz',
-        (tester) async {
+    testWidgets('a search hides questions already on the quiz', (tester) async {
       when(() => repo.searchQuestions(any())).thenAnswer((_) async => [
             _question('Q-01', '<p>Already on the quiz.</p>'),
             _question('Q-09', '<p>Not yet.</p>'),
@@ -267,6 +277,89 @@ void main() {
 
       expect(vm.selectedQuestionCodeList, ['Q-02']);
       expect(find.text('1 attached'), findsOneWidget);
+    });
+  });
+
+  group('duplicating', () {
+    final QuizModel original = _quiz('a', 'MOCK-01', 'Physics mock test 1',
+        status: "LIVE", type: "PAID", totalTime: 75, deduction: 1);
+
+    testWidgets('the card opens a prefilled copy with a blank code',
+        (tester) async {
+      final vm = QuizViewModel(quizRepo: repo);
+      // Compact width: card buttons are always shown (on wide screens they
+      // only appear on hover).
+      await _pump(
+          tester, const Size(700, 1000), const Scaffold(body: QuizList()), vm);
+
+      await tester.tap(find.byKey(const Key('quiz_duplicate_a')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Duplicate quiz'), findsOneWidget);
+      final TextField code = tester.widget(find.byType(TextField).at(0));
+      final TextField name = tester.widget(find.byType(TextField).at(1));
+      expect(code.controller!.text, isEmpty);
+      expect(name.controller!.text, 'Physics mock test 1 (copy)');
+    });
+
+    testWidgets('saving adds a new quiz with the same rules and questions',
+        (tester) async {
+      when(() => repo.addQuiz(any())).thenAnswer((_) async => 'new-id');
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(tester, const Size(1024, 900), AddQuiz(copyOf: original), vm);
+
+      await tester.enterText(find.byType(TextField).at(0), 'mock-01b');
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('quiz_save_button')));
+      await tester.tap(find.byKey(const Key('quiz_save_button')));
+      await tester.pump();
+      await tester.pump();
+
+      final QuizModel saved =
+          verify(() => repo.addQuiz(captureAny())).captured.single as QuizModel;
+      verifyNever(() => repo.updateQuiz(any(), any()));
+      expect(saved.code, 'MOCK-01B');
+      expect(saved.name, 'Physics mock test 1 (copy)');
+      expect(saved.status, 'PENDING', reason: 'a copy never starts live');
+      expect(saved.type, 'PAID');
+      expect(saved.totalTime, 75);
+      expect(saved.totalMarks, 100);
+      expect(saved.numberDeduction, 1);
+      expect(saved.questionCodeList, ['Q-01', 'Q-02']);
+      expect(saved.totalQuestion, 2);
+    });
+
+    testWidgets('a code another quiz uses is refused', (tester) async {
+      when(() => repo.quizIdsWithCode('MOCK-01'))
+          .thenAnswer((_) async => ['a']);
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(tester, const Size(1024, 900), AddQuiz(copyOf: original), vm);
+
+      await tester.enterText(find.byType(TextField).at(0), 'mock-01');
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('quiz_save_button')));
+      await tester.tap(find.byKey(const Key('quiz_save_button')));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Another quiz already uses MOCK-01'), findsOneWidget);
+      verifyNever(() => repo.addQuiz(any()));
+    });
+
+    testWidgets('editing a quiz may keep its own code', (tester) async {
+      when(() => repo.quizIdsWithCode('MOCK-01'))
+          .thenAnswer((_) async => ['a']);
+      when(() => repo.updateQuiz(any(), any())).thenAnswer((_) async {});
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(
+          tester, const Size(1024, 900), EditQuiz(quizData: original), vm);
+
+      await tester.ensureVisible(find.byKey(const Key('quiz_save_button')));
+      await tester.tap(find.byKey(const Key('quiz_save_button')));
+      await tester.pump();
+      await tester.pump();
+
+      verify(() => repo.updateQuiz(any(), 'a')).called(1);
     });
   });
 
@@ -351,9 +444,9 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      final QuizModel saved =
-          verify(() => repo.updateQuiz(captureAny(), 'c')).captured.single
-              as QuizModel;
+      final QuizModel saved = verify(() => repo.updateQuiz(captureAny(), 'c'))
+          .captured
+          .single as QuizModel;
       expect(saved.questionCodeList, ['Q-01', 'Q-02']);
     });
 
@@ -373,38 +466,37 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      final QuizModel saved =
-          verify(() => repo.updateQuiz(captureAny(), 'c')).captured.single
-              as QuizModel;
+      final QuizModel saved = verify(() => repo.updateQuiz(captureAny(), 'c'))
+          .captured
+          .single as QuizModel;
       // It used to be a number typed by hand, with nothing keeping the two
       // in step.
       expect(saved.totalQuestion, saved.questionCodeList.length);
       expect(saved.questionCodeList, ['Q-01', 'Q-02']);
     });
 
-  // The name and the code are what an admin pastes elsewhere -- into a
-  // search box, a spreadsheet, another module's form -- so they render as
-  // SelectableLabel rather than plain Text.
-  testWidgets('names and codes in the list are selectable', (tester) async {
-    await _pump(tester, const Size(1440, 900),
-        const Scaffold(body: QuizList()), QuizViewModel(quizRepo: repo));
+    // The name and the code are what an admin pastes elsewhere -- into a
+    // search box, a spreadsheet, another module's form -- so they render as
+    // SelectableLabel rather than plain Text.
+    testWidgets('names and codes in the list are selectable', (tester) async {
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: QuizList()), QuizViewModel(quizRepo: repo));
 
-    final Iterable<SelectableLabel> labels =
-        tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
-    expect(labels, isNotEmpty);
-    for (final SelectableLabel label in labels) {
-      expect(label.data.trim(), isNotEmpty);
-    }
-    // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
-    expect(
-      find.descendant(
-        of: find.byType(SelectableLabel),
-        matching: find.byType(SelectableText),
-      ),
-      findsWidgets,
-    );
-  });
-
+      final Iterable<SelectableLabel> labels =
+          tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
+      expect(labels, isNotEmpty);
+      for (final SelectableLabel label in labels) {
+        expect(label.data.trim(), isNotEmpty);
+      }
+      // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
+      expect(
+        find.descendant(
+          of: find.byType(SelectableLabel),
+          matching: find.byType(SelectableText),
+        ),
+        findsWidgets,
+      );
+    });
   });
 
   group('the model', () {

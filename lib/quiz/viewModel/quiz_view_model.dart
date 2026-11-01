@@ -70,6 +70,20 @@ class QuizViewModel extends PagedListViewModel<QuizModel> {
     }
   }
 
+  /// Whether a quiz other than [exceptDocId] already uses [code]. Null when
+  /// the lookup failed (a toast says so), so the caller should not save.
+  Future<bool?> isCodeTaken(String code, {String? exceptDocId}) async {
+    try {
+      final List<String> ids = await _quizRepo.quizIdsWithCode(code);
+      return ids.any((id) => id != exceptDocId);
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Couldn't check whether the code is free — try again",
+          isSuccess: false);
+      return null;
+    }
+  }
+
   /// Saves the edited quiz. Returns `false` (and shows a toast) on failure.
   Future<bool> updateQuiz(QuizModel quizModel, String docId) async {
     try {

@@ -25,10 +25,19 @@ import 'package:provider/provider.dart';
 class QuizForm extends StatefulWidget {
   /// The item being edited; null means "Add".
   final QuizModel? existing;
-  const QuizForm({this.existing, super.key});
+
+  /// When adding, a quiz to start from (Duplicate): its rules and questions
+  /// are filled in, the code is left blank, " (copy)" is added to the name
+  /// and the status starts as PENDING. Ignored when [existing] is set.
+  final QuizModel? copyOf;
+
+  const QuizForm({this.existing, this.copyOf, super.key});
 
   /// True when editing an existing item.
   bool get isEdit => existing != null;
+
+  /// True when adding a copy of [copyOf].
+  bool get isCopy => !isEdit && copyOf != null;
 
   @override
   State<QuizForm> createState() => _QuizFormState();
@@ -83,22 +92,29 @@ class _QuizFormState extends State<QuizForm> {
   void initState() {
     super.initState();
     final QuizModel? existing = widget.existing;
-    if (existing != null) {
-      codeController.text = existing.code;
-      nameController.text = existing.name;
-      if (existing.totalTime > 0) {
-        hoursController.text = (existing.totalTime ~/ 60).toString();
-        minutesController.text = (existing.totalTime % 60).toString();
+    final QuizModel? source = existing ?? widget.copyOf;
+    if (source != null) {
+      codeController.text = source.code;
+      nameController.text = source.name;
+      if (source.totalTime > 0) {
+        hoursController.text = (source.totalTime ~/ 60).toString();
+        minutesController.text = (source.totalTime % 60).toString();
       }
-      if (existing.totalMarks > 0) {
-        marksController.text = existing.totalMarks.toString();
+      if (source.totalMarks > 0) {
+        marksController.text = source.totalMarks.toString();
       }
-      if (existing.numberDeduction > 0) {
-        deductionController.text = existing.numberDeduction.toString();
+      if (source.numberDeduction > 0) {
+        deductionController.text = source.numberDeduction.toString();
       }
       _selectedStatus =
-          statusList.contains(existing.status) ? existing.status : null;
-      _selectedType = typeList.contains(existing.type) ? existing.type : null;
+          statusList.contains(source.status) ? source.status : null;
+      _selectedType = typeList.contains(source.type) ? source.type : null;
+    }
+    if (widget.isCopy) {
+      // A copy needs its own code, and should not go live by accident.
+      codeController.text = "";
+      nameController.text = "${source!.name} (copy)";
+      _selectedStatus = "PENDING";
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -106,7 +122,7 @@ class _QuizFormState extends State<QuizForm> {
       final QuizViewModel quizViewModel =
           Provider.of<QuizViewModel>(context, listen: false);
       quizViewModel.clearQuestionPicker();
-      quizViewModel.loadQuizQuestions(existing?.questionCodeList ?? const []);
+      quizViewModel.loadQuizQuestions(source?.questionCodeList ?? const []);
     });
   }
 
@@ -201,10 +217,30 @@ class _QuizFormState extends State<QuizForm> {
       _isSaving = true;
     });
 
+    // Two quizzes with one code would be indistinguishable to topics that
+    // attach quizzes by code.
+    final String code = codeController.text.trim().toUpperCase();
+    final bool? taken = await quizViewModel.isCodeTaken(code,
+        exceptDocId: widget.existing?.docId);
+    if (!mounted) return;
+    if (taken != false) {
+      setState(() {
+        _isSaving = false;
+        if (taken == true) {
+          _errors[_Field.code] = "Another quiz already uses $code";
+        }
+      });
+      if (taken == true) {
+        Helper.showSnackBarMessage(
+            msg: "Check the highlighted field", isSuccess: false);
+      }
+      return;
+    }
+
     final List<String> questionCodes = quizViewModel.selectedQuestionCodeList;
 
     final QuizModel model = QuizModel(
-      codeController.text.trim().toUpperCase(),
+      code,
       nameController.text.trim(),
       _selectedStatus ?? stringDefault,
       _selectedType ?? stringDefault,
@@ -335,10 +371,17 @@ class _QuizFormState extends State<QuizForm> {
   /// Back button, title and subtitle at the top of the page.
   Widget _pageHeader() {
     return FormPageHeader(
-      title: widget.isEdit ? "Edit quiz" : "Add a quiz",
+      title: widget.isEdit
+          ? "Edit quiz"
+          : widget.isCopy
+              ? "Duplicate quiz"
+              : "Add a quiz",
       subtitle: widget.isEdit
           ? "Update this quiz's rules and its questions."
-          : "Set the rules, then attach the questions.",
+          : widget.isCopy
+              ? "A copy of ${widget.copyOf!.name}. Give it a new code, "
+                  "change what differs, then save."
+              : "Set the rules, then attach the questions.",
       onBack: _isSaving ? null : () => Navigator.pop(context),
     );
   }

@@ -85,6 +85,10 @@ class PagedListScreen<VM extends PagedListViewModel<T>, T>
   /// (e.g. preloading the course list the Add form needs).
   final void Function(BuildContext context)? onFirstFrame;
 
+  /// A second header button, shown before the add button (e.g. Import).
+  /// Gets the view model so it can refresh the list afterwards.
+  final Widget Function(BuildContext context, VM viewModel)? extraHeaderAction;
+
   const PagedListScreen({
     required this.title,
     required this.subtitle,
@@ -99,6 +103,7 @@ class PagedListScreen<VM extends PagedListViewModel<T>, T>
     required this.emptyAddLabel,
     required this.itemBuilder,
     this.onFirstFrame,
+    this.extraHeaderAction,
     super.key,
   });
 
@@ -146,10 +151,7 @@ class _PagedListScreenState<VM extends PagedListViewModel<T>, T>
             title: widget.title,
             count: viewModel.totalCount,
             subtitle: widget.subtitle,
-            trailing: AddWidget(
-              title: widget.addButtonLabel,
-              addCall: () => _openAdd(viewModel),
-            ),
+            trailing: _headerActions(viewModel),
           ),
           const SizedBox(height: AppTokens.gapMd),
           // The hint names the code on purpose: the search is a server-side
@@ -182,6 +184,24 @@ class _PagedListScreenState<VM extends PagedListViewModel<T>, T>
         ],
       );
     });
+  }
+
+  /// The add button, after [PagedListScreen.extraHeaderAction] when given.
+  Widget _headerActions(VM viewModel) {
+    final Widget add = AddWidget(
+      title: widget.addButtonLabel,
+      addCall: () => _openAdd(viewModel),
+    );
+    final extra = widget.extraHeaderAction;
+    if (extra == null) return add;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        extra(context, viewModel),
+        const SizedBox(width: AppTokens.gapSm),
+        add,
+      ],
+    );
   }
 
   /// Opens the Add screen and reloads the list if something was

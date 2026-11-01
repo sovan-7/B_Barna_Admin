@@ -36,6 +36,54 @@ class QuestionRepo {
     return doc.id;
   }
 
+  /// Most writes one batch commits (Firestore allows 500).
+  static const int batchSize = 450;
+
+  /// Adds every map in [maps] as a new question, [batchSize] per batch.
+  ///
+  /// Each batch lands whole or not at all. [onProgress] gets the number
+  /// written so far after every batch; if a batch fails, the ones before it
+  /// stay written and the error is rethrown.
+  Future<void> addQuestions(List<Map<String, dynamic>> maps,
+      {void Function(int written)? onProgress}) async {
+    for (int start = 0; start < maps.length; start += batchSize) {
+      final int end =
+          start + batchSize > maps.length ? maps.length : start + batchSize;
+      final WriteBatch batch = _fireStore.batch();
+      for (final Map<String, dynamic> data in maps.sublist(start, end)) {
+        batch.set(_collection.doc(), data);
+      }
+      await batch.commit();
+      onProgress?.call(end);
+    }
+  }
+
+  /// Which of [codes] some question already uses.
+  ///
+  /// Firestore's `whereIn` accepts at most 30 values, so the codes are
+  /// queried in chunks of 25 (as in `QuizRepo.getQuestionsByCodes`).
+  Future<Set<String>> existingCodes(List<String> codes) async {
+    const int chunkSize = 25;
+    final List<QuerySnapshot<Map<String, dynamic>>> snapshots =
+        await Future.wait([
+      for (int i = 0; i < codes.length; i += chunkSize)
+        _collection
+            .where("question_code",
+                whereIn: codes.sublist(
+                    i,
+                    i + chunkSize > codes.length
+                        ? codes.length
+                        : i + chunkSize))
+            .get(),
+    ]);
+    return {
+      for (final QuerySnapshot<Map<String, dynamic>> snapshot in snapshots)
+        for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
+            in snapshot.docs)
+          doc.data()["question_code"] as String? ?? "",
+    }..remove("");
+  }
+
   /// Overwrites question [docId] with [data].
   Future<void> updateQuestion(String docId, Map<String, dynamic> data) async {
     await _collection.doc(docId).update(data);

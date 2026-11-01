@@ -58,6 +58,13 @@ class QuizRepo {
     await _collection.doc(docId).delete();
   }
 
+  /// Ids of the quizzes whose `quiz_code` is exactly [code].
+  Future<List<String>> quizIdsWithCode(String code) async {
+    final QuerySnapshot<Map<String, dynamic>> snapshot =
+        await _collection.where("quiz_code", isEqualTo: code).get();
+    return [for (final doc in snapshot.docs) doc.id];
+  }
+
   /// Total quizzes in the collection.
   Future<int> getQuizListLength() => countDocuments(_collection);
 

@@ -4,6 +4,7 @@ import 'package:bbarna/core/widgets/card/card_chips.dart';
 import 'package:bbarna/core/widgets/card/card_helpers.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/quiz/model/quiz_model.dart';
+import 'package:bbarna/quiz/screen/add_quiz.dart';
 import 'package:bbarna/quiz/screen/edit_quiz.dart';
 import 'package:bbarna/quiz/viewModel/quiz_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
@@ -199,6 +200,13 @@ class _QuizCardState extends State<QuizCard> {
     return CardActions(
       visible: visible,
       buttons: [
+        CardIconButton(
+          buttonKey: Key('quiz_duplicate_${_data.docId}'),
+          icon: Icons.copy_all_outlined,
+          tooltip: "Duplicate quiz",
+          color: AppTokens.inkMuted,
+          onTap: _openDuplicate,
+        ),
         CardEditButton(
           buttonKey: Key('quiz_edit_${_data.docId}'),
           tooltip: "Edit quiz",
@@ -219,6 +227,15 @@ class _QuizCardState extends State<QuizCard> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EditQuiz(quizData: _data)),
+    ).ifSaved(widget.onChanged);
+  }
+
+  /// Opens Add Quiz prefilled from this quiz; the list reloads if the copy
+  /// was saved.
+  void _openDuplicate() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => AddQuiz(copyOf: _data)),
     ).ifSaved(widget.onChanged);
   }
 
