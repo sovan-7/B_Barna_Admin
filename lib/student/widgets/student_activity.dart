@@ -42,5 +42,8 @@ class StudentActivity {
   }
 
   /// What the row says when there is no sign-in to report.
-  static const String neverLabel = "Never signed in";
+  ///
+  /// Not "never signed in": the app deletes `active_login_at` on logout and
+  /// some versions wrote nothing else, so a missing time proves nothing.
+  static const String neverLabel = "No sign-in recorded";
 }

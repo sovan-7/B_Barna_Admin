@@ -86,6 +86,10 @@ const String books = "books";
 /// `book_orders` collection: paid book orders, written by the student app.
 const String bookOrders = "book_orders";
 
+/// `transactions` collection: every purchase, written by the student app.
+/// Read-only here.
+const String transactions = "transactions";
+
 /// `notifications` collection: push notifications sent from the panel. A
 /// new document is sent to every app user by the `sendAdminNotification`
 /// Cloud Function.
@@ -118,6 +122,20 @@ const List<String> moduleList = [
   "BOOKS",
   "BOOK ORDERS",
   "NOTIFICATIONS",
+  "TRANSACTIONS",
+];
+
+/// Modules switched off for everyone, admins included. They stay in
+/// [moduleList] and its index-aligned lists so no other module's position
+/// moves; remove an index from here to bring its module back.
+const Set<int> hiddenModuleIndices = {bookModuleIndex, bookOrderModuleIndex};
+
+/// What a teacher's access can be chosen from: everything except modules
+/// only an admin may ever open and modules switched off for everyone.
+final List<String> assignableModuleList = [
+  for (int i = 0; i < moduleList.length; i++)
+    if (i != transactionModuleIndex && !hiddenModuleIndices.contains(i))
+      moduleList[i],
 ];
 
 /// Position of the Books module within [moduleList] — the value the Book
@@ -130,6 +148,11 @@ const int bookOrderModuleIndex = 14;
 
 /// Position of the Notifications module within [moduleList].
 const int notificationModuleIndex = 15;
+
+/// Position of the Transactions module within [moduleList]. Only an admin
+/// may open it, because it shows payments and students' phone numbers (see
+/// `Helper.allowedModuleIndices`).
+const int transactionModuleIndex = 16;
 
 /// Position of the Teachers module within [moduleList]. Only an admin may
 /// open it (see `Helper.allowedModuleIndices`).
@@ -163,6 +186,7 @@ const List<String> moduleDisplayList = [
   "Books",
   "Book orders",
   "Notifications",
+  "Transactions",
 ];
 
 /// Role with full access, including managing teachers.
@@ -220,4 +244,5 @@ const List<IconData> moduleIconList = [
   Icons.auto_stories,
   Icons.local_shipping_outlined,
   Icons.campaign_outlined,
+  Icons.receipt_long_outlined,
 ];

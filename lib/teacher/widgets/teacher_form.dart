@@ -429,12 +429,13 @@ class _TeacherFormState extends TeacherFormTestHooks {
       error: _errors[_Field.modules],
       enabled: !isSaving,
       onToggleAll: () {
-        final bool allSelected = selectedModules.length == moduleList.length;
+        final bool allSelected =
+            selectedModules.length == assignableModuleList.length;
         setState(() {
           if (allSelected) {
             selectedModules.clear();
           } else {
-            selectedModules.addAll(moduleList);
+            selectedModules.addAll(assignableModuleList);
           }
         });
         _revalidate();

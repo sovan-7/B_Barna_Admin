@@ -162,13 +162,15 @@ class _TeacherCardState extends State<TeacherCard> {
     // than whatever order the access list happens to be stored in.
     final List<int> granted = [
       for (int i = 0; i < moduleList.length; i++)
-        if (_data.moduleAccess.contains(moduleList[i])) i,
+        if (!hiddenModuleIndices.contains(i) &&
+            _data.moduleAccess.contains(moduleList[i]))
+          i,
     ];
 
     if (granted.isEmpty) {
       return _accessLine(Icons.block, "No module access", AppTokens.danger);
     }
-    if (granted.length == moduleList.length) {
+    if (granted.length >= assignableModuleList.length) {
       return _accessLine(
           Icons.all_inclusive, "Every module", const Color(0xFF108460));
     }

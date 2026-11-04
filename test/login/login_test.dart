@@ -271,7 +271,8 @@ void main() {
 
       expect(sharedPreferences.getString(rolePrefsKey), roleAdmin);
       expect(Session.isAdmin, isTrue);
-      expect(Helper.allowedModuleIndices(), hasLength(moduleList.length));
+      expect(Helper.allowedModuleIndices(),
+          hasLength(moduleList.length - hiddenModuleIndices.length));
     });
 
     testWidgets('nothing is left on the stack to go back to', (tester) async {

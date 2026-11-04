@@ -18,6 +18,7 @@ import 'package:bbarna/quiz/screen/quiz_list.dart';
 import 'package:bbarna/student/screen/student_list.dart';
 import 'package:bbarna/subject/screen/subject_list.dart';
 import 'package:bbarna/teacher/screen/teacher_list.dart';
+import 'package:bbarna/transactions/screen/transaction_list.dart';
 import 'package:bbarna/topic/screen/topic_list.dart';
 import 'package:bbarna/units/screen/unit_list.dart';
 import 'package:bbarna/utils/helper.dart';
@@ -62,6 +63,7 @@ class _SidebarState extends State<Sidebar> {
     const BookList(),
     const BookOrderList(),
     const NotificationList(),
+    const TransactionList(),
   ];
 
   @override
@@ -286,7 +288,7 @@ class SidebarNav extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          "B BARNA",
+                          "B_BARNA",
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                               fontSize: 14,
@@ -295,7 +297,7 @@ class SidebarNav extends StatelessWidget {
                               color: AppTokens.ink),
                         ),
                         Text(
-                          "Admin portal",
+                          "Admin Portal",
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                               fontSize: 11, color: AppTokens.inkFaint),

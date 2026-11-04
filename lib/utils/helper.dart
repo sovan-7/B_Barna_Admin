@@ -58,9 +58,14 @@ class Helper {
   /// never Teachers: managing accounts (and so creating admins) is the
   /// admin's alone, whatever the list says. An empty or missing list, or a
   /// store that cannot be read, grants nothing.
+  ///
+  /// Nobody sees a module in [hiddenModuleIndices].
   static List<int> allowedModuleIndices() {
     if (Session.isAdmin) {
-      return List<int>.generate(moduleList.length, (i) => i);
+      return [
+        for (int i = 0; i < moduleList.length; i++)
+          if (!hiddenModuleIndices.contains(i)) i,
+      ];
     }
 
     List<String> access;
@@ -71,7 +76,11 @@ class Helper {
     }
     return [
       for (int i = 0; i < moduleList.length; i++)
-        if (i != teacherModuleIndex && access.contains(moduleList[i])) i,
+        if (i != teacherModuleIndex &&
+            i != transactionModuleIndex &&
+            !hiddenModuleIndices.contains(i) &&
+            access.contains(moduleList[i]))
+          i,
     ];
   }
 }

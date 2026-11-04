@@ -10,8 +10,10 @@ import 'package:bbarna/subject/repo/subject_repo.dart';
 import 'package:bbarna/subject/screen/add_subject.dart';
 import 'package:bbarna/subject/screen/edit_subject.dart';
 import 'package:bbarna/subject/screen/subject_list.dart';
+import 'package:bbarna/subject/subject_field_rules.dart';
 import 'package:bbarna/subject/viewModel/subject_view_model.dart';
 import 'package:bbarna/subject/widgets/subject_card.dart';
+import 'package:bbarna/subject/widgets/subject_form.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
@@ -57,6 +59,8 @@ SubjectModel _subject(
       isLocked,
       isPopular);
   model.docId = id;
+  model.videoLink = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+  model.validityMonths = 15;
   // Set on the built model to keep the fixture call short; the form
   // passes them through the constructor.
   if (couponCode != null) {
@@ -122,6 +126,7 @@ Future<void> _pump(WidgetTester tester, Size size, Widget home,
 
 void main() {
   setUpAll(() {
+    SubjectForm.plainDescriptionForTests = true;
     registerFallbackValue(SubjectModelFake());
     registerFallbackValue(Uint8List(0));
   });
@@ -383,6 +388,7 @@ void main() {
       expect(find.text('Set a display priority'), findsOneWidget);
       expect(find.text('Set a price'), findsOneWidget);
       expect(find.text('Choose a subject image'), findsOneWidget);
+      expect(find.text("Add the intro video's YouTube link"), findsOneWidget);
       verifyNever(() => repo.addSubject(any()));
     });
 
@@ -393,10 +399,10 @@ void main() {
           EditSubject(subjectData: _fixture().first), vm);
 
       final Finder priceFields = find.byType(TextField);
-      // Price is the 5th field: code, name, description, priority, price,
-      // selling price — ordered by the form's own layout.
-      await tester.enterText(priceFields.at(4), '100');
-      await tester.enterText(priceFields.at(5), '500');
+      // Price is the 7th field: code, priority, name, description, video,
+      // validity, price, selling price — ordered by the form's own layout.
+      await tester.enterText(priceFields.at(6), '100');
+      await tester.enterText(priceFields.at(7), '500');
       await tester.pump();
 
       await tester.tap(find.byKey(const Key('subject_save_button')));
@@ -568,11 +574,11 @@ void main() {
       await _pump(tester, const Size(1024, 900),
           EditSubject(subjectData: _fixture().first), vm);
 
-      // Coupon code is the 7th TextField: code, priority, name, description,
-      // price, selling price, coupon code, coupon discount -- the form's own
-      // layout order.
+      // Coupon code is the 9th TextField: code, priority, name, description,
+      // video, validity, price, selling price, coupon code, coupon discount
+      // -- the form's own layout order.
       final Finder fields = find.byType(TextField);
-      await tester.enterText(fields.at(6), 'SAVE10');
+      await tester.enterText(fields.at(8), 'SAVE10');
       await tester.pump();
 
       await tester.tap(find.byKey(const Key('subject_save_button')));
@@ -589,8 +595,8 @@ void main() {
           EditSubject(subjectData: _fixture().first), vm);
 
       final Finder fields = find.byType(TextField);
-      await tester.enterText(fields.at(6), 'SAVE10');
-      await tester.enterText(fields.at(7), '10');
+      await tester.enterText(fields.at(8), 'SAVE10');
+      await tester.enterText(fields.at(9), '10');
       await tester.pump();
 
       await tester.tap(find.byKey(const Key('subject_save_button')));
@@ -608,8 +614,8 @@ void main() {
           EditSubject(subjectData: _fixture().first), vm);
 
       final Finder fields = find.byType(TextField);
-      await tester.enterText(fields.at(6), 'SAVE10');
-      await tester.enterText(fields.at(7), '10');
+      await tester.enterText(fields.at(8), 'SAVE10');
+      await tester.enterText(fields.at(9), '10');
       await tester.pump();
 
       final Finder validTill = find.byKey(const Key('subject_coupon_valid_till'));
@@ -681,8 +687,8 @@ void main() {
           EditSubject(subjectData: withCoupon), vm);
 
       final Finder fields = find.byType(TextField);
-      await tester.enterText(fields.at(6), '');
-      await tester.enterText(fields.at(7), '');
+      await tester.enterText(fields.at(8), '');
+      await tester.enterText(fields.at(9), '');
       await tester.pump();
 
       await tester.tap(find.byKey(const Key('subject_save_button')));
@@ -698,5 +704,219 @@ void main() {
   });
 
 
+  });
+
+  group('intro video and validity', () {
+    Future<SubjectModel> saveWith(
+        WidgetTester tester, String video, String validity) async {
+      when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          EditSubject(subjectData: _fixture().first), vm);
+
+      final Finder fields = find.byType(TextField);
+      await tester.enterText(fields.at(4), video);
+      await tester.enterText(fields.at(5), validity);
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+      await tester.pump();
+
+      return verify(() => repo.updateSubject(captureAny(), any()))
+          .captured
+          .single as SubjectModel;
+    }
+
+    testWidgets('saves a tidied link and the months', (tester) async {
+      final SubjectModel saved =
+          await saveWith(tester, 'https://youtu.be/dQw4w9WgXcQ?si=abc', '15');
+      expect(saved.toMap()['subject_video'],
+          'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      expect(saved.toMap()['validity_months'], 15);
+    });
+
+    testWidgets('a blank validity blocks saving', (tester) async {
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          EditSubject(subjectData: _fixture().first), vm);
+
+      await tester.enterText(find.byType(TextField).at(5), '');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+
+      expect(find.text('Enter the validity in months'), findsOneWidget);
+      verifyNever(() => repo.updateSubject(any(), any()));
+    });
+
+    testWidgets('an older subject with no validity must get one before saving',
+        (tester) async {
+      final SubjectModel older = _fixture().first
+        ..validityMonths = intDefault;
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(
+          tester, const Size(1024, 900), EditSubject(subjectData: older), vm);
+
+      expect(
+          tester
+              .widget<TextField>(find.byType(TextField).at(5))
+              .controller!
+              .text,
+          '');
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+
+      expect(find.text('Enter the validity in months'), findsOneWidget);
+      verifyNever(() => repo.updateSubject(any(), any()));
+    });
+
+    testWidgets('saves validity as a whole number, not text', (tester) async {
+      final SubjectModel saved =
+          await saveWith(tester, 'https://youtu.be/dQw4w9WgXcQ', '12');
+      expect(saved.toMap()['validity_months'], isA<int>());
+      expect(saved.toMap()['validity_months'], 12);
+    });
+
+    testWidgets('a blank video link blocks saving', (tester) async {
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          EditSubject(subjectData: _fixture().first), vm);
+
+      await tester.enterText(find.byType(TextField).at(4), '');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+
+      expect(find.text("Add the intro video's YouTube link"), findsOneWidget);
+      verifyNever(() => repo.updateSubject(any(), any()));
+    });
+
+    testWidgets('an older subject with no link must get one before saving',
+        (tester) async {
+      final SubjectModel older = _fixture().first..videoLink = stringDefault;
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(
+          tester, const Size(1024, 900), EditSubject(subjectData: older), vm);
+
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+
+      expect(find.text("Add the intro video's YouTube link"), findsOneWidget);
+      verifyNever(() => repo.updateSubject(any(), any()));
+    });
+
+    testWidgets('a link that is not YouTube blocks saving', (tester) async {
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          EditSubject(subjectData: _fixture().first), vm);
+
+      await tester.enterText(
+          find.byType(TextField).at(4), 'https://example.com/video');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+
+      expect(find.text('Paste a YouTube video link'), findsOneWidget);
+      verifyNever(() => repo.updateSubject(any(), any()));
+    });
+
+    testWidgets('validity outside 1-120 months blocks saving', (tester) async {
+      final vm = SubjectViewModel(subjectRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          EditSubject(subjectData: _fixture().first), vm);
+
+      await tester.enterText(find.byType(TextField).at(5), '0');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+
+      expect(
+          find.text('Enter 1 to 120 months'), findsOneWidget);
+      verifyNever(() => repo.updateSubject(any(), any()));
+    });
+
+    test('recognises the ways a YouTube link gets copied', () {
+      const String id = 'dQw4w9WgXcQ';
+      for (final String link in [
+        'https://www.youtube.com/watch?v=$id',
+        'https://m.youtube.com/watch?v=$id&t=10s',
+        'https://www.youtube.com/watch?list=PL1&v=$id',
+        'https://youtu.be/$id',
+        'https://www.youtube.com/shorts/$id',
+        'https://www.youtube.com/embed/$id',
+        'https://www.youtube.com/live/$id?feature=share',
+        '  http://youtu.be/$id  ',
+      ]) {
+        expect(SubjectVideoLink.idOf(link), id, reason: link);
+      }
+      expect(SubjectVideoLink.idOf('https://youtu.be/short'), isNull);
+      expect(SubjectVideoLink.idOf('https://vimeo.com/$id'), isNull);
+      expect(
+          SubjectVideoLink.idOf('https://evilyoutube.com/watch?v=$id'), isNull);
+    });
+  });
+
+  group('the rich description', () {
+    Future<void> clearDescriptionAndSave(
+        WidgetTester tester, SubjectViewModel vm) async {
+      await _pump(tester, const Size(1024, 900),
+          EditSubject(subjectData: _fixture().first), vm);
+      await tester.enterText(find.byType(TextField).at(3), '');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('subject_save_button')));
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets('an empty box does not erase a description without asking',
+        (tester) async {
+      when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
+      await clearDescriptionAndSave(
+          tester, SubjectViewModel(subjectRepo: repo));
+
+      expect(find.text('Remove the description?'), findsOneWidget);
+      verifyNever(() => repo.updateSubject(any(), any()));
+
+      await tester.tap(find.text('Keep description'));
+      await tester.pumpAndSettle();
+      verifyNever(() => repo.updateSubject(any(), any()));
+    });
+
+    testWidgets('confirming removes the description', (tester) async {
+      when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
+      await clearDescriptionAndSave(
+          tester, SubjectViewModel(subjectRepo: repo));
+
+      await tester.tap(find.text('Remove it'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final SubjectModel saved =
+          verify(() => repo.updateSubject(captureAny(), any())).captured.single
+              as SubjectModel;
+      expect(saved.toMap()['subject_description'], '');
+    });
+
+    test('old plain text keeps its line breaks in the editor', () {
+      expect(subjectDescriptionToEditorHtml('Line one\nLine two'),
+          '<p>Line one<br>Line two</p>');
+    });
+
+    test('HTML is left as it is, the placeholder opens empty', () {
+      const String html = '<p><b>Bold</b></p>';
+      expect(subjectDescriptionToEditorHtml(html), html);
+      expect(subjectDescriptionToEditorHtml(stringDefault), '');
+    });
+
+    test('a maths sign in old text is not mistaken for HTML', () {
+      expect(
+          subjectDescriptionToEditorHtml('Marks < 50'), '<p>Marks &lt; 50</p>');
+    });
+
+    test('a cleared editor saves as blank', () {
+      expect(subjectDescriptionToSave('<p><br></p>'), '');
+      expect(subjectDescriptionToSave('  '), '');
+      expect(subjectDescriptionToSave('<p>Hello</p>'), '<p>Hello</p>');
+    });
   });
 }

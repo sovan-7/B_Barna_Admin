@@ -17,6 +17,7 @@ import 'package:bbarna/student/viewModel/student_view_model.dart';
 import 'package:bbarna/subject/viewModel/subject_view_model.dart';
 import 'package:bbarna/teacher/viewModel/teacher_view_model.dart';
 import 'package:bbarna/topic/viewModel/topic_view_model.dart';
+import 'package:bbarna/transactions/viewModel/transaction_view_model.dart';
 import 'package:bbarna/units/viewModel/unit_view_model.dart';
 import 'package:bbarna/utils/session.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -69,6 +70,7 @@ void main() async {
       ChangeNotifierProvider(create: (_) => BookViewModel()),
       ChangeNotifierProvider(create: (_) => BookOrderViewModel()),
       ChangeNotifierProvider(create: (_) => NotificationsViewModel()),
+      ChangeNotifierProvider(create: (_) => TransactionViewModel()),
       ChangeNotifierProvider(create: (_) => LoginViewModel()),
     ],
     child: const MyApp(),

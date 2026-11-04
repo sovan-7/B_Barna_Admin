@@ -165,8 +165,8 @@ class _StudentListState extends State<StudentList> {
     );
   }
 
-  /// Sorting on `login_time` makes Firestore omit every student that has
-  /// never signed in — they are absent from the query, not merely last.
+  /// Sorting on `login_time` makes Firestore omit every student without
+  /// that field — they are absent from the query, not merely last.
   /// Saying so is the difference between a shorter list and a list that has
   /// quietly lost people.
   Widget _neverSignedInNote(StudentViewModel studentViewModel) {
@@ -187,10 +187,10 @@ class _StudentListState extends State<StudentList> {
           Expanded(
             child: Text(
               count == 1
-                  ? "1 student has never signed in and is not listed here. "
-                      "Sort by name to see them."
-                  : "$count students have never signed in and are not listed "
-                      "here. Sort by name to see them.",
+                  ? "1 student has no recorded sign-in and is not listed "
+                      "here. Sort by name to see them."
+                  : "$count students have no recorded sign-in and are not "
+                      "listed here. Sort by name to see them.",
               style: const TextStyle(
                   fontSize: 12, height: 1.35, color: AppTokens.inkMuted),
             ),

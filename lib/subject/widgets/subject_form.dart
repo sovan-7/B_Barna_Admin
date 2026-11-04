@@ -6,9 +6,11 @@ import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/core/widgets/valid_till_picker.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/course/viewModel/course_view_model.dart';
+import 'package:bbarna/question/widgets/question_rich_field.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
+import 'package:bbarna/subject/subject_field_rules.dart';
 import 'package:bbarna/subject/viewModel/subject_view_model.dart';
 import 'package:bbarna/subject/widgets/subject_pricing_fields.dart';
 import 'package:bbarna/utils/formatters.dart';
@@ -16,6 +18,7 @@ import 'package:bbarna/utils/helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:provider/provider.dart';
 
 /// The Add/Edit Subject page. One responsive form serves both Add and Edit; the thin screens in
@@ -30,6 +33,11 @@ class SubjectForm extends StatefulWidget {
 
   /// True when editing an existing item.
   bool get isEdit => existing != null;
+
+  /// Swaps the rich description editor for a plain box. The editor is a web
+  /// view, which widget tests cannot run.
+  @visibleForTesting
+  static bool plainDescriptionForTests = false;
 
   @override
   State<SubjectForm> createState() => _SubjectFormState();
@@ -47,7 +55,9 @@ enum _Field {
   image,
   couponCode,
   couponDiscount,
-  couponValidTill
+  couponValidTill,
+  video,
+  validity
 }
 
 class _SubjectFormState extends State<SubjectForm> {
@@ -57,8 +67,22 @@ class _SubjectFormState extends State<SubjectForm> {
   /// Text of the name field.
   final TextEditingController nameController = TextEditingController();
 
-  /// Text of the description field.
-  final TextEditingController descriptionController = TextEditingController();
+  /// The description's rich editor.
+  final HtmlEditorController descriptionEditor = HtmlEditorController();
+
+  /// Stands in for [descriptionEditor] under
+  /// [SubjectForm.plainDescriptionForTests].
+  final TextEditingController plainDescriptionController =
+      TextEditingController();
+
+  /// The HTML the description editor opens with.
+  String _initialDescription = "";
+
+  /// Text of the intro video link field.
+  final TextEditingController videoController = TextEditingController();
+
+  /// Text of the validity (months) field.
+  final TextEditingController validityController = TextEditingController();
 
   /// Text of the display priority field.
   final TextEditingController priorityController = TextEditingController();
@@ -122,8 +146,13 @@ class _SubjectFormState extends State<SubjectForm> {
     if (existing != null) {
       codeController.text = existing.code;
       nameController.text = existing.name;
-      descriptionController.text =
-          existing.description == stringDefault ? "" : existing.description;
+      _initialDescription =
+          subjectDescriptionToEditorHtml(existing.description);
+      plainDescriptionController.text = _initialDescription;
+      videoController.text =
+          existing.videoLink == stringDefault ? "" : existing.videoLink;
+      validityController.text =
+          existing.validityMonths > 0 ? existing.validityMonths.toString() : "";
       priorityController.text = existing.displayPriority.toString();
       priceController.text = _plain(existing.price);
       sellingPriceController.text = _plain(existing.sellingPrice);
@@ -171,7 +200,9 @@ class _SubjectFormState extends State<SubjectForm> {
   void dispose() {
     codeController.dispose();
     nameController.dispose();
-    descriptionController.dispose();
+    plainDescriptionController.dispose();
+    videoController.dispose();
+    validityController.dispose();
     priorityController.dispose();
     priceController.dispose();
     sellingPriceController.dispose();
@@ -221,6 +252,21 @@ class _SubjectFormState extends State<SubjectForm> {
       // Nothing stopped this before, and the card would then show a
       // negative discount against the list price.
       errors[_Field.sellingPrice] = "Cannot be more than the price";
+    }
+
+    final String video = videoController.text.trim();
+    if (video.isEmpty) {
+      errors[_Field.video] = "Add the intro video's YouTube link";
+    } else if (SubjectVideoLink.idOf(video) == null) {
+      errors[_Field.video] = "Paste a YouTube video link";
+    }
+
+    final String validity = validityController.text.trim();
+    final int? months = int.tryParse(validity);
+    if (validity.isEmpty) {
+      errors[_Field.validity] = "Enter the validity in months";
+    } else if (months == null || months < 1 || months > 120) {
+      errors[_Field.validity] = "Enter 1 to 120 months";
     }
 
     // An image is only mandatory when creating: an edit keeps the one the
@@ -289,6 +335,46 @@ class _SubjectFormState extends State<SubjectForm> {
     _revalidate();
   }
 
+  /// Asks whether an empty description box really means "remove it".
+  Future<bool> _confirmRemoveDescription() async {
+    final bool? remove = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text("Remove the description?"),
+        content: const Text(
+            "The description box is empty. If it was still loading, keep the "
+            "description and save again."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("Keep description"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Remove it"),
+          ),
+        ],
+      ),
+    );
+    return remove ?? false;
+  }
+
+  /// The description to save, or null if the editor did not answer. It
+  /// never answers when asked before it has loaded, and waiting without a
+  /// limit would leave the form stuck on "saving".
+  Future<String?> _readDescription() async {
+    if (SubjectForm.plainDescriptionForTests) {
+      return subjectDescriptionToSave(plainDescriptionController.text);
+    }
+    try {
+      final String html =
+          await descriptionEditor.getText().timeout(const Duration(seconds: 5));
+      return subjectDescriptionToSave(html);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Validates, then creates or updates the item. Closes the page on
   /// success; on failure the view model has already shown why.
   Future<void> _onSubmit(SubjectViewModel subjectViewModel,
@@ -329,6 +415,28 @@ class _SubjectFormState extends State<SubjectForm> {
     final double? couponDiscountValue =
         double.tryParse(couponDiscountController.text.trim());
 
+    final String? description = await _readDescription();
+    if (!mounted) return;
+    if (description == null) {
+      setState(() => _isSaving = false);
+      Helper.showSnackBarMessage(
+          msg: "The description editor isn't ready yet. Try again.",
+          isSuccess: false);
+      return;
+    }
+
+    // The editor is briefly blank while it loads, so an empty reading of a
+    // subject that had a description may not be what the admin wants saved.
+    if (description.isEmpty &&
+        subjectDescriptionToSave(_initialDescription).isNotEmpty) {
+      final bool remove = await _confirmRemoveDescription();
+      if (!mounted) return;
+      if (!remove) {
+        setState(() => _isSaving = false);
+        return;
+      }
+    }
+
     final SubjectModel model = SubjectModel(
       courseCode,
       _selectedCourseType ?? stringDefault,
@@ -336,7 +444,7 @@ class _SubjectFormState extends State<SubjectForm> {
       double.parse(priceController.text.trim()),
       double.parse(sellingPriceController.text.trim()),
       codeController.text.trim().toUpperCase(),
-      descriptionController.text.trim(),
+      description,
       nameController.text.trim(),
       widget.existing?.image ?? "",
       int.parse(priorityController.text.trim()),
@@ -344,6 +452,8 @@ class _SubjectFormState extends State<SubjectForm> {
       willDisplay,
       isLocked,
       isPopular,
+      videoLink: SubjectVideoLink.normalize(videoController.text),
+      validityMonths: int.tryParse(validityController.text.trim()),
       couponCode: couponCodeText.isEmpty ? null : couponCodeText,
       couponDiscount: couponCodeText.isEmpty ? null : couponDiscountValue,
       couponValidTill: couponCodeText.isEmpty || _couponValidDate == null
@@ -448,12 +558,39 @@ class _SubjectFormState extends State<SubjectForm> {
             onChanged: _revalidate,
           ),
           const SizedBox(height: AppTokens.gapMd),
-          _textField(
-            label: "Description",
-            hint: "What does this subject cover? (optional)",
-            controller: descriptionController,
-            maxLines: 4,
-          ),
+          if (SubjectForm.plainDescriptionForTests)
+            _textField(
+              label: "Description",
+              hint: "",
+              controller: plainDescriptionController,
+            )
+          else
+            QuestionRichField(
+              label: "Description",
+              hint: "What does this subject cover? Shown on the app's Overview "
+                  "tab. Optional.",
+              controller: descriptionEditor,
+              initialText: _initialDescription,
+              height: 280,
+            ),
+          const SizedBox(height: AppTokens.gapMd),
+          FormTwoUp(
+              width: width,
+              left: _textField(
+                label: "Intro video",
+                hint: "YouTube link",
+                controller: videoController,
+                error: _errors[_Field.video],
+                onChanged: _revalidate,
+              ),
+              right: _textField(
+                label: "Validity (months)",
+                hint: "e.g. 15",
+                controller: validityController,
+                error: _errors[_Field.validity],
+                onChanged: _revalidate,
+                numeric: true,
+              )),
         ]),
         const SizedBox(height: AppTokens.gapMd),
         FormSection(title: "PRICING", children: [

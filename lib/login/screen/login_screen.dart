@@ -371,7 +371,7 @@ class _BrandPanel extends StatelessWidget {
           const _BrandMark(size: 52),
           const SizedBox(height: AppTokens.gapXl),
           const Text(
-            "BBARNA",
+            "B_BARNA",
             style: TextStyle(
                 fontSize: 34,
                 fontWeight: FontWeight.w800,
@@ -380,7 +380,7 @@ class _BrandPanel extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            "Admin portal",
+            "Admin Portal",
             style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,

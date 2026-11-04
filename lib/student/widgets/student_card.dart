@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 /// One row of the student list: avatar, name, contact details and last
-/// sign-in; a device chip that signs the student out of every device; and
+/// sign-in; a device chip that signs the student out of their device; and
 /// buttons for their enrolled courses and for deleting them.
 class StudentCard extends StatefulWidget {
   /// The item shown in this row.
@@ -35,12 +35,8 @@ class _StudentCardState extends State<StudentCard> {
   /// Shortcut for the item shown.
   Student get _data => widget.student;
 
-  /// Device count as an int (the stored value may be a string).
-  int get _deviceCount {
-    final dynamic count = _data.deviceCount;
-    if (count is int) return count;
-    return int.tryParse("$count") ?? 0;
-  }
+  /// The phone's name, or a plain "Signed in" when the app saved none.
+  String get _deviceLabel => _value(_data.activeDeviceName, "Signed in");
 
   @override
   Widget build(BuildContext context) {
@@ -186,16 +182,15 @@ class _StudentCardState extends State<StudentCard> {
     );
   }
 
-  /// How many devices the student is signed in on; tapping it signs them
-  /// out of all of them.
+  /// The phone holding the student's login (the app allows one at a time);
+  /// tapping it signs them out of it.
   Widget _deviceChip() {
-    final int count = _deviceCount;
-    final bool signedIn = count > 0;
+    final bool signedIn = _data.isSignedIn;
     final Color color = signedIn ? const Color(0xFF2563EB) : AppTokens.inkFaint;
 
     return Tooltip(
       message: signedIn
-          ? "Sign out of all $count device${count == 1 ? '' : 's'}"
+          ? "Sign out of ${_data.activeDeviceName.trim().isEmpty ? 'this device' : _deviceLabel}"
           : "Not signed in on any device",
       child: Material(
         color: Colors.transparent,
@@ -226,14 +221,17 @@ class _StudentCardState extends State<StudentCard> {
                     size: 12,
                     color: color),
                 const SizedBox(width: 5),
-                Text(
-                    signedIn
-                        ? "$count device${count == 1 ? '' : 's'}"
-                        : "No devices",
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: color)),
+                // Capped: device names are free text from the phone maker.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  child: Text(signedIn ? _deviceLabel : "No device",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: color)),
+                ),
               ],
             ),
           ),
@@ -277,7 +275,7 @@ class _StudentCardState extends State<StudentCard> {
     );
   }
 
-  /// Asks for confirmation, then signs the student out of every device.
+  /// Asks for confirmation, then signs the student out of their device.
   void _confirmSignOut() {
     final StudentViewModel studentViewModel =
         Provider.of<StudentViewModel>(context, listen: false);
@@ -285,15 +283,17 @@ class _StudentCardState extends State<StudentCard> {
 
     RemoveAlert.showRemoveAlert(
       title: _value(_data.studentName, "This student"),
-      description: "Sign this student out of all devices ?",
+      description: _data.activeDeviceName.trim().isEmpty
+          ? "Sign this student out of their device ?"
+          : "Sign this student out of $_deviceLabel ?",
       confirmLabel: "Sign out",
       onPressYes: () async {
         // The dialog stays open, its button spinning, until this is done.
-        final bool success = await studentViewModel.clearDeviceCount(studentId);
+        final bool success = await studentViewModel.signOutDevice(studentId);
         Navigator.pop(navigatorKey.currentContext!);
         if (success) {
           Helper.showSnackBarMessage(
-              msg: "Signed out of all devices", isSuccess: true);
+              msg: "Student signed out", isSuccess: true);
         }
       },
     );

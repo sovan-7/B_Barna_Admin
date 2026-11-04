@@ -281,7 +281,8 @@ class ModuleAccessSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String? error = this.error;
-    final bool allSelected = selectedModules.length == moduleList.length;
+    final bool allSelected =
+        selectedModules.length == assignableModuleList.length;
 
     return FormSection(
       title: "MODULE ACCESS",
@@ -296,7 +297,7 @@ class ModuleAccessSection extends StatelessWidget {
       ),
       children: [
         Text(
-          "${selectedModules.length} of ${moduleList.length} selected",
+          "${selectedModules.length} of ${assignableModuleList.length} selected",
           style: const TextStyle(fontSize: 11.5, color: AppTokens.inkFaint),
         ),
         const SizedBox(height: 10),
@@ -304,7 +305,10 @@ class ModuleAccessSection extends StatelessWidget {
           spacing: AppTokens.gapSm,
           runSpacing: AppTokens.gapSm,
           children: [
-            for (int i = 0; i < moduleList.length; i++) _chip(i),
+            for (int i = 0; i < moduleList.length; i++)
+              if (i != transactionModuleIndex &&
+                  !hiddenModuleIndices.contains(i))
+                _chip(i),
           ],
         ),
         if (error != null) FieldErrorText(error, gap: AppTokens.gapSm),

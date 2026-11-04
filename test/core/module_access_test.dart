@@ -44,10 +44,21 @@ Future<void> _freshStore([Map<String, Object> values = const {}]) async {
 List<String> _visibleModules() =>
     [for (final int i in Helper.allowedModuleIndices()) moduleList[i]];
 
+/// Every module an admin is offered: all of them, minus the hidden ones.
+final List<String> _shownModules = [
+  for (int i = 0; i < moduleList.length; i++)
+    if (!hiddenModuleIndices.contains(i)) moduleList[i],
+];
+
 void main() {
   test('the fixture really is every module before the book ones', () {
-    expect([..._modulesBeforeBooks, "BOOKS", "BOOK ORDERS", "NOTIFICATIONS"],
-        moduleList);
+    expect([
+      ..._modulesBeforeBooks,
+      "BOOKS",
+      "BOOK ORDERS",
+      "NOTIFICATIONS",
+      "TRANSACTIONS",
+    ], moduleList);
   });
 
   group('an admin', () {
@@ -60,10 +71,19 @@ void main() {
       ));
 
       expect(Session.isAdmin, isTrue);
-      expect(_visibleModules(), moduleList);
-      expect(Helper.allowedModuleIndices(), contains(bookModuleIndex));
-      expect(Helper.allowedModuleIndices(), contains(bookOrderModuleIndex));
+      expect(_visibleModules(), _shownModules);
       expect(Helper.allowedModuleIndices(), contains(notificationModuleIndex));
+      expect(Helper.allowedModuleIndices(), contains(transactionModuleIndex));
+    });
+
+    test('does not see hidden modules', () async {
+      await _freshStore();
+      await Session.signIn(const LoginResult(
+          adminId: 't1', moduleAccess: ["BOOKS"], role: roleAdmin));
+
+      expect(Helper.allowedModuleIndices(), isNot(contains(bookModuleIndex)));
+      expect(
+          Helper.allowedModuleIndices(), isNot(contains(bookOrderModuleIndex)));
     });
 
     test('sees everything even with a short module list', () async {
@@ -71,7 +91,7 @@ void main() {
       await Session.signIn(const LoginResult(
           adminId: 't1', moduleAccess: ["COURSES"], role: roleAdmin));
 
-      expect(_visibleModules(), moduleList);
+      expect(_visibleModules(), _shownModules);
     });
   });
 
@@ -99,6 +119,19 @@ void main() {
       expect(_visibleModules(), _modulesWithoutTeachers);
     });
 
+    test('never gets Transactions, even when it is ticked', () async {
+      await _freshStore();
+      await Session.signIn(const LoginResult(
+        adminId: 't2',
+        moduleAccess: ["COURSES", "TRANSACTIONS"],
+        role: roleSubadmin,
+      ));
+
+      expect(_visibleModules(), ["COURSES"]);
+      expect(Helper.allowedModuleIndices(),
+          isNot(contains(transactionModuleIndex)));
+    });
+
     test('never gets Teachers, even when it is ticked', () async {
       await _freshStore();
       await Session.signIn(const LoginResult(
@@ -112,7 +145,7 @@ void main() {
           Helper.allowedModuleIndices(), isNot(contains(teacherModuleIndex)));
     });
 
-    test('sees Books once it is ticked on their account', () async {
+    test('does not see hidden modules, even when they are ticked', () async {
       await _freshStore();
       await Session.signIn(const LoginResult(
         adminId: 't2',
@@ -120,7 +153,11 @@ void main() {
         role: roleSubadmin,
       ));
 
-      expect(_visibleModules(), ["COURSES", "BOOKS", "BOOK ORDERS"]);
+      // Book orders must not resolve to any other module's screen, least of
+      // all the admin-only Transactions one.
+      expect(_visibleModules(), ["COURSES"]);
+      expect(Helper.allowedModuleIndices(),
+          isNot(contains(transactionModuleIndex)));
     });
 
     test('with an empty module list sees nothing', () async {

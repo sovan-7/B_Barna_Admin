@@ -58,16 +58,21 @@ void main() {
     });
   });
 
-  testWidgets('the nav renders every module, in moduleList order',
+  testWidgets('the nav renders every shown module, in moduleList order',
       (tester) async {
     await _pumpNav(tester);
 
     final List<SidebarWidget> items =
         tester.widgetList<SidebarWidget>(find.byType(SidebarWidget)).toList();
+    final List<int> shown = [
+      for (int i = 0; i < moduleList.length; i++)
+        if (!hiddenModuleIndices.contains(i)) i,
+    ];
 
-    expect(items, hasLength(moduleList.length));
-    expect(items.map((item) => item.itemText).toList(), moduleDisplayList);
-    expect(items.map((item) => item.iconData).toList(), moduleIconList);
+    expect(items.map((item) => item.itemText).toList(),
+        [for (final int i in shown) moduleDisplayList[i]]);
+    expect(items.map((item) => item.iconData).toList(),
+        [for (final int i in shown) moduleIconList[i]]);
   });
 
   testWidgets('the selected module is the only one marked selected',

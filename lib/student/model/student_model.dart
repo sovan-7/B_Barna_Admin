@@ -43,8 +43,16 @@ class Student {
   /// Postal address (`address`).
   Address? address;
 
-  /// How many devices they are signed in on (`device_count`).
-  dynamic deviceCount = intDefault;
+  /// Id of the phone holding the login (`active_device_id`). The app allows
+  /// one phone at a time; blank or missing means none does.
+  String activeDeviceId = "";
+
+  /// Name of that phone, e.g. "Pixel 8" (`active_device_name`).
+  String activeDeviceName = "";
+
+  /// When that phone logged in (`active_login_at`). The app deletes this on
+  /// logout, so it is not a full sign-in history; see [lastLoginAt].
+  DateTime? activeLoginAt;
 
   /// Last sign-in in epoch milliseconds (`login_time`); see [lastLoginAt].
   int? loginTime = intDefault;
@@ -64,7 +72,9 @@ class Student {
       this.collegeName,
       this.isTmsAccepted,
       this.address,
-      this.deviceCount,
+      this.activeDeviceId = "",
+      this.activeDeviceName = "",
+      this.activeLoginAt,
       this.loginTime});
 
   /// Converts this model to the Firestore document map (field names as
@@ -102,21 +112,40 @@ class Student {
         highestDegree = doc.data()!["highest_degree"] ?? stringDefault,
         collegeName = doc.data()!["college_name"] ?? stringDefault,
         isTmsAccepted = doc.data()!["is_tms_accepted"] ?? boolDefault,
-        deviceCount = doc.data()!["device_count"] ?? intDefault,
+        activeDeviceId = _text(doc.data()!["active_device_id"]),
+        activeDeviceName = _text(doc.data()!["active_device_name"]),
+        activeLoginAt = doc.data()!["active_login_at"] is Timestamp
+            ? (doc.data()!["active_login_at"] as Timestamp).toDate()
+            : null,
         loginTime = doc.data()!["login_time"] ?? intDefault,
         address = doc.data()!["address"] != null
             ? Address.fromMap(doc.data()!["address"])
             : Address(stringDefault, stringDefault, stringDefault,
                 stringDefault, stringDefault);
 
-  /// When the student last opened the app, or null if they never have.
+  /// [value] when it is text, otherwise "".
+  static String _text(Object? value) => value is String ? value : "";
+
+  /// Whether a phone currently holds this student's login.
+  bool get isSignedIn => activeDeviceId.trim().isNotEmpty;
+
+  /// The student's latest recorded sign-in, or null if none is recorded.
+  ///
+  /// The later of `login_time` and `active_login_at`: app versions between
+  /// September 2026 and the fix wrote only the second, so either can be the
+  /// newer one.
   ///
   /// `login_time` is -1 ([intDefault]) when the field is missing and 0 on a
-  /// backfilled document; both mean "never", not 1 January 1970.
+  /// backfilled document; both mean "not recorded", not 1 January 1970.
   DateTime? get lastLoginAt {
     final int? millis = loginTime;
-    if (millis == null || millis <= 0) return null;
-    return DateTime.fromMillisecondsSinceEpoch(millis);
+    final DateTime? loggedInAt = millis == null || millis <= 0
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(millis);
+    final DateTime? activeAt = activeLoginAt;
+    if (loggedInAt == null) return activeAt;
+    if (activeAt == null) return loggedInAt;
+    return activeAt.isAfter(loggedInAt) ? activeAt : loggedInAt;
   }
 }
 

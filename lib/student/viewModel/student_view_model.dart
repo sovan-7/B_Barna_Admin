@@ -212,13 +212,21 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
     }
   }
 
-  /// Signs the student out of every device by resetting their device
-  /// count, and mirrors that on the loaded row.
-  Future<bool> clearDeviceCount(String studentId) async {
+  /// Signs the student out of the phone holding their login, and mirrors
+  /// that on the loaded row.
+  Future<bool> signOutDevice(String studentId) async {
     try {
-      await _studentRepo.clearDeviceCount(studentId);
+      await _studentRepo.signOutDevice(studentId);
       for (final Student student in studentList) {
-        if (student.studentId == studentId) student.deviceCount = 0;
+        if (student.studentId == studentId) {
+          // Keep the sign-in time for the row's "Active ..." label: the phone
+          // really was active then, even though the stored field is deleted.
+          student.loginTime = student.lastLoginAt?.millisecondsSinceEpoch ??
+              student.loginTime;
+          student.activeDeviceId = "";
+          student.activeDeviceName = "";
+          student.activeLoginAt = null;
+        }
       }
       notifyListeners();
       return true;

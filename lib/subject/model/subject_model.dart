@@ -22,8 +22,17 @@ class SubjectModel {
   /// Creation time in epoch milliseconds (`created_at`).
   int timeStamp = intDefault;
 
-  /// Free-text description (`subject_description`).
+  /// Description as HTML from the rich editor (`subject_description`).
+  /// Subjects saved before that are plain text; the app shows both.
   String description = stringDefault;
+
+  /// YouTube link of the intro video, or NA for none (`subject_video`).
+  String videoLink = stringDefault;
+
+  /// Months of access a purchase gives, from the purchase day
+  /// (`validity_months`); the form requires it. -1 on an older subject means
+  /// the student app's default of the end of the calendar year.
+  int validityMonths = intDefault;
 
   /// Display name (`subject_name`).
   String name = stringDefault;
@@ -86,7 +95,11 @@ class SubjectModel {
     String? couponCode,
     double? couponDiscount,
     int? couponValidTill,
-  })  : couponCode = couponCode ?? stringDefault,
+    String? videoLink,
+    int? validityMonths,
+  })  : videoLink = videoLink ?? stringDefault,
+        validityMonths = validityMonths ?? intDefault,
+        couponCode = couponCode ?? stringDefault,
         couponDiscount = couponDiscount ?? doubleDefault,
         couponValidTill = couponValidTill ?? intDefault;
 
@@ -99,6 +112,8 @@ class SubjectModel {
       "course_name": courseName,
       "subject_code": code.trim(),
       "subject_description": description,
+      "subject_video": videoLink,
+      "validity_months": validityMonths,
       "subject_name": name,
       "created_at": timeStamp,
       "subject_image": image,
@@ -123,6 +138,8 @@ class SubjectModel {
         courseName = doc.data()!["course_name"] ?? stringDefault,
         code = doc.data()!["subject_code"] ?? stringDefault,
         description = doc.data()!["subject_description"] ?? stringDefault,
+        videoLink = doc.data()!["subject_video"] ?? stringDefault,
+        validityMonths = doc.data()!["validity_months"] ?? intDefault,
         name = doc.data()!["subject_name"] ?? stringDefault,
         image = doc.data()!["subject_image"] ?? stringDefault,
         price = doc.data()!["subject_price"] ?? doubleDefault,

@@ -75,7 +75,7 @@ class StudentRepo {
   /// Firestore drops documents missing the field being ordered on, so this
   /// is what "Last active" will list — compare it with
   /// [getStudentListLength] to know how many students are unreachable that
-  /// way because they have never signed in.
+  /// way because they have no recorded sign-in.
   Future<int> getSignedInStudentCount() async {
     final AggregateQuerySnapshot countSnapshot = await _firestore
         .collection(student)
@@ -115,12 +115,14 @@ class StudentRepo {
     await _firestore.collection(student).doc(studentId).delete();
   }
 
-  /// Resets how many devices a student is signed in on.
-  Future<void> clearDeviceCount(String studentId) async {
-    await _firestore
-        .collection(student)
-        .doc(studentId)
-        .update({"device_count": 0});
+  /// Frees the student's login. The same fields the app clears on logout;
+  /// a phone still holding the login sees the blank id and logs itself out.
+  Future<void> signOutDevice(String studentId) async {
+    await _firestore.collection(student).doc(studentId).update({
+      "active_device_id": "",
+      "active_device_name": "",
+      "active_login_at": FieldValue.delete(),
+    });
   }
 
   /// Every course (enrol picker).

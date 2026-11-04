@@ -28,7 +28,9 @@ Student _student(
   String phone = "9876543210",
   String? whatsapp,
   String email = "a@example.com",
-  dynamic devices = 0,
+  String deviceId = "",
+  String deviceName = "",
+  DateTime? activeLoginAt,
   int? loginTime,
 }) =>
     Student(
@@ -38,16 +40,19 @@ Student _student(
       studentPhoneNumber: phone,
       studentWhatsappNumber: whatsapp ?? phone,
       studentEmail: email,
-      deviceCount: devices,
+      activeDeviceId: deviceId,
+      activeDeviceName: deviceName,
+      activeLoginAt: activeLoginAt,
       loginTime: loginTime ?? intDefault,
     );
 
 List<Student> _fixture() => [
-      _student('a', 'Anita Desai', phone: "9000000001", devices: 2),
+      _student('a', 'Anita Desai',
+          phone: "9000000001", deviceId: "phone-a", deviceName: "Pixel 8"),
       _student('b', 'Ravi Kumar',
           phone: "9000000002", email: "ravi@example.com"),
       _student('c', 'Subramanian Venkataraghavan Iyer',
-          phone: "9000000003", email: "", devices: 1),
+          phone: "9000000003", email: "", deviceId: "phone-c"),
     ];
 
 const List<Size> _sizes = [
@@ -109,28 +114,29 @@ void main() {
       expect(find.text('No email'), findsOneWidget);
     });
 
-    testWidgets('says how many devices a student is signed in on',
-        (tester) async {
+    testWidgets('says which device a student is signed in on', (tester) async {
       final vm = StudentViewModel(studentRepo: repo);
       await _pump(tester, const Size(1440, 900),
           const Scaffold(body: StudentList()), vm);
 
-      // It used to be a bare logout icon with " - 2" beside it.
-      expect(find.text('2 devices'), findsOneWidget);
-      expect(find.text('1 device'), findsOneWidget);
-      expect(find.text('No devices'), findsOneWidget);
+      expect(find.text('Pixel 8'), findsOneWidget);
+      // A login with no saved device name still counts as signed in.
+      expect(find.text('Signed in'), findsOneWidget);
+      expect(find.text('No device'), findsOneWidget);
     });
 
-    testWidgets('a device count stored as a string still reads', (tester) async {
-      // `deviceCount` is `dynamic` on the model and arrives either way.
-      when(() => repo.getFirstStudentList(any()))
-          .thenAnswer((_) async => [_student('a', 'Anita', devices: "3")]);
+    testWidgets('a long device name does not overflow the row', (tester) async {
+      when(() => repo.getFirstStudentList(any())).thenAnswer((_) async => [
+            _student('a', 'Anita',
+                deviceId: "phone-a",
+                deviceName: "An unusually long device name " * 5),
+          ]);
 
       final vm = StudentViewModel(studentRepo: repo);
       await _pump(tester, const Size(1440, 900),
           const Scaffold(body: StudentList()), vm);
 
-      expect(find.text('3 devices'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 
@@ -209,20 +215,52 @@ void main() {
   });
 
   group('devices', () {
-    test('clearing the count goes through the repo and updates in place',
-        () async {
-      when(() => repo.clearDeviceCount(any())).thenAnswer((_) async {});
+    test('signing out goes through the repo and updates in place', () async {
+      when(() => repo.signOutDevice(any())).thenAnswer((_) async {});
 
       final vm = StudentViewModel(studentRepo: repo);
       await vm.fetchFirstStudentList();
 
-      expect(await vm.clearDeviceCount('a'), isTrue);
+      expect(await vm.signOutDevice('a'), isTrue);
 
       // It used to write through FirebaseFirestore.instance from the list
       // widget and then set the count on whichever row sat at an index.
-      verify(() => repo.clearDeviceCount('a')).called(1);
+      verify(() => repo.signOutDevice('a')).called(1);
+      final Student row = vm.studentList.firstWhere((s) => s.studentId == 'a');
+      expect(row.isSignedIn, isFalse);
+      expect(row.activeDeviceName, isEmpty);
+    });
+
+    test('signing out keeps the row\'s last active time', () async {
+      final DateTime at = DateTime(2026, 10, 5, 9);
+      when(() => repo.getFirstStudentList(any())).thenAnswer((_) async => [
+            _student('a', 'Anita', deviceId: "phone-a", activeLoginAt: at),
+          ]);
+      when(() => repo.signOutDevice(any())).thenAnswer((_) async {});
+
+      final vm = StudentViewModel(studentRepo: repo);
+      await vm.fetchFirstStudentList();
+      await vm.signOutDevice('a');
+
+      expect(vm.studentList.single.lastLoginAt, at);
+    });
+
+    test('a failed sign-out leaves the row signed in', () async {
+      when(() => repo.signOutDevice(any())).thenThrow(Exception('offline'));
+
+      final vm = StudentViewModel(studentRepo: repo);
+      await vm.fetchFirstStudentList();
+
+      expect(await vm.signOutDevice('a'), isFalse);
       expect(
-          vm.studentList.firstWhere((s) => s.studentId == 'a').deviceCount, 0);
+          vm.studentList.firstWhere((s) => s.studentId == 'a').isSignedIn,
+          isTrue);
+    });
+
+    test('only a non-blank device id counts as signed in', () {
+      expect(_student('a', 'A', deviceId: "phone").isSignedIn, isTrue);
+      expect(_student('a', 'A').isSignedIn, isFalse);
+      expect(_student('a', 'A', deviceId: "  ").isSignedIn, isFalse);
     });
   });
 
@@ -641,6 +679,26 @@ void main() {
       expect(_student('a', 'A', loginTime: 1757000000000).lastLoginAt,
           isNotNull);
     });
+
+    test('the model uses the later of the two sign-in times', () {
+      final DateTime older = DateTime(2026, 8, 1);
+      final DateTime newer = DateTime(2026, 10, 1);
+
+      // App versions from September on wrote only `active_login_at`.
+      expect(_student('a', 'A', activeLoginAt: newer).lastLoginAt, newer);
+      expect(
+          _student('a', 'A',
+                  loginTime: older.millisecondsSinceEpoch,
+                  activeLoginAt: newer)
+              .lastLoginAt,
+          newer);
+      expect(
+          _student('a', 'A',
+                  loginTime: newer.millisecondsSinceEpoch,
+                  activeLoginAt: older)
+              .lastLoginAt,
+          newer);
+    });
   });
 
   group('the row', () {
@@ -660,7 +718,7 @@ void main() {
       // `login_time` was parsed onto the model and shown nowhere, so an
       // active student looked exactly like one who never came back.
       expect(find.text('Active today'), findsOneWidget);
-      expect(find.text('Never signed in'), findsOneWidget);
+      expect(find.text('No sign-in recorded'), findsOneWidget);
     });
 
     testWidgets('shows a WhatsApp number only when it differs',
@@ -732,7 +790,7 @@ void main() {
       // seven are absent from the query rather than merely last.
       expect(vm.studentsNeverSignedIn, 7);
       expect(
-          find.text('7 students have never signed in and are not listed '
+          find.text('7 students have no recorded sign-in and are not listed '
               'here. Sort by name to see them.'),
           findsOneWidget);
     });
