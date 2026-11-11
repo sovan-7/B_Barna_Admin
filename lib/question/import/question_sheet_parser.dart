@@ -52,7 +52,12 @@ class SheetRow {
   /// Word document.
   final String label;
 
-  SheetRow(this.rowNumber, this.cells, {String? label})
+  /// What was wrong with how the row was written, found while reading it —
+  /// a Word question with an option given twice, say. Empty for sheet rows.
+  final List<String> problems;
+
+  SheetRow(this.rowNumber, this.cells,
+      {String? label, this.problems = const []})
       : label = label ?? "Row $rowNumber";
 
   /// The cell in [column], or "" when there is none.

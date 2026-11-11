@@ -90,31 +90,41 @@ class _ImportQuestionsPage extends StatelessWidget {
           style: AppTokens.body,
         ),
         const SizedBox(height: AppTokens.gapSm),
-        Container(
+        _docExample(
           key: const Key('import_doc_example'),
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppTokens.surfaceMuted,
-            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-            border: Border.all(color: AppTokens.hairline),
-          ),
-          child: const Text(
-            "XYZ1. প্রশ্ন লিখুন?\n"
-            "(A) প্রথম বিকল্প\n"
-            "(B) দ্বিতীয় বিকল্প\n"
-            "(C) তৃতীয় বিকল্প\n"
-            "(D) চতুর্থ বিকল্প\n"
-            "সঠিক উত্তর: (B)\n"
-            "ব্যাখ্যা: কেন এটি সঠিক… (optional)",
-            style: TextStyle(fontSize: 12.5, height: 1.5, color: AppTokens.ink),
-          ),
+          text: "XYZ1. প্রশ্ন লিখুন?\n"
+              "(A) প্রথম বিকল্প\n"
+              "(B) দ্বিতীয় বিকল্প\n"
+              "(C) তৃতীয় বিকল্প\n"
+              "(D) চতুর্থ বিকল্প\n"
+              "সঠিক উত্তর: (B)\n"
+              "ব্যাখ্যা: কেন এটি সঠিক… (optional)",
+        ),
+        const SizedBox(height: AppTokens.gapMd),
+        const Text(
+          "Statements or match-the-column lists go after a BODY- line, "
+          "before the options. They are saved as the question's passage, "
+          "shown under the question:",
+          style: AppTokens.body,
+        ),
+        const SizedBox(height: AppTokens.gapSm),
+        _docExample(
+          key: const Key('import_doc_body_example'),
+          text: "XYZ2 নিচের বিবৃতিগুলি বিচার করো।\n"
+              "BODY-\n"
+              "A. প্রথম বিবৃতি\n"
+              "B. দ্বিতীয় বিবৃতি\n"
+              "(A) A-শুদ্ধ, B-অশুদ্ধ\n"
+              "(B) A-অশুদ্ধ, B-শুদ্ধ\n"
+              "(C) দুটিই শুদ্ধ\n"
+              "(D) দুটিই অশুদ্ধ\n"
+              "সঠিক উত্তর: (C)",
         ),
         const SizedBox(height: AppTokens.gapSm),
         const Text(
-          "Answer: / Explanation: in English work too, as do (ক)–(ঘ) "
-          "options. Lines before the first question, like a title, are "
-          "ignored.",
+          "The full stop after the code is optional. Answer: / "
+          "Explanation: in English work too, as do (ক)–(ঘ) options. Lines "
+          "before the first question, like a title, are ignored.",
           style: TextStyle(fontSize: 12.5, color: AppTokens.inkMuted),
         ),
         const SizedBox(height: AppTokens.gapLg),
@@ -345,6 +355,23 @@ class _ImportQuestionsPage extends StatelessWidget {
   }
 
   // ---- Pieces -------------------------------------------------------------
+
+  /// A Word layout example, as the admin would type it.
+  Widget _docExample({required Key key, required String text}) {
+    return Container(
+      key: key,
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTokens.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+        border: Border.all(color: AppTokens.hairline),
+      ),
+      child: Text(text,
+          style: const TextStyle(
+              fontSize: 12.5, height: 1.5, color: AppTokens.ink)),
+    );
+  }
 
   Widget _columnChip(String column, {required bool required}) {
     return Container(

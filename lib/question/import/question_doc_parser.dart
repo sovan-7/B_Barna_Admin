@@ -8,7 +8,10 @@ import 'package:xml/xml.dart';
 /// Reads questions written as plain text blocks in a Word (.docx) file:
 ///
 /// ```
-/// XYZ1. Question text…
+/// XYZ1. Question text…    ← the full stop after the code is optional
+/// BODY-                   ← optional; or BODY: / Body- (see below)
+/// A. first statement
+/// B. second statement
 /// (A) first option        ← or A) / A. / (ক) …; one paragraph or several
 /// (B) second option
 /// (C) third option
@@ -17,6 +20,12 @@ import 'package:xml/xml.dart';
 /// ব্যাখ্যা: Why…           ← or Explanation: / Solution:  (optional)
 /// সংকেত: Hint…             ← or Hint:                     (optional)
 /// ```
+///
+/// Lines after a BODY marker — on a line of its own, or "BODY-" at the end
+/// of the question line — are statements, match-the-column rows or a
+/// passage. Up to the first "(A)" line they are saved as the question's
+/// body (shown under it), so "A." / "a)" statements there are not taken
+/// for options.
 ///
 /// Each block comes out as a [SheetRow] with the same columns a sheet has,
 /// so validation and import treat both the same. Pure Dart, no Firebase.
@@ -27,15 +36,17 @@ class QuestionDocParser {
   /// Word document, holds no question, or holds more than [maxImportRows].
   static List<SheetRow> parse(Uint8List bytes) {
     final List<String> lines = _lines(_documentXml(bytes));
+    final List<String?> nextPrefix = _nextLetterPrefixes(lines);
 
     final List<_Block> blocks = [];
     _Block? current;
-    for (final String line in lines) {
-      final _Start? start =
-          _questionStart(line, blocks.isEmpty ? null : blocks.first, current);
+    for (int i = 0; i < lines.length; i++) {
+      final String line = lines[i];
+      final _Start? start = _questionStart(
+          line, blocks.isEmpty ? null : blocks.first, current, nextPrefix[i]);
       if (start != null) {
         current = _Block(start.code, start.number, start.prefix)
-          ..append(_Part.question, start.text);
+          ..takeQuestion(start.text);
         blocks.add(current);
         continue;
       }
@@ -57,7 +68,8 @@ class QuestionDocParser {
     }
     return [
       for (int i = 0; i < blocks.length; i++)
-        SheetRow(i + 1, blocks[i].cells(), label: "Question ${i + 1}"),
+        SheetRow(i + 1, blocks[i].cells(),
+            label: "Question ${i + 1}", problems: blocks[i].problems),
     ];
   }
 
@@ -114,21 +126,52 @@ class QuestionDocParser {
   static final RegExp _startPattern =
       RegExp(r'^([A-Za-z][A-Za-z0-9_-]*?|)(\d+)\s*[.)।:]\s*(.*)$');
 
+  /// "XYZ12 text": a lettered code without a full stop. Plain numbers keep
+  /// needing theirs — "2 প্রকার…" is far more likely a sentence than a code.
+  static final RegExp _bareStartPattern =
+      RegExp(r'^([A-Za-z][A-Za-z0-9_-]*?)(\d+)\s+(\S.*)$');
+
+  /// For each line, the letters (upper-cased) of the next lettered code
+  /// below it — "XYZ" for "XYZ7 …" — or null when none follows.
+  static List<String?> _nextLetterPrefixes(List<String> lines) {
+    final List<String?> next = List<String?>.filled(lines.length, null);
+    String? below;
+    for (int i = lines.length - 1; i >= 0; i--) {
+      next[i] = below;
+      final RegExpMatch? code = _startPattern.firstMatch(lines[i]) ??
+          _bareStartPattern.firstMatch(lines[i]);
+      final String prefix = code?.group(1) ?? "";
+      if (prefix.isNotEmpty) below = prefix.toUpperCase();
+    }
+    return next;
+  }
+
   /// Whether [line] begins a new question.
   ///
   /// Numbered lines also appear *inside* questions ("1. statement…") and
   /// explanations, so after the first question only lines in its style
-  /// count: the same letter prefix (XYZ…), or — for plain numbers — the
-  /// next number, once the current question has its options.
-  static _Start? _questionStart(String line, _Block? first, _Block? current) {
-    final RegExpMatch? match = _startPattern.firstMatch(line);
+  /// count: the same letter prefix (XYZ…), with or without a full stop, or
+  /// — for plain numbers — the next number, once the current question has
+  /// its options.
+  ///
+  /// Before the first question, a code without a full stop may as well be
+  /// a title ("SLST2025 Practice Set"), so it counts only when the next
+  /// lettered code ([nextPrefix]) has the same letters.
+  static _Start? _questionStart(
+      String line, _Block? first, _Block? current, String? nextPrefix) {
+    final RegExpMatch? separated = _startPattern.firstMatch(line);
+    final RegExpMatch? match = separated ?? _bareStartPattern.firstMatch(line);
     if (match == null) return null;
     final String prefix = match.group(1)!;
-    final int number = int.parse(match.group(2)!);
+    final int number = int.tryParse(match.group(2)!) ?? -1;
     final _Start start =
         _Start("$prefix${match.group(2)!}", prefix, number, match.group(3)!);
 
-    if (first == null || current == null) return start;
+    if (first == null || current == null) {
+      return separated != null || prefix.toUpperCase() == nextPrefix
+          ? start
+          : null;
+    }
     if (first.prefix.isNotEmpty) {
       return prefix.toUpperCase() == first.prefix.toUpperCase() ? start : null;
     }
@@ -149,6 +192,7 @@ class _Start {
 /// The part of a question a line belongs to.
 enum _Part {
   question,
+  body,
   optionA,
   optionB,
   optionC,
@@ -168,6 +212,15 @@ class _Block {
   /// Where an unlabelled line goes (the part above it).
   _Part _last = _Part.question;
 
+  /// Options and the answer given so far by a labelled line ("(A) …",
+  /// "সঠিক উত্তর: …").
+  final Set<_Part> _labelled = {};
+
+  /// Those labelled a second time. Usually the next question's code was
+  /// not recognised, or statements were written without a BODY- line;
+  /// either way the block is reported rather than quietly merged.
+  final Set<_Part> _repeated = {};
+
   _Block(this.code, this.number, this.prefix);
 
   bool get hasOption => const [
@@ -177,10 +230,37 @@ class _Block {
         _Part.optionD
       ].any(_text.containsKey);
 
+  /// What is wrong with how the block is written.
+  List<String> get problems {
+    final List<String> letters = [
+      for (final MapEntry<_Part, String> option in _optionLetters.entries)
+        if (_repeated.contains(option.key)) option.value,
+    ];
+    return [
+      if (letters.isNotEmpty)
+        "${letters.length == 1 ? "Option" : "Options"} ${letters.join(", ")} "
+            "${letters.length == 1 ? "appears" : "appear"} more than once — "
+            "check that each question starts with its code, and put "
+            "statements or columns after a BODY- line",
+      if (_repeated.contains(_Part.answer))
+        "More than one answer line — check that each question starts with "
+            "its code",
+    ];
+  }
+
   void append(_Part part, String text) {
     _last = part;
     if (text.trim().isEmpty) return;
     (_text[part] ??= []).add(text.trim());
+  }
+
+  /// Question text: the start line, or an unlabelled line under it. A
+  /// "BODY-" in it ends the question; the rest is body.
+  void takeQuestion(String text) {
+    final RegExpMatch? marker = _bodyInQuestion.firstMatch(text);
+    if (marker == null) return append(_Part.question, text);
+    append(_Part.question, text.substring(0, marker.start));
+    append(_Part.body, text.substring(marker.end));
   }
 
   /// "(A) x (B) y" on one line is split into its options.
@@ -200,6 +280,17 @@ class _Block {
   static final RegExp _hint =
       RegExp(r'^(?:সংকেত|hint)\s*[:：\-–]\s*(.*)$', caseSensitive: false);
 
+  /// "BODY-", "Body:" or "BODY: text…" on a line of its own, in any case.
+  static final RegExp _bodyLabel =
+      RegExp(r'^body\s*(?:[:：\-–—]\s*(.*))?$', caseSensitive: false);
+
+  /// "… BODY-" within a question line. Capitals only, so a question that
+  /// mentions the human body is left alone.
+  static final RegExp _bodyInQuestion = RegExp(r'(?:^|\s+)BODY\s*[:：\-–—]\s*');
+
+  /// What ends a body: a bracketed capital option, "(A)" or "(ক)".
+  static final RegExp _bodyEnd = RegExp(r'^\(\s*[A-Dকখগঘ]\s*\)');
+
   static const Map<String, _Part> _optionParts = {
     "a": _Part.optionA,
     "b": _Part.optionB,
@@ -211,10 +302,18 @@ class _Block {
     "ঘ": _Part.optionD,
   };
 
+  static const Map<_Part, String> _optionLetters = {
+    _Part.optionA: "A",
+    _Part.optionB: "B",
+    _Part.optionC: "C",
+    _Part.optionD: "D",
+  };
+
   /// Files [line] under the part it names, or the part above it.
   void take(String line) {
     RegExpMatch? match;
     if ((match = _answer.firstMatch(line)) != null) {
+      _label(_Part.answer);
       append(_Part.answer, match!.group(1)!);
       // Anything after the answer that is not labelled explains it.
       _last = _Part.solution;
@@ -226,6 +325,14 @@ class _Block {
     if ((match = _hint.firstMatch(line)) != null) {
       return append(_Part.hints, match!.group(1)!);
     }
+    if ((match = _bodyLabel.firstMatch(line)) != null) {
+      return append(_Part.body, match!.group(1) ?? "");
+    }
+    // Statements and columns in a body often look like options ("A. …",
+    // "a) …"), so only "(A)" ends it.
+    if (_last == _Part.body && !_bodyEnd.hasMatch(line)) {
+      return append(_Part.body, line);
+    }
     if (_option.hasMatch(line)) {
       for (final String piece in line.split(_inlineOption)) {
         final RegExpMatch? option = _option.firstMatch(piece);
@@ -235,11 +342,19 @@ class _Block {
         }
         final String letter =
             (option.group(1) ?? option.group(2) ?? option.group(3))!;
-        append(_optionParts[letter.toLowerCase()]!, option.group(4)!);
+        final _Part part = _optionParts[letter.toLowerCase()]!;
+        _label(part);
+        append(part, option.group(4)!);
       }
       return;
     }
+    if (_last == _Part.question) return takeQuestion(line);
     append(_last, line);
+  }
+
+  /// Records that a label gave [part], noting when one already had.
+  void _label(_Part part) {
+    if (!_labelled.add(part)) _repeated.add(part);
   }
 
   /// The block as sheet columns.
@@ -248,7 +363,7 @@ class _Block {
     return {
       "question_code": code,
       "question": joined(_Part.question),
-      "question_body": "",
+      "question_body": joined(_Part.body),
       "option_a": joined(_Part.optionA),
       "option_b": joined(_Part.optionB),
       "option_c": joined(_Part.optionC),

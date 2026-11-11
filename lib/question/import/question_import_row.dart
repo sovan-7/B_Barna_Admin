@@ -7,8 +7,9 @@ import 'package:csv/csv.dart';
 /// One sheet row turned into a question, with whatever is wrong with it.
 ///
 /// The rules are [QuestionDraft.validate]'s — the same ones the Add
-/// Question form applies — plus the two only an import can break: a code
-/// used twice in the file, and a code that already exists.
+/// Question form applies — plus the ones only an import can break: a Word
+/// question laid out wrongly ([SheetRow.problems]), a code used twice in
+/// the file, and a code that already exists.
 class QuestionImportRow {
   /// The cells as read, kept so a rejected row can be handed back.
   final SheetRow source;
@@ -84,7 +85,7 @@ QuestionImportRow _build(SheetRow row, Map<String, String> firstRowOfCode) {
     problems[QuestionField.answer] =
         "Answer \"$answerCell\" must be A, B, C or D, or match an option";
   }
-  final List<String> errors = problems.values.toList();
+  final List<String> errors = [...problems.values, ...row.problems];
 
   final String code = draft.code.trim().toUpperCase();
   if (code.isNotEmpty) {

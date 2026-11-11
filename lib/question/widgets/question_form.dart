@@ -221,7 +221,7 @@ class _QuestionFormState extends State<QuestionForm> {
           const SizedBox(height: AppTokens.gapLg),
           QuestionRichField(
             label: "Passage or diagram",
-            hint: "Extra material shown above the question. Optional.",
+            hint: "Extra material shown under the question. Optional.",
             controller: questionBodyController,
             initialText: _initial.questionBody,
             height: 160,
