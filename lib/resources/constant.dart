@@ -95,6 +95,13 @@ const String transactions = "transactions";
 /// Cloud Function.
 const String notifications = "notifications";
 
+/// `subject_groups/{groupId}/messages`: what admins post to a subject's
+/// group, read by the student app's Group tab. See `GroupMessage`.
+const String subjectGroups = "subject_groups";
+
+/// Sub-collection of a [subjectGroups] document holding its messages.
+const String groupMessages = "messages";
+
 /// `app_settings` collection: one document per feature with values the
 /// admin can change. `app_settings/books` holds `delivery_charge`.
 const String appSettings = "app_settings";

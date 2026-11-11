@@ -9,6 +9,7 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/subject/screen/edit_subject.dart';
 import 'package:bbarna/subject/viewModel/subject_view_model.dart';
+import 'package:bbarna/subject_group/screen/subject_group_page.dart';
 import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -356,6 +357,16 @@ class _SubjectCardState extends State<SubjectCard> {
     return CardActions(
       visible: visible,
       buttons: [
+        // Groups are kept per subject code, so only a subject with one has
+        // a group (the app shows no Group tab without it either).
+        if (_data.code.trim().isNotEmpty && _data.code != stringDefault)
+          CardIconButton(
+            buttonKey: Key('subject_group_${_data.docId}'),
+            icon: Icons.forum_outlined,
+            tooltip: "Open group",
+            color: AppTokens.inkMuted,
+            onTap: _openGroup,
+          ),
         CardEditButton(
           buttonKey: Key('subject_edit_${_data.docId}'),
           tooltip: "Edit subject",
@@ -367,6 +378,15 @@ class _SubjectCardState extends State<SubjectCard> {
           onTap: _confirmDelete,
         ),
       ],
+    );
+  }
+
+  /// Opens this subject's group: its messages, and the box to post one.
+  void _openGroup() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (context) => SubjectGroupPage(subject: _data)),
     );
   }
 

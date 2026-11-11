@@ -29,6 +29,21 @@ void main() {
     final img.Image out = img.decodeImage(prepared.bytes)!;
     expect(out.width, 800);
     expect(out.height, 500);
+    // The size the student app keeps for it before it loads.
+    expect(prepared.width, 800);
+    expect(prepared.height, 500);
+  });
+
+  test('a small picture kept as it is still reports its size', () async {
+    // Already small and compact: re-encoding would not make it smaller.
+    final Uint8List original =
+        Uint8List.fromList(img.encodePng(img.Image(width: 40, height: 30)));
+    final PreparedImage prepared =
+        await prepareImageForUpload(original, maxSide: 800);
+
+    expect(prepared.bytes, same(original));
+    expect(prepared.width, 40);
+    expect(prepared.height, 30);
   });
 
   test('a picture with transparency stays PNG', () async {
@@ -56,6 +71,8 @@ void main() {
 
     expect(prepared.bytes, same(junk));
     expect(prepared.contentType, "image/jpeg");
+    expect(prepared.width, 0); // unknown
+    expect(prepared.height, 0);
   });
 
   test('content type is read from the file header', () {

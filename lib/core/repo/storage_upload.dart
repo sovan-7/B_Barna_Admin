@@ -43,3 +43,21 @@ Future<String> uploadImageToStorage(
   return uploadToStorage(reference, image.bytes,
       contentType: image.contentType);
 }
+
+/// What [uploadSizedImage] stored: the download URL, and the picture's size
+/// in pixels (0 when it could not be read).
+typedef UploadedImage = ({String url, int width, int height});
+
+/// Like [uploadImageToStorage], but also returns the stored picture's size,
+/// so the student app can keep the right space for it before it loads.
+Future<UploadedImage> uploadSizedImage(
+  Reference reference,
+  Uint8List data, {
+  required int maxSide,
+}) async {
+  await compress.loadLibrary();
+  final image = await compress.prepareImageForUpload(data, maxSide: maxSide);
+  final String url = await uploadToStorage(reference, image.bytes,
+      contentType: image.contentType);
+  return (url: url, width: image.width, height: image.height);
+}

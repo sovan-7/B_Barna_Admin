@@ -10,4 +10,8 @@ class ImageSizes {
 
   /// Push-notification pictures (Firebase drops images over 1 MB).
   static const int notification = 1024;
+
+  /// Pictures posted to a subject's group (notices and posters: big enough
+  /// for their small print to stay readable when zoomed on a phone).
+  static const int groupPost = 1600;
 }

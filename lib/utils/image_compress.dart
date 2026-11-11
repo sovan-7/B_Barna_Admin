@@ -12,7 +12,12 @@ class PreparedImage {
   /// e.g. `image/jpeg`, `image/png`.
   final String contentType;
 
-  const PreparedImage(this.bytes, this.contentType);
+  /// Size of [bytes] in pixels; 0 when the picture could not be decoded.
+  final int width;
+  final int height;
+
+  const PreparedImage(this.bytes, this.contentType,
+      {this.width = 0, this.height = 0});
 }
 
 /// Above this size the work runs on a background isolate so the window
@@ -69,14 +74,18 @@ PreparedImage _prepare(_Job job) {
 
   final bool transparent = image.hasAlpha && _hasTransparentPixel(image);
   final PreparedImage encoded = transparent
-      ? PreparedImage(Uint8List.fromList(img.encodePng(image)), "image/png")
+      ? PreparedImage(Uint8List.fromList(img.encodePng(image)), "image/png",
+          width: image.width, height: image.height)
       : PreparedImage(
           Uint8List.fromList(img.encodeJpg(image, quality: job.quality)),
-          "image/jpeg");
+          "image/jpeg",
+          width: image.width,
+          height: image.height);
 
   return encoded.bytes.lengthInBytes < job.bytes.lengthInBytes
       ? encoded
-      : original;
+      : PreparedImage(original.bytes, original.contentType,
+          width: decoded.width, height: decoded.height);
 }
 
 /// Whether any pixel is not fully opaque (an alpha channel alone does not
