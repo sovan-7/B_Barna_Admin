@@ -1,122 +1,94 @@
-import 'dart:async';
-
-import 'package:bbarna/core/widgets/loader_dialog.dart';
+import 'package:bbarna/core/viewModel/paged_list_view_model.dart';
 import 'package:bbarna/documents/video/model/video_model.dart';
 import 'package:bbarna/documents/video/repo/video_repo.dart';
-import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/helper.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 
-class VideoViewModel with ChangeNotifier {
-  final VideoRepo _videoRepo = VideoRepo();
-  List<VideoModel> videoList = [];
-  List<VideoModel> copyVideoList = [];
-  Timer? _debounce;
-  int limit = 50;
-  int videoListLength = 0;
-  List<QueryDocumentSnapshot> docList = [];
-  late DocumentSnapshot<Map<String, dynamic>> lastDoc;
-  Future<DocumentReference<Map<String, dynamic>>> addVideo(
-      VideoModel videoModel) async {
-    return await _videoRepo.addVideo(videoModel);
-  }
+/// State and actions for the Video module: the paged/searchable video list
+/// (inherited from [PagedListViewModel]) plus add, update and delete.
+/// Videos are links, so there is no file upload here.
+class VideoViewModel extends PagedListViewModel<VideoModel> {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
+  final VideoRepo _videoRepo;
 
-  Future updateVideo(VideoModel videoModel, String docId) async {
-    LoaderDialogs.showLoadingDialog();
+  VideoViewModel({VideoRepo? videoRepo})
+      : _videoRepo = videoRepo ?? VideoRepo();
 
-    await _videoRepo.updateVideo(videoModel, docId).whenComplete(() {
-      Navigator.pop(navigatorKey.currentContext!);
-    });
-  }
+  // ---- Paging hooks (see PagedListViewModel) -----------------------------
 
-  Future deleteVideo(String docId) async {
-    await _videoRepo.deleteVideo(docId).whenComplete(() {
+  @override
+  String get itemsLabel => "videos";
+
+  @override
+  Future<List<VideoModel>> fetchFirstPage(int limit) =>
+      _videoRepo.getFirstVideoList(limit);
+
+  @override
+  Future<List<VideoModel>> fetchNextPage(int limit) =>
+      _videoRepo.getNextVideoList(limit);
+
+  @override
+  Future<int> fetchTotalCount() => _videoRepo.getVideoListLength();
+
+  @override
+  Future<List<VideoModel>> fetchSearchResults(String query) =>
+      _videoRepo.searchVideo(query);
+
+  // ---- Module-specific names used by screens and tests -------------------
+
+  /// Videos currently on screen (a page, or search results).
+  List<VideoModel> get videoList => items;
+
+  /// Total videos in the collection.
+  int get videoListLength => totalCount;
+
+  /// Loads the first page of videos.
+  Future<void> getFirstVideoList() => loadFirstPage();
+
+  /// Appends the next page of videos.
+  Future<void> getNextVideoList() => loadNextPage();
+
+  /// Debounced prefix search on the video code.
+  Future<void> searchVideo({required String searchText}) => search(searchText);
+
+  // ---- Create / update / delete ------------------------------------------
+
+  /// Adds a new video document. Returns `false` (and shows a toast) on
+  /// failure.
+  Future<bool> addVideo(VideoModel videoModel) async {
+    try {
+      await _videoRepo.addVideo(videoModel);
+      return true;
+    } catch (e) {
       Helper.showSnackBarMessage(
-          msg: "Video deleted successfully", isSuccess: false);
-      getVideoListLength();
-    });
-  }
-
-  Future getFirstVideoList() async {
-    LoaderDialogs.showLoadingDialog();
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _videoRepo.getFirstVideoList(limit);
-    videoList.clear();
-    for (int i = 0; i < snapshot.docs.length; i++) {
-      DocumentSnapshot<Map<String, dynamic>> docData =
-          snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      if (i == snapshot.docs.length - 1) {
-        lastDoc = snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      }
-      videoList.add(VideoModel.fromDocumentSnapshot(docData));
+          msg: "Error while adding the video", isSuccess: false);
+      return false;
     }
-    copyVideoList = videoList;
-    docList.addAll(snapshot.docs);
-    Navigator.pop(navigatorKey.currentContext!);
-    notifyListeners();
   }
 
-  Future getNextVideoList() async {
-    LoaderDialogs.showLoadingDialog();
-
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _videoRepo.getNextVideoList(limit, lastDoc);
-    for (int i = 0; i < snapshot.docs.length; i++) {
-      DocumentSnapshot<Map<String, dynamic>> docData =
-          snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      if (i == snapshot.docs.length - 1) {
-        lastDoc = snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      }
-      videoList.add(VideoModel.fromDocumentSnapshot(docData));
+  /// Saves the edited video. Returns `false` (and shows a toast) on
+  /// failure.
+  Future<bool> updateVideo(VideoModel videoModel, String docId) async {
+    try {
+      await _videoRepo.updateVideo(videoModel, docId);
+      return true;
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while updating the video", isSuccess: false);
+      return false;
     }
-    Navigator.pop(navigatorKey.currentContext!);
-    copyVideoList = videoList;
-    docList.addAll(snapshot.docs);
-    notifyListeners();
   }
 
-  Future<void> searchVideo({required String searchText}) async {
-    if (_debounce?.isActive ?? false) _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () async {
-      if (searchText.isEmpty) {
-        videoList = copyVideoList;
-        notifyListeners();
-      } else {
-        try {
-          //  LoaderDialogs.showLoadingDialog();
-          videoList = await _videoRepo.searchVideo(searchText);
-          notifyListeners();
-          //Navigator.pop(navigatorKey.currentContext!);
-        } catch (e) {
-          Navigator.pop(navigatorKey.currentContext!);
-          Helper.showSnackBarMessage(
-              msg: "Error while fetching data", isSuccess: false);
-        }
-      }
-    });
-  }
-
-  void removeQuizFromLast() {
-    int exesData = docList.length % limit;
-    if (exesData > 0) {
-      docList.removeRange((docList.length - exesData), docList.length);
-      videoList.removeRange((docList.length - exesData), docList.length);
-      lastDoc = docList.last as DocumentSnapshot<Map<String, dynamic>>;
-      copyVideoList = videoList;
-    } else {
-      if ((docList.length - limit) >= limit) {
-        docList.removeRange(docList.length - limit, docList.length);
-        videoList.removeRange(videoList.length - limit, videoList.length);
-        lastDoc = docList.last as DocumentSnapshot<Map<String, dynamic>>;
-        copyVideoList = videoList;
-      }
+  /// Deletes the video document. Returns `false` (and shows a toast) on
+  /// failure.
+  Future<bool> deleteVideo(String docId) async {
+    try {
+      await _videoRepo.deleteVideo(docId);
+      removeLocally((item) => item.docId == docId);
+      return true;
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while deleting the video", isSuccess: false);
+      return false;
     }
-    notifyListeners();
-  }
-
-  Future<void> getVideoListLength() async {
-    videoListLength = await _videoRepo.getVideoListLength();
-    notifyListeners();
   }
 }

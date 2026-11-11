@@ -1,163 +1,146 @@
-import 'dart:async';
+import 'package:bbarna/core/viewModel/async_list.dart';
 import 'dart:typed_data';
 
-import 'package:bbarna/core/widgets/loader_dialog.dart';
-import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/core/viewModel/paged_list_view_model.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/units/model/unit_model.dart';
 import 'package:bbarna/units/repo/unit_repo.dart';
 import 'package:bbarna/utils/helper.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 
-class UnitViewModel with ChangeNotifier {
-  final UnitRepo _unitRepo = UnitRepo();
-  List<UnitModel> unitList = [];
-  List<UnitModel> copyUnitList = [];
-  List<SubjectModel> subjectListByCourseId = [];
-  Timer? _debounce;
-  int limit = 50;
-  int unitLength = 0;
-  //List<String> selectedUnitCodeList = [];
-  List<QueryDocumentSnapshot> docList = [];
-  late DocumentSnapshot<Map<String, dynamic>> lastDoc;
- // bool willCheckBoxShow = false;
-  Future<DocumentReference<Map<String, dynamic>>> addUnit(
-      UnitModel unitModel) async {
-    return await _unitRepo.addUnit(unitModel);
-  }
+/// State and actions for the Unit module: the paged/searchable unit list
+/// (inherited from [PagedListViewModel]), create/update/delete with image
+/// upload, the lock toggle, and the subject list for the form's
+/// "Subject" dropdown.
+class UnitViewModel extends PagedListViewModel<UnitModel> {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
+  final UnitRepo _unitRepo;
 
-  Future updateUnit(UnitModel unitModel, String unitId) async {
-    await _unitRepo.updateUnit(unitModel, unitId);
-  }
+  UnitViewModel({UnitRepo? unitRepo}) : _unitRepo = unitRepo ?? UnitRepo();
 
-  Future deleteUnit(String unitId) async {
-    await _unitRepo.deleteUnit(unitId).whenComplete(() {
-      Helper.showSnackBarMessage(
-          msg: "Unit deleted successfully", isSuccess: false);
-    });
-    getUnitListLength();
-  }
+  /// Subjects of the course chosen on the Add/Edit Unit form, with their
+  /// loading / error state.
+  final AsyncList<SubjectModel> subjectsForCourse = AsyncList<SubjectModel>();
 
-  Future uploadUnitImage(
-      Uint8List image, String unitCode, String unitId) async {
-    await _unitRepo.uploadUnitImage(image, unitCode, unitId);
-  }
+  /// The options in [subjectsForCourse].
+  List<SubjectModel> get subjectListByCourseId => subjectsForCourse.items;
 
-  Future getFirstUnitList() async {
-    LoaderDialogs.showLoadingDialog();
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _unitRepo.getFirstUnitList(limit);
-    unitList.clear();
-    for (int i = 0; i < snapshot.docs.length; i++) {
-      DocumentSnapshot<Map<String, dynamic>> docData =
-          snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      if (i == snapshot.docs.length - 1) {
-        lastDoc = snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      }
-      unitList.add(UnitModel.fromDocumentSnapshot(docData));
-    }
-    copyUnitList = unitList;
-    docList.addAll(snapshot.docs);
-    Navigator.pop(navigatorKey.currentContext!);
-    notifyListeners();
-  }
+  // ---- Paging hooks (see PagedListViewModel) -----------------------------
 
-  Future getNextUnitList() async {
-    LoaderDialogs.showLoadingDialog();
+  @override
+  String get itemsLabel => "units";
 
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _unitRepo.getNextUnitList(limit, lastDoc);
-    for (int i = 0; i < snapshot.docs.length; i++) {
-      DocumentSnapshot<Map<String, dynamic>> docData =
-          snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      if (i == snapshot.docs.length - 1) {
-        lastDoc = snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      }
-      unitList.add(UnitModel.fromDocumentSnapshot(docData));
-    }
-    Navigator.pop(navigatorKey.currentContext!);
-    copyUnitList = unitList;
-    docList.addAll(snapshot.docs);
-    notifyListeners();
-  }
+  @override
+  Future<List<UnitModel>> fetchFirstPage(int limit) =>
+      _unitRepo.getFirstUnitList(limit);
 
-  Future getSubjectListByCourseCode(String courseCode) async {
-    subjectListByCourseId =
-        await _unitRepo.getSubjectListByCourseCode(courseCode);
-    notifyListeners();
-  }
+  @override
+  Future<List<UnitModel>> fetchNextPage(int limit) =>
+      _unitRepo.getNextUnitList(limit);
 
-  void filterUnit() {
-    unitList.sort((a, b) => b.timeStamp.compareTo(a.timeStamp));
-  }
+  @override
+  Future<int> fetchTotalCount() => _unitRepo.getUnitListLength();
 
-  Future<void> searchUnit({required String searchText}) async {
-    if (_debounce?.isActive ?? false) _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () async {
-      if (searchText.isEmpty) {
-        unitList = copyUnitList;
-        notifyListeners();
-      } else {
+  @override
+  Future<List<UnitModel>> fetchSearchResults(String query) =>
+      _unitRepo.searchUnit(query);
+
+  // ---- Module-specific names used by screens and tests -------------------
+
+  /// Units currently on screen (a page, or search results).
+  List<UnitModel> get unitList => items;
+
+  /// Total units in the collection.
+  int get unitLength => totalCount;
+
+  /// Loads the first page of units.
+  Future<void> getFirstUnitList() => loadFirstPage();
+
+  /// Appends the next page of units.
+  Future<void> getNextUnitList() => loadNextPage();
+
+  /// Debounced prefix search on the unit code.
+  Future<void> searchUnit({required String searchText}) => search(searchText);
+
+  // ---- Form dropdown data ------------------------------------------------
+
+  /// Loads the subjects that belong to [courseCode] into
+  /// [subjectsForCourse] (older responses are ignored; a failure sets its
+  /// error).
+  Future<void> getSubjectListByCourseCode(String courseCode) =>
+      subjectsForCourse.load(
+        () => _unitRepo.getSubjectListByCourseCode(courseCode),
+        errorMessage: "Couldn't load subjects",
+        onChange: notifyListeners,
+      );
+
+  // ---- Create / update / delete ------------------------------------------
+
+  /// Creates the document and uploads its image as one operation. If the
+  /// upload fails the new document is deleted again, so the list never
+  /// shows a unit with a broken thumbnail.
+  Future<bool> createUnit(UnitModel unitModel, Uint8List image) async {
+    String? docId;
+    try {
+      docId = await _unitRepo.addUnit(unitModel);
+      await _unitRepo.uploadUnitImage(image, docId);
+      return true;
+    } catch (e) {
+      // Roll back the half-created row; ignore a failure to do so.
+      if (docId != null) {
         try {
-          //  LoaderDialogs.showLoadingDialog();
-          unitList = await _unitRepo.searchUnit(searchText);
-
-          notifyListeners();
-          //Navigator.pop(navigatorKey.currentContext!);
-        } catch (e) {
-          Navigator.pop(navigatorKey.currentContext!);
-          Helper.showSnackBarMessage(
-              msg: "Error while fetching data", isSuccess: false);
-        }
+          await _unitRepo.deleteUnit(docId);
+        } catch (_) {}
       }
-    });
-  }
-
-  void removeUnitFromLast() {
-    int exesData = docList.length % limit;
-    if (exesData > 0) {
-      docList.removeRange((docList.length - exesData), docList.length);
-      unitList.removeRange((docList.length - exesData), docList.length);
-      lastDoc = docList.last as DocumentSnapshot<Map<String, dynamic>>;
-      copyUnitList = unitList;
-    } else {
-      if ((docList.length - limit) >= limit) {
-        docList.removeRange(docList.length - limit, docList.length);
-        unitList.removeRange(unitList.length - limit, unitList.length);
-        lastDoc = docList.last as DocumentSnapshot<Map<String, dynamic>>;
-        copyUnitList = unitList;
-      }
+      Helper.showSnackBarMessage(
+          msg: "Error while adding the unit", isSuccess: false);
+      return false;
     }
-    notifyListeners();
   }
 
-  Future<void> getUnitListLength() async {
-    unitLength = await _unitRepo.getUnitListLength();
-    notifyListeners();
+  /// Saves the edited fields. [image] is null when the admin did not pick
+  /// a new picture — the existing one is then left exactly as it is.
+  Future<bool> updateUnit(UnitModel unitModel, String unitId,
+      {Uint8List? image}) async {
+    try {
+      await _unitRepo.updateUnit(unitModel, unitId);
+      if (image != null) {
+        await _unitRepo.uploadUnitImage(image, unitId);
+      }
+      return true;
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while updating the unit", isSuccess: false);
+      return false;
+    }
   }
 
-  // selectMultipleUnit(int index) {
-  //   if (selectedUnitCodeList.length < 50) {
-  //     unitList[index].isSelected = !unitList[index].isSelected;
-  //     selectedUnitCodeList.add(unitList[index].code);
-  //   } else {
-  //     Helper.showSnackBarMessage(
-  //         msg: "You can't delete more than 50 unit at a time",
-  //         isSuccess: false);
-  //   }
-  //   notifyListeners();
-  // }
+  /// Deletes the unit document. Returns `false` (and shows a toast) on
+  /// failure.
+  Future<bool> deleteUnit(String unitId) async {
+    try {
+      await _unitRepo.deleteUnit(unitId);
+      removeLocally((item) => item.id == unitId);
+      return true;
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while deleting the unit", isSuccess: false);
+      return false;
+    }
+  }
 
-  // deselectMultipleUnit(int index) {
-  //   unitList[index].isSelected = !unitList[index].isSelected;
-  //   selectedUnitCodeList.removeAt(selectedUnitCodeList
-  //       .indexWhere((element) => element == unitList[index].code));
-  // }
-
-  // deleteMultipleUnit() {}
-  // changeVisibility() {
-  //   willCheckBoxShow = !willCheckBoxShow;
-  //   notifyListeners();
-  // }
+  /// Flips `lock_status` in Firestore and on the in-memory row — no full
+  /// reload, so the list keeps the pages it has already fetched.
+  Future<bool> toggleLocked(UnitModel unitModel) async {
+    final bool next = !unitModel.lockStatus;
+    try {
+      await _unitRepo.setUnitFlag(unitModel.id, "lock_status", next);
+      unitModel.lockStatus = next;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while updating the unit", isSuccess: false);
+      return false;
+    }
+  }
 }

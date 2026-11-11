@@ -1,57 +1,86 @@
-import 'package:flutter/material.dart';
-import 'package:bbarna/resources/app_colors.dart';
+import 'package:bbarna/core/widgets/app_toast.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:bbarna/utils/session.dart';
 
+/// Small app-wide helpers: toasts and the locally stored
+/// sidebar / module-access preferences.
 class Helper {
-  static Future<void> showSnackBarMessage(
-      {required String msg, required bool isSuccess}) async {
-    ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(SnackBar(
-      dismissDirection: DismissDirection.up,
-      content: Text(
-        msg,
-        style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            fontStyle: FontStyle.italic),
-      ),
-      backgroundColor: isSuccess
-          ? AppColorsInApp.colorSecondary
-          : AppColorsInApp.colorLightRed,
-      margin: EdgeInsets.only(
-          bottom: MediaQuery.of(navigatorKey.currentContext!).size.height - 50,
-          left: 50,
-          right: 50),
-      behavior: SnackBarBehavior.floating,
-    ));
+  /// Shows [msg] as a toast in the corner of the window: green when
+  /// [isSuccess], red otherwise. [level] overrides that for messages that
+  /// are neither (e.g. a completed delete is shown as info).
+  static Future<void> showSnackBarMessage({
+    required String msg,
+    required bool isSuccess,
+    ToastLevel? level,
+  }) async {
+    AppToast.show(
+      message: msg,
+      level: level ?? (isSuccess ? ToastLevel.success : ToastLevel.error),
+    );
   }
 
-   Widget showLoader({Color? color = const Color(0xFF8ADDE1)}) {
-    return Center(
-        child: LoadingAnimationWidget.hexagonDots(
-      color: color ?? AppColorsInApp.colorLightBlue,
-      size: 80,
-    ));
+  /// A message that reports something that happened without calling it a
+  /// win or a failure.
+  static Future<void> showInfoMessage({required String msg}) async {
+    AppToast.show(message: msg, level: ToastLevel.info);
   }
 
-  /// Positions within [moduleList] the logged-in teacher may see, read from
-  /// the module list stashed in SharedPreferences at login. Falls back to
-  /// every index (unrestricted) when nothing was stored — covers legacy
-  /// sessions/docs predating module access, and any context where
-  /// [sharedPreferences] hasn't been initialized yet (e.g. widget tests).
-  static List<int> allowedModuleIndices() {
-    List<String>? access;
+  /// Whether the navigation rail was last left collapsed.
+  ///
+  /// `sharedPreferences` is late-initialised and throws anywhere it has not
+  /// been set up (widget tests included), so failures read as "not
+  /// collapsed" rather than taking the screen down.
+  static bool isSidebarCollapsed() {
     try {
-      access = sharedPreferences.getStringList(moduleAccessPrefsKey);
+      return sharedPreferences.getBool(sidebarCollapsedPrefsKey) ?? false;
     } catch (_) {
-      access = null;
+      return false;
     }
-    if (access == null || access.isEmpty) {
-      return List<int>.generate(moduleList.length, (i) => i);
+  }
+
+  /// Remembers whether the navigation rail is collapsed (best effort).
+  static void setSidebarCollapsed(bool collapsed) {
+    try {
+      sharedPreferences.setBool(sidebarCollapsedPrefsKey, collapsed);
+    } catch (_) {
+      // Not worth surfacing — the rail still works, it just won't remember.
+    }
+  }
+
+  /// Positions within [moduleList] the signed-in teacher may see.
+  ///
+  /// An admin sees every module. Their stored module list is deliberately
+  /// not consulted: it was saved when their account was last edited, so a
+  /// module added to the panel since then (Books, say) would otherwise
+  /// stay hidden from the very person who has to grant it to others.
+  ///
+  /// Anyone else sees only the modules in the list stored at login, and
+  /// never Teachers: managing accounts (and so creating admins) is the
+  /// admin's alone, whatever the list says. An empty or missing list, or a
+  /// store that cannot be read, grants nothing.
+  ///
+  /// Nobody sees a module in [hiddenModuleIndices].
+  static List<int> allowedModuleIndices() {
+    if (Session.isAdmin) {
+      return [
+        for (int i = 0; i < moduleList.length; i++)
+          if (!hiddenModuleIndices.contains(i)) i,
+      ];
+    }
+
+    List<String> access;
+    try {
+      access = sharedPreferences.getStringList(moduleAccessPrefsKey) ?? [];
+    } catch (_) {
+      access = [];
     }
     return [
       for (int i = 0; i < moduleList.length; i++)
-        if (access.contains(moduleList[i])) i,
+        if (i != teacherModuleIndex &&
+            i != transactionModuleIndex &&
+            !hiddenModuleIndices.contains(i) &&
+            access.contains(moduleList[i]))
+          i,
     ];
   }
 }

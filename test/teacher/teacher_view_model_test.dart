@@ -44,6 +44,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: rawPassword,
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -68,6 +69,7 @@ void main() {
         name: 'Jane Doe',
         username: 'Jane_Doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -91,6 +93,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -113,6 +116,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -136,6 +140,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES', 'SUBJECT'],
         role: roleSubadmin,
@@ -157,6 +162,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleAdmin,
@@ -188,6 +194,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -214,6 +221,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -230,6 +238,7 @@ void main() {
       imageUrl: 'https://example.com/original.jpg',
       username: 'jane_doe',
       password: 'original-hash',
+      phoneNumber: '9876543210',
       timeStamp: 1700000000000,
       moduleAccess: const ['COURSES'],
       role: roleSubadmin,
@@ -242,6 +251,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
       );
@@ -259,6 +269,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         newPassword: '',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -277,6 +288,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         newPassword: rawPassword,
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -296,6 +308,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
       );
@@ -317,6 +330,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
         newImage: Uint8List.fromList([1, 2, 3]),
@@ -335,6 +349,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe Renamed',
+        phoneNumber: '9876543210',
         moduleAccess: const ['SUBJECT'],
         role: roleAdmin,
       );
@@ -353,6 +368,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe Renamed',
+        phoneNumber: '9876543210',
         moduleAccess: const ['SUBJECT', 'TOPIC'],
         role: roleAdmin,
       );
@@ -371,6 +387,7 @@ void main() {
       final result = await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
       );
@@ -388,6 +405,7 @@ void main() {
       imageUrl: 'https://example.com/original.jpg',
       username: 'jane_doe',
       password: 'original-hash',
+      phoneNumber: '9876543210',
       timeStamp: 1700000000000,
       moduleAccess: const ['COURSES'],
       role: roleSubadmin,
@@ -408,6 +426,7 @@ void main() {
       final result = await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
         newImage: Uint8List.fromList([1, 2, 3]),
@@ -429,6 +448,7 @@ void main() {
       final result = await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
       );
@@ -446,6 +466,7 @@ void main() {
           imageUrl: 'x',
           username: 'jane_doe',
           password: 'x',
+          phoneNumber: '9876543210',
           timeStamp: 1,
           moduleAccess: const ['COURSES'],
           role: roleSubadmin,
@@ -456,6 +477,7 @@ void main() {
           imageUrl: 'x',
           username: 'john_smith',
           password: 'x',
+          phoneNumber: '9876543210',
           timeStamp: 2,
           moduleAccess: const ['SUBJECT'],
           role: roleAdmin,

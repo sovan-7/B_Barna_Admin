@@ -1,325 +1,316 @@
-// ignore_for_file: must_be_immutable
-
-import 'package:bbarna/core/widgets/loader_dialog.dart';
+import 'package:bbarna/core/widgets/card/admin_card_shell.dart';
+import 'package:bbarna/core/widgets/card/card_actions.dart';
+import 'package:bbarna/core/widgets/card/card_helpers.dart';
+import 'package:bbarna/core/widgets/card/image_or_initial.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
+import 'package:bbarna/core/widgets/selectable_label.dart';
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/student/model/student_model.dart';
-import 'package:bbarna/student/viewModel/student_viewmodel.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
-import 'package:bbarna/resources/app_colors.dart';
 import 'package:bbarna/student/screen/settings_student.dart';
+import 'package:bbarna/student/viewModel/student_view_model.dart';
+import 'package:bbarna/student/widgets/student_activity.dart';
+import 'package:bbarna/utils/helper.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-class StudentCard extends StatelessWidget {
-  Student student;
-  int index;
-  StudentCard({required this.student, required this.index, super.key});
+/// One row of the student list: avatar, name, contact details and last
+/// sign-in; a device chip that signs the student out of their device; and
+/// buttons for their enrolled courses and for deleting them.
+class StudentCard extends StatefulWidget {
+  /// The item shown in this row.
+  final Student student;
+
+  /// Called after an edit or delete so the list can reload.
+  final VoidCallback onChanged;
+
+  const StudentCard(
+      {required this.student, required this.onChanged, super.key});
+
+  @override
+  State<StudentCard> createState() => _StudentCardState();
+}
+
+class _StudentCardState extends State<StudentCard> {
+  /// Shortcut for the item shown.
+  Student get _data => widget.student;
+
+  /// The phone's name, or a plain "Signed in" when the app saved none.
+  String get _deviceLabel => _value(_data.activeDeviceName, "Signed in");
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 120,
-      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 15),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: AppColorsInApp.colorWhite,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                student.studentName,
-                style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.normal,
-                    letterSpacing: 0.5,
-                    color: Colors.black),
-              ),
-              Row(
+    return AdminCardShell(
+      builder: (context, layout) {
+        final bool isCompact = layout.isCompact;
+        final bool showActions = layout.showActions;
+        return isCompact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(right: 5.0),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.phone,
-                          color: AppColorsInApp.colorGrey,
-                          size: 15,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    "+91 ${student.studentPhoneNumber}",
-                    style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.normal,
-                        letterSpacing: 0.5,
-                        color: AppColorsInApp.colorBlack1),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.only(left: 15.0),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.phone_android_rounded,
-                          color: AppColorsInApp.colorGrey,
-                          size: 15,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.only(right: 5.0, left: 5.0),
-                    child: Row(
-                      children: [
-                        Text(
-                          "Whatsapp",
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.normal,
-                              letterSpacing: 0.5,
-                              color: AppColorsInApp.colorBlack1),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    student.studentWhatsappNumber != stringDefault
-                        ? student.studentWhatsappNumber
-                        : "+91 1234567890",
-                    style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.normal,
-                        letterSpacing: 0.5,
-                        color: AppColorsInApp.colorBlack1),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(5),
-                    margin: const EdgeInsets.only(
-                      top: 5,
-                      bottom: 5,
-                      left: 10,
-                    ),
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(5),
-                        color: student.studentWhatsappNumber != stringDefault
-                            ? AppColorsInApp.colorSecondary
-                            : AppColorsInApp.colorPrimary),
-                    child: Text(
-                      student.studentWhatsappNumber == stringDefault
-                          ? "Pending"
-                          : "Verified",
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.normal,
-                          letterSpacing: 0.5,
-                          color: AppColorsInApp.colorWhite),
-                    ),
-                  ),
-                ],
-              ),
-              const Row(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.only(right: 10.0),
-                    child: Icon(
-                      Icons.email,
-                      color: AppColorsInApp.colorGrey,
-                      size: 15,
-                    ),
-                  ),
-                  Text(
-                    "myexample@gmail.com",
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.normal,
-                        letterSpacing: 0.5,
-                        color: AppColorsInApp.colorBlack1),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Row(
-                    children: [
-                      const Text(
-                        "Mail Status",
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.normal,
-                            letterSpacing: 0.5,
-                            color: AppColorsInApp.colorBlack1),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.only(
-                          left: 10,
-                          right: 10,
-                          top: 2,
-                          bottom: 2,
-                        ),
-                        margin: const EdgeInsets.only(
-                          top: 5,
-                          bottom: 5,
-                          left: 10,
-                        ),
-                        decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(5),
-                            color: AppColorsInApp.colorPrimary),
-                        child: const Text(
-                          "No",
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.normal,
-                              letterSpacing: 0.5,
-                              color: AppColorsInApp.colorWhite),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 15.0),
-                    child: Row(
-                      children: [
-                        const Text(
-                          "SMS Status",
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.normal,
-                              letterSpacing: 0.5,
-                              color: AppColorsInApp.colorBlack1),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.only(
-                            left: 10,
-                            right: 10,
-                            top: 2,
-                            bottom: 2,
-                          ),
-                          margin: const EdgeInsets.only(
-                            top: 5,
-                            bottom: 5,
-                            left: 10,
-                          ),
-                          decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(5),
-                              color: AppColorsInApp.colorSecondary),
-                          child: const Text(
-                            "Yes",
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.normal,
-                                letterSpacing: 0.5,
-                                color: AppColorsInApp.colorWhite),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  _identity(),
+                  const SizedBox(height: 10),
+                  _deviceChip(),
+                  const SizedBox(height: 6),
+                  Align(
+                      alignment: Alignment.centerRight,
+                      child: _actions(showActions)),
                 ],
               )
+            : Row(
+                children: [
+                  Expanded(child: _identity()),
+                  const SizedBox(width: AppTokens.gapMd),
+                  _deviceChip(),
+                  const SizedBox(width: AppTokens.gapSm),
+                  _actions(showActions),
+                ],
+              );
+      },
+    );
+  }
+
+  /// Left part of the row: picture or icon, name, code and details.
+  Widget _identity() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _avatar(),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableLabel(
+                _value(_data.studentName, "Unnamed student"),
+                style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppTokens.ink),
+              ),
+              const SizedBox(height: 4),
+              // Phone, WhatsApp and email on one wrapping line.
+              Wrap(
+                spacing: 14,
+                runSpacing: 3,
+                children: [
+                  _fact(Icons.phone_outlined,
+                      _value(_data.studentPhoneNumber, "No phone")),
+                  // Only when it differs: most students give the same
+                  // number twice, and printing it again says nothing.
+                  if (_whatsappNumber != null)
+                    _fact(Icons.chat_outlined, _whatsappNumber!),
+                  _fact(Icons.mail_outline,
+                      _value(_data.studentEmail, "No email")),
+                ],
+              ),
+              const SizedBox(height: 4),
+              _lastActive(),
             ],
           ),
-          Row(
-            children: [
-              InkWell(
-                onTap: () {
-                  try {
-                    LoaderDialogs.showLoadingDialog();
-                    FirebaseFirestore.instance
-                        .collection("student")
-                        .doc(student.studentId)
-                        .update({
-                      'device_count': 0,
-                    }).whenComplete(() {
-                      Navigator.pop(context);
-                      Provider.of<StudentViewModel>(context, listen: false)
-                          .clearDeviceCount(index);
-                    });
-                  } catch (e) {
-                    Navigator.pop(context);
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 30.0),
-                  child: Row(
-                    children: [
-                      Icon(Icons.logout, color: AppColorsInApp.colorYellow),
-                      Text(
-                        " - ${student.deviceCount}",
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.normal,
-                            letterSpacing: 0.5,
-                            color: AppColorsInApp.colorPrimary),
-                      ),
-                    ],
-                  ),
+        ),
+      ],
+    );
+  }
+
+  /// The WhatsApp number, or null when there isn't one worth showing
+  /// separately from the phone number.
+  String? get _whatsappNumber {
+    final String number = _data.studentWhatsappNumber.trim();
+    if (number.isEmpty || number == stringDefault) return null;
+    if (number == _data.studentPhoneNumber.trim()) return null;
+    return number;
+  }
+
+  /// When the student last opened the app ("Never signed in" when they
+  /// haven't), so active students stand out from inactive ones.
+  Widget _lastActive() {
+    final String? label = StudentActivity.lastActiveLabel(_data.lastLoginAt);
+    final bool never = label == null;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(never ? Icons.schedule_outlined : Icons.history,
+            size: 12,
+            color: never ? AppTokens.inkFaint : const Color(0xFF108460)),
+        const SizedBox(width: 5),
+        Text(
+          label ?? StudentActivity.neverLabel,
+          style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: never ? FontWeight.w400 : FontWeight.w500,
+              color: never ? AppTokens.inkFaint : AppTokens.inkMuted),
+        ),
+      ],
+    );
+  }
+
+  /// [value], or [fallback] when it is blank or the "NA" placeholder.
+  static String _value(String value, String fallback) =>
+      value.trim().isEmpty || value == stringDefault ? fallback : value;
+
+  /// A small grey icon + text pair (e.g. "90 min").
+  Widget _fact(IconData icon, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: AppTokens.inkFaint),
+        const SizedBox(width: 5),
+        // Capped: a Wrap only wraps *between* children, so one over-wide
+        // child still overflows the row it lands on.
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 240),
+          child: SelectableLabel(label,
+              style:
+                  const TextStyle(fontSize: 11.5, color: AppTokens.inkMuted)),
+        ),
+      ],
+    );
+  }
+
+  /// Round profile photo, or the first letter of the name.
+  Widget _avatar() {
+    final String url = _data.studentProfileImage;
+    return ImageOrInitial(
+      // The default placeholder string counts as "no photo".
+      imageUrl: url == stringDefault ? "" : url,
+      initial: _value(_data.studentName, "?").characters.first,
+      size: 40,
+      radius: AppTokens.radiusPill,
+      fontSize: 15,
+    );
+  }
+
+  /// The phone holding the student's login (the app allows one at a time);
+  /// tapping it signs them out of it.
+  Widget _deviceChip() {
+    final bool signedIn = _data.isSignedIn;
+    final Color color = signedIn ? const Color(0xFF2563EB) : AppTokens.inkFaint;
+
+    return Tooltip(
+      message: signedIn
+          ? "Sign out of ${_data.activeDeviceName.trim().isEmpty ? 'this device' : _deviceLabel}"
+          : "Not signed in on any device",
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+        child: InkWell(
+          key: Key('student_devices_${_data.studentId}'),
+          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+          onTap: signedIn ? _confirmSignOut : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              color: signedIn
+                  ? color.withValues(alpha: .10)
+                  : AppTokens.surfaceMuted,
+              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+              border: Border.all(
+                  color: signedIn
+                      ? color.withValues(alpha: .28)
+                      : AppTokens.hairline),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                    signedIn
+                        ? Icons.devices_outlined
+                        : Icons.phonelink_erase_outlined,
+                    size: 12,
+                    color: color),
+                const SizedBox(width: 5),
+                // Capped: device names are free text from the phone maker.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  child: Text(signedIn ? _deviceLabel : "No device",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: color)),
                 ),
-              ),
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => SettingStudent(
-                                studentId: student.studentId,
-                                studentName: student.studentName,
-                              )));
-                },
-                child: const Padding(
-                  padding: EdgeInsets.only(left: 30.0),
-                  child: Row(
-                    children: [
-                      Icon(Icons.settings, color: AppColorsInApp.colorBlue),
-                    ],
-                  ),
-                ),
-              ),
-              InkWell(
-                onTap: () {
-                  RemoveAlert.showRemoveAlert(
-                      title: "Remove Student",
-                      description: "Are you sure want to remove student ?",
-                      onPressYes: () {
-                        Navigator.pop(context);
-                        try {
-                          LoaderDialogs.showLoadingDialog();
-                          FirebaseFirestore.instance
-                              .collection("student")
-                              .doc(student.studentId)
-                              .delete()
-                              .whenComplete(() {
-                            Navigator.pop(context);
-                            Provider.of<StudentViewModel>(context,
-                                    listen: false)
-                                .removeStudent(index);
-                          });
-                        } catch (e) {
-                          Navigator.pop(context);
-                        }
-                      });
-                },
-                child: const Padding(
-                  padding: EdgeInsets.only(left: 30.0),
-                  child: Row(
-                    children: [
-                      Icon(Icons.cancel_outlined,
-                          color: AppColorsInApp.colorPrimary),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          )
-        ],
+              ],
+            ),
+          ),
+        ),
       ),
+    );
+  }
+
+  /// Row buttons; faded in on hover, always shown on compact screens.
+  Widget _actions(bool visible) {
+    return CardActions(
+      visible: visible,
+      buttons: [
+        CardIconButton(
+          buttonKey: Key('student_courses_${_data.studentId}'),
+          icon: Icons.school_outlined,
+          tooltip: "Enrolled courses",
+          color: AppTokens.inkMuted,
+          onTap: _openSettings,
+        ),
+        CardDeleteButton(
+          buttonKey: Key('student_delete_${_data.studentId}'),
+          tooltip: "Delete student",
+          onTap: _confirmDelete,
+        ),
+      ],
+    );
+  }
+
+  /// Opens the student's enrolled-courses (settings) screen. The list is
+  /// not reloaded afterwards: enrolments do not change this row.
+  void _openSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SettingStudent(
+          studentId: _data.studentId,
+          studentName: _data.studentName,
+        ),
+      ),
+    );
+  }
+
+  /// Asks for confirmation, then signs the student out of their device.
+  void _confirmSignOut() {
+    final StudentViewModel studentViewModel =
+        Provider.of<StudentViewModel>(context, listen: false);
+    final String studentId = _data.studentId;
+
+    RemoveAlert.showRemoveAlert(
+      title: _value(_data.studentName, "This student"),
+      description: _data.activeDeviceName.trim().isEmpty
+          ? "Sign this student out of their device ?"
+          : "Sign this student out of $_deviceLabel ?",
+      confirmLabel: "Sign out",
+      onPressYes: () async {
+        // The dialog stays open, its button spinning, until this is done.
+        final bool success = await studentViewModel.signOutDevice(studentId);
+        Navigator.pop(navigatorKey.currentContext!);
+        if (success) {
+          Helper.showSnackBarMessage(
+              msg: "Student signed out", isSuccess: true);
+        }
+      },
+    );
+  }
+
+  /// Asks for confirmation, then deletes this item.
+  void _confirmDelete() {
+    final StudentViewModel studentViewModel =
+        Provider.of<StudentViewModel>(context, listen: false);
+    // Captured up front (by id, not list position) so a search or refresh
+    // while the dialog is open cannot change which student gets deleted.
+    final String studentId = _data.studentId;
+
+    confirmDelete(
+      title: _value(_data.studentName, "This student"),
+      delete: () => studentViewModel.deleteStudent(studentId),
+      successMessage: "Student deleted successfully",
     );
   }
 }

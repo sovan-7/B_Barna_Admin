@@ -10,6 +10,7 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/teacher/model/teacher_model.dart';
 import 'package:bbarna/teacher/repo/teacher_repo.dart';
 import 'package:bbarna/teacher/screen/edit_teacher.dart';
+import 'package:bbarna/teacher/widgets/teacher_form.dart';
 import 'package:bbarna/teacher/viewModel/teacher_view_model.dart';
 
 class MockTeacherRepo extends Mock implements TeacherRepo {}
@@ -22,6 +23,7 @@ final TeacherModel _existingTeacher = TeacherModel(
   imageUrl: 'https://example.com/original.jpg',
   username: 'jane_doe',
   password: 'original-hash',
+  phoneNumber: '9876543210',
   timeStamp: 1700000000000,
   moduleAccess: const ['COURSES', 'SUBJECT'],
   role: roleSubadmin,
@@ -55,7 +57,7 @@ final Uint8List _validPngBytes = base64Decode(
 
 void selectFakeImage(WidgetTester tester,
     {String name = 'photo.png', int size = 1024}) {
-  final state = tester.state<EditTeacherTestHooks>(find.byType(EditTeacher));
+  final state = tester.state<TeacherFormTestHooks>(find.byType(TeacherForm));
   state.setSelectedImageForTest(
     PlatformFile(name: name, size: size, bytes: _validPngBytes),
   );
@@ -98,33 +100,51 @@ void main() {
     expect(
         find.widgetWithText(TextField, 'jane_doe', skipOffstage: false),
         findsOneWidget);
+    expect(
+        find.widgetWithText(TextField, '9876543210', skipOffstage: false),
+        findsOneWidget);
   });
 
   testWidgets('username field is disabled', (tester) async {
     await pumpEditTeacher(tester, viewModel);
 
-    final usernameField = tester.widget<TextField>(find
-        .descendant(
-            of: find.byKey(const Key('teacher_username_field')),
-            matching: find.byType(TextField))
-        .first);
+    // The username is the Firestore document id, so it cannot change once
+    // the teacher exists.
+    final TextField usernameField =
+        tester.widget<TextField>(find.byKey(const Key('teacher_username_field')));
     expect(usernameField.enabled, isFalse);
   });
 
-  testWidgets('preselects the teacher\'s existing role and module chips',
+  testWidgets(
+      'preselects the existing role and modules, so saving untouched keeps them',
+      (tester) async {
+    // Asserted through what gets written rather than through the widget
+    // types the chips happen to be built from — the old version reached for
+    // ChoiceChip and FilterChip directly.
+    await pumpEditTeacher(tester, viewModel);
+    await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
+    await tester.tap(find.byKey(const Key('teacher_save_button')));
+    await tester.pumpAndSettle();
+
+    final captured =
+        verify(() => repo.updateTeacher(captureAny())).captured.single
+            as TeacherModel;
+    expect(captured.role, roleSubadmin);
+    expect(captured.moduleAccess, ['COURSES', 'SUBJECT']);
+  });
+
+  testWidgets('unticking a preselected module drops it on save',
       (tester) async {
     await pumpEditTeacher(tester, viewModel);
+    await checkModule(tester, 'COURSES');
+    await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
+    await tester.tap(find.byKey(const Key('teacher_save_button')));
+    await tester.pumpAndSettle();
 
-    final roleChip = tester
-        .widget<ChoiceChip>(find.byKey(Key('role_option_$roleSubadmin')));
-    expect(roleChip.selected, isTrue);
-
-    final courseChip =
-        tester.widget<FilterChip>(find.byKey(const Key('module_checkbox_COURSES')));
-    expect(courseChip.selected, isTrue);
-    final quizChip =
-        tester.widget<FilterChip>(find.byKey(const Key('module_checkbox_QUIZ')));
-    expect(quizChip.selected, isFalse);
+    final captured =
+        verify(() => repo.updateTeacher(captureAny())).captured.single
+            as TeacherModel;
+    expect(captured.moduleAccess, ['SUBJECT']);
   });
 
   testWidgets('keeps the current password when the field is left blank',
@@ -150,6 +170,32 @@ void main() {
     await tester.pumpAndSettle();
 
     verifyNever(() => repo.updateTeacher(any()));
+  });
+
+  testWidgets('blocks submission when the phone number is edited to fewer than 10 digits',
+      (tester) async {
+    await pumpEditTeacher(tester, viewModel);
+    await tester.enterText(
+        find.byKey(const Key('teacher_phone_field')), '12345');
+    await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
+    await tester.tap(find.byKey(const Key('teacher_save_button')));
+    await tester.pumpAndSettle();
+
+    verifyNever(() => repo.updateTeacher(any()));
+  });
+
+  testWidgets('saves the edited phone number', (tester) async {
+    await pumpEditTeacher(tester, viewModel);
+    await tester.enterText(
+        find.byKey(const Key('teacher_phone_field')), '1234567890');
+    await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
+    await tester.tap(find.byKey(const Key('teacher_save_button')));
+    await tester.pumpAndSettle();
+
+    final captured =
+        verify(() => repo.updateTeacher(captureAny())).captured.single
+            as TeacherModel;
+    expect(captured.phoneNumber, '1234567890');
   });
 
   testWidgets('blocks submission when every module is unchecked',

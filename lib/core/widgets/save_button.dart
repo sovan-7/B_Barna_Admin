@@ -24,14 +24,14 @@ class SaveButton extends StatelessWidget {
         width: 120,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: buttonColor
-        ),
+            borderRadius: BorderRadius.circular(10), color: buttonColor),
         child: Text(buttonText!,
-            style:  TextStyle(
+            style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
-                color:buttonText=="Save"?AppColorsInApp.colorWhite: AppColorsInApp.colorBlack1)),
+                color: buttonText == "Save"
+                    ? AppColorsInApp.colorWhite
+                    : AppColorsInApp.colorBlack1)),
       ),
     );
   }

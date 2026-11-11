@@ -32,26 +32,49 @@
   <title>bbarna</title>
   <link rel="manifest" href="manifest.json">
 
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script>
-    // Your web app's Firebase configuration
-    var firebaseConfig = {
-      apiKey: "AIzaSyDMo9aZg1-zlGXCfp2Bft6o3MZaFwiv67Q",
-      appId: "1:23963148123:web:f16c6712a418dedecc847e",
-      messagingSenderId: "23963148123",
-      projectId: "bbarna-6a725",
-      authDomain: "bbarna-6a725.firebaseapp.com",
-      storageBucket: "bbarna-6a725.appspot.com",
-      measurementId: "G-T6QDXLT4V0"
-    };
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-  </script>
-  <script type="text/javascript">
-    window.flutterWebRenderer = "html";
-</script>
+  <!-- Open connections early to hosts fetched during start-up: the Flutter
+       engine (CanvasKit) and fonts, Firestore, and Firebase Storage. -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossorigin>
+
+  <!-- Shown while the app downloads; removed on Flutter's first frame. -->
+  <style>
+    #splash {
+      position: fixed; inset: 0; display: flex; align-items: center;
+      justify-content: center; background: #F5F7FA;
+    }
+    #splash img { width: 72px; height: 72px; opacity: .9; }
+  </style>
+
+<!--  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>-->
+<!--  <script>-->
+<!--    // Your web app's Firebase configuration-->
+<!--    var firebaseConfig = {-->
+<!--      apiKey: "AIzaSyDMo9aZg1-zlGXCfp2Bft6o3MZaFwiv67Q",-->
+<!--      appId: "1:23963148123:web:f16c6712a418dedecc847e",-->
+<!--      messagingSenderId: "23963148123",-->
+<!--      projectId: "bbarna-6a725",-->
+<!--      authDomain: "bbarna-6a725.firebaseapp.com",-->
+<!--      storageBucket: "bbarna-6a725.appspot.com",-->
+<!--      measurementId: "G-T6QDXLT4V0"-->
+<!--    };-->
+<!--    // Initialize Firebase-->
+<!--    firebase.initializeApp(firebaseConfig);-->
+<!--  </script>-->
+<!--  <script type="text/javascript">-->
+<!--    window.flutterWebRenderer = "html";-->
+<!--</script>-->
 </head>
 <body>
+  <div id="splash"><img src="logo.png" alt=""></div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('splash');
+      if (splash) splash.remove();
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

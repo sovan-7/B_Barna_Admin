@@ -1,13 +1,23 @@
 import 'package:bbarna/core/widgets/add_widget.dart';
-import 'package:bbarna/core/widgets/custom_searchbar.dart';
+import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
+import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
+import 'package:bbarna/core/widgets/list_page/list_page_frame.dart';
+import 'package:bbarna/core/widgets/list_page/list_page_header.dart';
+import 'package:bbarna/core/widgets/list_page/list_search_field.dart';
+import 'package:bbarna/core/widgets/list_page/list_skeleton.dart';
+import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/course/screen/add_course.dart';
 import 'package:bbarna/course/viewModel/course_view_model.dart';
-import 'package:bbarna/course/widgets/course_list_widget.dart';
-import 'package:bbarna/resources/app_colors.dart';
-import 'package:bbarna/utils/size_config.dart';
+import 'package:bbarna/course/widgets/course_card.dart';
+import 'package:bbarna/resources/app_tokens.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+/// The course list (sidebar module).
+///
+/// Every course is loaded at once and the search filters them locally by
+/// name or code (no paging, so no footer).
 class CourseList extends StatefulWidget {
   const CourseList({super.key});
 
@@ -16,109 +26,116 @@ class CourseList extends StatefulWidget {
 }
 
 class _CourseListState extends State<CourseList> {
-  CourseViewModel courseViewModel = CourseViewModel();
-  TextEditingController searchController = TextEditingController();
+  /// Text in the search box.
+  final TextEditingController searchController = TextEditingController();
+
   @override
   void initState() {
-    courseViewModel = Provider.of<CourseViewModel>(context, listen: false);
-    getCourseList();
     super.initState();
+    final CourseViewModel courseViewModel =
+        Provider.of<CourseViewModel>(context, listen: false);
+    // Put back what was being searched when this list was last left; the
+    // view model keeps it across Add/Edit and module switches.
+    searchController.text = courseViewModel.searchText;
+    // Deferred to after the first frame: this screen is mounted from
+    // Sidebar's `screenList[selectedIndex]` *during* a build, and loading
+    // notifies listeners.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      courseViewModel.getCourseList();
+    });
   }
 
-  void getCourseList() async {
-    await courseViewModel.getCourseList();
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CourseViewModel>(builder: (context, courseVM, child) {
-      return Container(
-        padding: const EdgeInsets.only(
-          left: 10,
-          right: 10,
-          top: 10,
-          bottom: 20,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "COURSE LIST",
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.normal,
-                      letterSpacing: 1.0,
-                      color: AppColorsInApp.colorBlack1),
-                ),
-                AddWidget(
-                  addCall: () {
-                    Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const AddCourse()))
-                        .whenComplete(() {
-                      if (searchController.text.isEmpty) {
-                        Provider.of<CourseViewModel>(context, listen: false)
-                            .getCourseList();
-                      }
-                    });
-                  },
-                )
-              ],
+    return Consumer<CourseViewModel>(
+        builder: (context, courseViewModel, child) {
+      return ListPageFrame(
+        children: [
+          ListPageHeader(
+            title: "Courses",
+            count: courseViewModel.courseList.length,
+            subtitle: "Newest first. Locked courses are hidden from students.",
+            trailing: AddWidget(
+              title: "NEW COURSE",
+              addCall: () => _openAdd(courseViewModel),
             ),
-            CustomSearchBar(
-              textEditingController: searchController,
-              onChange: () {
-                courseViewModel.searchCourse(searchText: searchController.text);
-              },
-              onClear: () {
-                searchController.clear();
-                courseViewModel.searchCourse(searchText: searchController.text);
-              },
-            ),
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.only(
-                  top: 10,
-                  bottom: 10,
-                ),
-                padding: const EdgeInsets.only(
-                  top: 10,
-                  bottom: 10,
-                ),
-                decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: Colors.grey.withValues(alpha: .2)),
-                child: ListView.builder(
-                    itemCount: courseVM.courseList.length,
-                    itemBuilder: (context, index) {
-                      return SizeConfig.screenWidth! < 900
-                          ? FittedBox(
-                              child: CourseListWidget(
-                              courseData: courseVM.courseList[index],
-                              onEdit: () {
-                                if (searchController.text.isEmpty) {
-                                  courseVM.getCourseList();
-                                }
-                              },
-                            ))
-                          : CourseListWidget(
-                              courseData: courseVM.courseList[index],
-                              onEdit: () {
-                                if (searchController.text.isEmpty) {
-                                  courseVM.getCourseList();
-                                }
-                              },
-                            );
-                    }),
-              ),
-            )
-          ],
-        ),
+          ),
+          const SizedBox(height: AppTokens.gapMd),
+          ListSearchField(
+            controller: searchController,
+            hintText: "Search by name or code",
+            maxWidth: 360,
+            onChanged: (text) => _search(courseViewModel, text),
+            onCleared: () => _search(courseViewModel, ""),
+          ),
+          const SizedBox(height: AppTokens.gapMd),
+          Expanded(child: _body(courseViewModel)),
+        ],
       );
     });
+  }
+
+  /// Filters the list (the view model rebuilds the page).
+  void _search(CourseViewModel courseViewModel, String text) {
+    // The view model notifies straight away, which rebuilds this page
+    // (clear button and empty-state wording included) — no setState needed.
+    courseViewModel.searchCourse(searchText: text);
+  }
+
+  /// Opens Add Course and reloads the list if something was
+  /// saved.
+  void _openAdd(CourseViewModel courseViewModel) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddCourse()),
+    ).ifSaved(() {
+      courseViewModel.getCourseList();
+    });
+  }
+
+  /// Skeleton while loading, empty state when there are no rows, otherwise
+  /// the course cards.
+  Widget _body(CourseViewModel courseViewModel) {
+    if (courseViewModel.isLoading) {
+      return const ListSkeleton(rowHeight: 74, rowCount: 5);
+    }
+
+    final List<CourseModel> courses = courseViewModel.courseList;
+    // A failed load: say so, with Retry, rather than "No … yet".
+    final String? loadError = courseViewModel.loadError;
+    if (courses.isEmpty && loadError != null) {
+      return ListErrorState(
+          title: loadError, onRetry: courseViewModel.getCourseList);
+    }
+    if (courses.isEmpty) {
+      return ListEmptyState(
+        isFiltered: searchController.text.trim().isNotEmpty,
+        icon: Icons.menu_book_outlined,
+        title: "No courses yet",
+        message:
+            "Courses are the top level of the catalogue — subjects and units hang off them.",
+        filteredMessage: "No course matches that name or code.",
+        messageWidth: 320,
+        addLabel: "Add a course",
+        onAdd: () => _openAdd(courseViewModel),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
+      itemCount: courses.length,
+      itemBuilder: (context, index) => CourseCard(
+        key: ValueKey(courses[index].docId),
+        courseData: courses[index],
+        onChanged: courseViewModel.getCourseList,
+      ),
+    );
   }
 }

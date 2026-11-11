@@ -1,54 +1,100 @@
-
+import 'package:bbarna/core/repo/firestore_pager.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/topic/model/topic_model.dart';
 import 'package:bbarna/units/model/unit_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
+/// Firestore access for the `topic` collection, the subject/unit lookups
+/// the topic form's dropdowns need, and the topic's attached content.
+///
+/// Every method throws on failure; [TopicViewModel] catches and reports.
 class TopicRepo {
+  /// Firestore client.
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
-  final Reference storageReference = FirebaseStorage.instance.ref();
 
-  Future<DocumentReference<Map<String, dynamic>>> addTopic(
-      TopicModel topicModel) async {
-    return await _fireStore.collection(topic).add(topicModel.toMap());
+  /// The `topic` collection.
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _fireStore.collection(topic);
+
+  /// Newest-first paging with the cursor kept here, not in the view model.
+  late final FirestorePager _pager = FirestorePager(_collection);
+
+  /// Converts raw documents into models.
+  List<TopicModel> _toModels(List<FirestoreDoc> docs) =>
+      docs.map((doc) => TopicModel.fromDocumentSnapshot(doc)).toList();
+
+  /// Adds a topic and returns the new document's id.
+  Future<String> addTopic(TopicModel topicModel) async {
+    final DocumentReference<Map<String, dynamic>> doc =
+        await _collection.add(topicModel.toMap());
+    return doc.id;
   }
 
-  Future<QuerySnapshot<Map<String, dynamic>>> getFirstTopicList(
-      int limit) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(topic)
-        .orderBy("timeStamp", descending: true)
-        .limit(limit)
-        .get();
-    return snapshot;
+  /// First page, newest first. Resets the paging cursor.
+  Future<List<TopicModel>> getFirstTopicList(int limit) async =>
+      _toModels(await _pager.firstPage(limit));
+
+  /// The page after the last one returned (empty when there is none).
+  Future<List<TopicModel>> getNextTopicList(int limit) async =>
+      _toModels(await _pager.nextPage(limit));
+
+  /// Overwrites the topic's fields.
+  Future<void> updateTopic(TopicModel topicModel, String docId) async {
+    await _collection.doc(docId).update(topicModel.toMap());
   }
 
-  Future<QuerySnapshot<Map<String, dynamic>>> getNextTopicList(
-      int limit, lastDoc) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(topic)
-        .orderBy("timeStamp", descending: true)
-        .startAfterDocument(lastDoc)
-        .limit(limit)
-        .get();
-    return snapshot;
+  /// Deletes the topic document.
+  Future<void> deleteTopic(String docId) async {
+    await _collection.doc(docId).delete();
   }
 
-  
-
-  Future updateTopic(TopicModel topicModel, String docId) async {
-    await _fireStore.collection(topic).doc(docId).update(topicModel.toMap());
+  /// Replaces one content array ([kind]: videos, PDFs, audio, quizzes) on
+  /// topic [docId].
+  Future<void> setContentCodes(
+      String docId, ContentKind kind, List<String> codes) async {
+    await _collection.doc(docId).update({kind.field: codes});
   }
 
-  Future deleteTopic(String docId) async {
-    await _fireStore.collection(topic).doc(docId).delete();
+  /// Looks the codes up in their own collection and returns
+  /// `code -> title`. A code with no document simply does not come back, so
+  /// the caller can tell attached-and-real from attached-and-a-typo.
+  ///
+  /// `whereIn` takes at most 30 values per query, so this goes in chunks
+  /// of 30. Blank and duplicate codes are ignored.
+  Future<Map<String, String>> resolveContentTitles(
+      ContentKind kind, List<String> codes) async {
+    final List<String> unique =
+        codes.map((c) => c.trim()).where((c) => c.isNotEmpty).toSet().toList();
+    if (unique.isEmpty) return <String, String>{};
+
+    // Chunks are independent, so query them all at once.
+    final List<QuerySnapshot<Map<String, dynamic>>> snapshots =
+        await Future.wait([
+      for (int i = 0; i < unique.length; i += 30)
+        _fireStore
+            .collection(kind.collection)
+            .where(kind.codeField,
+                whereIn: unique.sublist(
+                    i, i + 30 > unique.length ? unique.length : i + 30))
+            .get(),
+    ]);
+    final Map<String, String> titles = <String, String>{};
+    for (final QuerySnapshot<Map<String, dynamic>> snapshot in snapshots) {
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
+          in snapshot.docs) {
+        final Object? code = doc.data()[kind.codeField];
+        final Object? title = doc.data()[kind.titleField];
+        if (code is String) titles[code] = title is String ? title : "";
+      }
+    }
+    return titles;
   }
 
+  /// All subjects whose `course_code` is [courseCode] (form dropdown).
   Future<List<SubjectModel>> getSubjectList(
       {required String courseCode}) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
         .collection(subject)
         .where("course_code", isEqualTo: courseCode)
         .get();
@@ -57,8 +103,9 @@ class TopicRepo {
         .toList();
   }
 
+  /// All units whose `subject_code` is [subjectCode] (form dropdown).
   Future<List<UnitModel>> getUnitList({required String subjectCode}) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
         .collection(unit)
         .where("subject_code", isEqualTo: subjectCode)
         .get();
@@ -67,20 +114,10 @@ class TopicRepo {
         .toList();
   }
 
-  Future<int> getTopicListLength() async {
-    AggregateQuerySnapshot countSnapshot =
-        await _fireStore.collection(topic).count().get();
-    return countSnapshot.count ?? 0;
-  }
+  /// Total topics in the collection.
+  Future<int> getTopicListLength() => countDocuments(_collection);
 
-  Future<List<TopicModel>> searchTopic(String searchText) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(topic)
-        .where("topic_code", isGreaterThanOrEqualTo: searchText)
-        .where("topic_code", isLessThan: '${searchText}z')
-        .get();
-    return snapshot.docs
-        .map((docSnapshot) => TopicModel.fromDocumentSnapshot(docSnapshot))
-        .toList();
-  }
+  /// Topics whose `topic_code` starts with [searchText].
+  Future<List<TopicModel>> searchTopic(String searchText) async =>
+      _toModels(await prefixSearch(_collection, "topic_code", searchText));
 }

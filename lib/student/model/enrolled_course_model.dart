@@ -1,25 +1,37 @@
 import 'package:bbarna/resources/constant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// A student's enrolment document (`enrolledCourse` collection): one per
+/// student, listing every subject they can access.
 class EnrolledCourseBaseModel {
+  /// The student this belongs to (`student_id`).
   String studentId = stringDefault;
+
+  /// Student name, copied for display (`student_name`).
   String studentName = stringDefault;
+
+  /// One entry per enrolled subject (`course_list`).
   List<EnrolledCourseModel> enrolledCourseList = [];
+
+  /// Firestore document id.
   String docId = stringDefault;
+
+  /// Reads the enrolment document.
   EnrolledCourseBaseModel.fromDocumentSnapshot(
       DocumentSnapshot<Map<String, dynamic>> doc)
       : studentId = doc.data()?["student_id"] ?? stringDefault,
         studentName = doc.data()?["student_name"] ?? stringDefault,
         docId = doc.id,
+        // A missing list means no enrolments (empty, not a placeholder entry).
         enrolledCourseList = doc.data()?["course_list"] == null
-            ? [
-                EnrolledCourseModel(
-                    "hggh", "bvnbn", "jhjh", intDefault, "jh", [])
-              ]
+            ? <EnrolledCourseModel>[]
             : List<EnrolledCourseModel>.from(
                 (doc.data()?["course_list"] as List<dynamic>).map((x) =>
+
+                    /// Reads one entry of `course_list`.
                     EnrolledCourseModel.fromMap(x as Map<String, dynamic>)));
 
+  /// The full document, for `update()`.
   Map<String, dynamic> toMap() {
     return {
       "student_id": studentId,
@@ -30,14 +42,28 @@ class EnrolledCourseBaseModel {
   }
 }
 
+/// One enrolled subject inside [EnrolledCourseBaseModel.enrolledCourseList].
 class EnrolledCourseModel {
+  /// The subject's code (`subject_code`).
   String subjectCode = stringDefault;
+
+  /// Subject name, copied for display (`subject_name`).
   String subjectName = stringDefault;
+
+  /// Subject thumbnail URL, copied for display (`subject_image`).
   String subjectImage = stringDefault;
+
+  /// Access end in epoch milliseconds (`access_till`); see
+  /// `EnrolmentValidity` for how "unset" is detected.
   int accessTill = intDefault;
+
+  /// How access was granted, e.g. "PAID" (`access_type`).
   String accessType = stringDefault;
+
+  /// Units of the subject the student can open (`unit_code_list`).
   List<String> unitCodeList = [];
 
+  /// Creates an enrolled subject.
   EnrolledCourseModel(
     this.subjectCode,
     this.subjectName,
@@ -47,6 +73,7 @@ class EnrolledCourseModel {
     this.unitCodeList,
   );
 // Convert ResultModel to a Map for Firestore
+  /// This entry as a map inside `course_list`.
   Map<String, dynamic> toMap() {
     return {
       "subject_code": subjectCode,

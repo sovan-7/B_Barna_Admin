@@ -4,20 +4,128 @@ import 'package:bbarna/student/model/enrolled_course_model.dart';
 import 'package:bbarna/student/model/student_model.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/units/model/unit_model.dart';
-import 'package:bbarna/utils/helper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// How the student list is ordered.
+enum StudentSort {
+  /// Alphabetical. Every student has a name, so this page never omits one.
+  name,
+
+  /// Most recently signed in first.
+  ///
+  /// Ordered on `login_time`, which means Firestore returns **only** the
+  /// students that have the field at all — anyone who has never opened the
+  /// app is absent from the query, not merely last. The list says so rather
+  /// than pretending the collection is smaller than it is.
+  lastActive,
+}
+
+/// Firestore details of each [StudentSort].
+extension StudentSortField on StudentSort {
+  /// Field the query orders on.
+  String get field => switch (this) {
+        StudentSort.name => "name",
+        StudentSort.lastActive => "login_time",
+      };
+
+  /// Whether the order is descending (newest sign-in first).
+  bool get descending => this == StudentSort.lastActive;
+
+  /// Text shown in the sort menu.
+  String get label => switch (this) {
+        StudentSort.name => "Name",
+        StudentSort.lastActive => "Last active",
+      };
+}
+
+/// Firestore access for students, their enrolments, and the course /
+/// subject / unit lookups the enrol picker needs.
+///
+/// Every method throws on failure; [StudentViewModel] catches and reports.
 class StudentRepo {
+  /// Firestore client.
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<List<Student>> getStudentList() async {
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _firestore.collection(student).get();
+  /// The paging cursor. It is a Firestore [DocumentSnapshot] — a sealed
+  /// type — so a view model that held it could not be faked in a test.
+  DocumentSnapshot<Map<String, dynamic>>? _cursor;
+
+  /// The ordering the cursor belongs to. Changing sort has to reset paging:
+  /// a cursor from the name query is meaningless to the login_time one.
+  StudentSort _sort = StudentSort.name;
+
+  /// First page in [sort] order. Resets the cursor and remembers [sort]
+  /// for [getNextStudentList].
+  Future<List<Student>> getFirstStudentList(int limit,
+      {StudentSort sort = StudentSort.name}) async {
+    _sort = sort;
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection(student)
+        .orderBy(sort.field, descending: sort.descending)
+        .limit(limit)
+        .get();
+    _cursor = snapshot.docs.isEmpty ? null : snapshot.docs.last;
     return snapshot.docs
-        .map((docSnapshot) => Student.fromDocumentSnapshot(docSnapshot))
+        .map((doc) => Student.fromDocumentSnapshot(doc))
         .toList();
   }
 
+  /// How many students the `login_time` ordering can actually return.
+  ///
+  /// Firestore drops documents missing the field being ordered on, so this
+  /// is what "Last active" will list — compare it with
+  /// [getStudentListLength] to know how many students are unreachable that
+  /// way because they have no recorded sign-in.
+  Future<int> getSignedInStudentCount() async {
+    final AggregateQuerySnapshot countSnapshot = await _firestore
+        .collection(student)
+        .orderBy("login_time")
+        .count()
+        .get();
+    return countSnapshot.count ?? 0;
+  }
+
+  /// The page after the last one returned. Empty when there is no cursor
+  /// yet or nothing further to read.
+  Future<List<Student>> getNextStudentList(int limit) async {
+    final DocumentSnapshot<Map<String, dynamic>>? cursor = _cursor;
+    if (cursor == null) return const [];
+
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection(student)
+        .orderBy(_sort.field, descending: _sort.descending)
+        .startAfterDocument(cursor)
+        .limit(limit)
+        .get();
+    if (snapshot.docs.isNotEmpty) _cursor = snapshot.docs.last;
+    return snapshot.docs
+        .map((doc) => Student.fromDocumentSnapshot(doc))
+        .toList();
+  }
+
+  /// Total students in the collection.
+  Future<int> getStudentListLength() async {
+    AggregateQuerySnapshot countSnapshot =
+        await _firestore.collection(student).count().get();
+    return countSnapshot.count ?? 0;
+  }
+
+  /// Deletes the student document.
+  Future<void> deleteStudent(String studentId) async {
+    await _firestore.collection(student).doc(studentId).delete();
+  }
+
+  /// Frees the student's login. The same fields the app clears on logout;
+  /// a phone still holding the login sees the blank id and logs itself out.
+  Future<void> signOutDevice(String studentId) async {
+    await _firestore.collection(student).doc(studentId).update({
+      "active_device_id": "",
+      "active_device_name": "",
+      "active_login_at": FieldValue.delete(),
+    });
+  }
+
+  /// Every course (enrol picker).
   Future<List<CourseModel>> getCourseList() async {
     QuerySnapshot<Map<String, dynamic>> snapshot =
         await _firestore.collection(course).get();
@@ -26,6 +134,7 @@ class StudentRepo {
         .toList();
   }
 
+  /// Subjects whose `course_code` is [courseId] (enrol picker).
   Future<List<SubjectModel>> getSubjectList(String courseId) async {
     QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection(subject)
@@ -36,47 +145,63 @@ class StudentRepo {
         .toList();
   }
 
+  /// Visible units (`willShow == true`) that belong to [subjectCode]
+  /// (enrol picker).
   Future<List<UnitModel>> getUnitList({required String subjectCode}) async {
     QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection(unit)
-        .where("subject_code", isEqualTo: subjectCode)
+        .where("subjectCodeList", arrayContains: subjectCode)
+        .where("willShow", isEqualTo: true)
         .get();
     return snapshot.docs
         .map((docSnapshot) => UnitModel.fromDocumentSnapshot(docSnapshot))
         .toList();
   }
 
-  Future<EnrolledCourseBaseModel> getEnrolledCourseList(
+  /// The student's enrolment document, or null when they have none (a
+  /// student who was never enrolled has no document at all).
+  Future<EnrolledCourseBaseModel?> getEnrolledCourseList(
       String studentId) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection(enrolledCourse)
         .where("student_id", isEqualTo: studentId)
         .get();
-
+    if (snapshot.docs.isEmpty) return null;
     return EnrolledCourseBaseModel.fromDocumentSnapshot(snapshot.docs.first);
   }
 
-  Future addCourse(Map<String, dynamic> newCourse, String studentId) async {
-    try {
-      CollectionReference studentsRef =
-          FirebaseFirestore.instance.collection(enrolledCourse);
-      // Query the document where student_id matches
-      QuerySnapshot querySnapshot =
-          await studentsRef.where('student_id', isEqualTo: studentId).get();
-      if (querySnapshot.docs.isNotEmpty) {
-        // Assuming student_id is unique and you fetch only one document
-        DocumentSnapshot studentDoc = querySnapshot.docs.first;
+  /// Appends [newCourse] to the student's enrolment document. For a first
+  /// enrolment it creates the document with `student_id`, `student_name`
+  /// and a one-item `course_list`.
+  Future<void> addCourse(Map<String, dynamic> newCourse, String studentId,
+      String studentName) async {
+    final CollectionReference<Map<String, dynamic>> enrolments =
+        _firestore.collection(enrolledCourse);
+    final QuerySnapshot<Map<String, dynamic>> snapshot =
+        await enrolments.where('student_id', isEqualTo: studentId).get();
 
-        // Update the course_list array with the new course
-        await studentDoc.reference.update({
-          'course_list': FieldValue.arrayUnion([newCourse]),
-        });
-      } else {
-        studentsRef.add(newCourse);
-      }
-    } catch (e) {
-      Helper.showSnackBarMessage(
-          msg: "Error while fetching data", isSuccess: false);
+    if (snapshot.docs.isNotEmpty) {
+      await snapshot.docs.first.reference.update({
+        'course_list': FieldValue.arrayUnion([newCourse]),
+      });
+      return;
     }
+
+    await enrolments.add({
+      "student_id": studentId,
+      "student_name": studentName,
+      "course_list": [newCourse],
+    });
+  }
+
+  /// Overwrites enrolment document [docId] with [data].
+  Future<void> updateEnrolment(String docId, Map<String, dynamic> data) async {
+    await _firestore.collection(enrolledCourse).doc(docId).update(data);
+  }
+
+  /// Deletes enrolment document [docId] (used when the last subject is
+  /// removed).
+  Future<void> deleteEnrolment(String docId) async {
+    await _firestore.collection(enrolledCourse).doc(docId).delete();
   }
 }

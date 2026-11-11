@@ -1,156 +1,168 @@
-import 'dart:async';
-import 'package:bbarna/core/widgets/loader_dialog.dart';
-import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/core/viewModel/async_list.dart';
+import 'package:bbarna/core/viewModel/paged_list_view_model.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/topic/model/topic_model.dart';
 import 'package:bbarna/topic/repo/topic_repo.dart';
 import 'package:bbarna/units/model/unit_model.dart';
 import 'package:bbarna/utils/helper.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 
-class TopicViewModel with ChangeNotifier {
-  final TopicRepo _topicRepo = TopicRepo();
-  List<TopicModel> topicList = [];
-  List<TopicModel> copyTopicList = [];
-  List<SubjectModel> subjectList = [];
-  List<UnitModel> unitList = [];
-  Timer? _debounce;
-  int limit = 50;
-  int topicLength = 0;
-  List<QueryDocumentSnapshot> docList = [];
-  late DocumentSnapshot<Map<String, dynamic>> lastDoc;
-  Future<DocumentReference<Map<String, dynamic>>> addTopic(
-      TopicModel topicModel) async {
-    return await _topicRepo.addTopic(topicModel);
+/// State and actions for the Topic module: the paged/searchable topic list
+/// (inherited from [PagedListViewModel]), create/update/delete, the
+/// subject/unit lists for the form dropdowns, and the topic's attached
+/// content codes (videos, PDFs, audio, quizzes).
+class TopicViewModel extends PagedListViewModel<TopicModel> {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
+  final TopicRepo _topicRepo;
+
+  TopicViewModel({TopicRepo? topicRepo})
+      : _topicRepo = topicRepo ?? TopicRepo();
+
+  /// Subjects of the course chosen on the Add/Edit Topic form, with their
+  /// loading / error state.
+  final AsyncList<SubjectModel> subjectsForCourse = AsyncList<SubjectModel>();
+
+  /// Units of the subject chosen on the Add/Edit Topic form, with their
+  /// loading / error state.
+  final AsyncList<UnitModel> unitsForSubject = AsyncList<UnitModel>();
+
+  /// The options in [subjectsForCourse].
+  List<SubjectModel> get subjectList => subjectsForCourse.items;
+
+  /// The options in [unitsForSubject].
+  List<UnitModel> get unitList => unitsForSubject.items;
+
+  // ---- Paging hooks (see PagedListViewModel) -----------------------------
+
+  @override
+  String get itemsLabel => "topics";
+
+  @override
+  Future<List<TopicModel>> fetchFirstPage(int limit) =>
+      _topicRepo.getFirstTopicList(limit);
+
+  @override
+  Future<List<TopicModel>> fetchNextPage(int limit) =>
+      _topicRepo.getNextTopicList(limit);
+
+  @override
+  Future<int> fetchTotalCount() => _topicRepo.getTopicListLength();
+
+  @override
+  Future<List<TopicModel>> fetchSearchResults(String query) =>
+      _topicRepo.searchTopic(query);
+
+  // ---- Module-specific names used by screens and tests -------------------
+
+  /// Topics currently on screen (a page, or search results).
+  List<TopicModel> get topicList => items;
+
+  /// Total topics in the collection.
+  int get topicLength => totalCount;
+
+  /// Loads the first page of topics.
+  Future<void> getFirstTopicList() => loadFirstPage();
+
+  /// Appends the next page of topics.
+  Future<void> getNextTopicList() => loadNextPage();
+
+  /// Debounced prefix search on the topic code.
+  Future<void> searchTopic({required String searchText}) => search(searchText);
+
+  // ---- Form dropdown data ------------------------------------------------
+
+  /// Loads the subjects of [courseCode] (and clears the unit options,
+  /// which belonged to the previous subject).
+  Future<void> getSubjectList({required String courseCode}) {
+    unitsForSubject.reset();
+    return subjectsForCourse.load(
+      () => _topicRepo.getSubjectList(courseCode: courseCode),
+      errorMessage: "Couldn't load subjects",
+      onChange: notifyListeners,
+    );
   }
 
-  Future updateTopic(TopicModel topicModel, String docId) async {
-    LoaderDialogs.showLoadingDialog();
+  /// Loads the units of [subjectCode].
+  Future<void> getUnitList({required String subjectCode}) =>
+      unitsForSubject.load(
+        () => _topicRepo.getUnitList(subjectCode: subjectCode),
+        errorMessage: "Couldn't load units",
+        onChange: notifyListeners,
+      );
 
-    await _topicRepo.updateTopic(topicModel, docId).whenComplete(() {
-      Navigator.pop(navigatorKey.currentContext!);
-    });
-  }
+  // ---- Create / update / delete ------------------------------------------
 
-  Future deleteTopic(String docId) async {
-    topicList.removeWhere((element) => element.docId == docId);
-    await _topicRepo.deleteTopic(docId).whenComplete(() {
-      Helper.showSnackBarMessage(
-          msg: "Topic deleted successfully", isSuccess: false);
-    });
-    getTopicListLength();
-  }
-
-  Future getFirstTopicList() async {
-    LoaderDialogs.showLoadingDialog();
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _topicRepo.getFirstTopicList(limit);
-    topicList.clear();
-    for (int i = 0; i < snapshot.docs.length; i++) {
-      DocumentSnapshot<Map<String, dynamic>> docData =
-          snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      if (i == snapshot.docs.length - 1) {
-        lastDoc = snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      }
-      topicList.add(TopicModel.fromDocumentSnapshot(docData));
-    }
-    copyTopicList = topicList;
-    docList.addAll(snapshot.docs);
-    Navigator.pop(navigatorKey.currentContext!);
-    notifyListeners();
-  }
-
-  Future getNextTopicList() async {
-    LoaderDialogs.showLoadingDialog();
-
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _topicRepo.getNextTopicList(limit, lastDoc);
-    for (int i = 0; i < snapshot.docs.length; i++) {
-      DocumentSnapshot<Map<String, dynamic>> docData =
-          snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      if (i == snapshot.docs.length - 1) {
-        lastDoc = snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      }
-      topicList.add(TopicModel.fromDocumentSnapshot(docData));
-    }
-    Navigator.pop(navigatorKey.currentContext!);
-    copyTopicList = topicList;
-    docList.addAll(snapshot.docs);
-    notifyListeners();
-  }
-
-  Future getSubjectList({required String courseCode}) async {
-    LoaderDialogs.showLoadingDialog();
-    subjectList = await _topicRepo
-        .getSubjectList(courseCode: courseCode)
-        .whenComplete(() => Navigator.pop(navigatorKey.currentContext!));
-    notifyListeners();
-  }
-
-  Future getUnitList({required String subjectCode}) async {
-    LoaderDialogs.showLoadingDialog();
-    unitList = await _topicRepo
-        .getUnitList(subjectCode: subjectCode)
-        .whenComplete(() => Navigator.pop(navigatorKey.currentContext!));
-    notifyListeners();
-  }
-
-  Future<void> searchTopic({required String searchText}) async {
-    if (_debounce?.isActive ?? false) _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () async {
-      if (searchText.isEmpty) {
-        topicList = copyTopicList;
-        notifyListeners();
-      } else {
-        try {
-          //  LoaderDialogs.showLoadingDialog();
-          topicList = await _topicRepo.searchTopic(searchText);
-          notifyListeners();
-          //Navigator.pop(navigatorKey.currentContext!);
-        } catch (e) {
-          Navigator.pop(navigatorKey.currentContext!);
-          Helper.showSnackBarMessage(
-              msg: "Error while fetching data", isSuccess: false);
-        }
-      }
-    });
-  }
-
-  void removeTopicFromLast() {
-    int exesData = docList.length % limit;
-    if (exesData > 0) {
-      docList.removeRange((docList.length - exesData), docList.length);
-      topicList.removeRange((docList.length - exesData), docList.length);
-      lastDoc = docList.last as DocumentSnapshot<Map<String, dynamic>>;
-      copyTopicList = topicList;
-    } else {
-      if ((docList.length - limit) >= limit) {
-        docList.removeRange(docList.length - limit, docList.length);
-        topicList.removeRange(topicList.length - limit, topicList.length);
-        lastDoc = docList.last as DocumentSnapshot<Map<String, dynamic>>;
-        copyTopicList = topicList;
-      }
-    }
-    notifyListeners();
-  }
-
-  Future<void> getTopicListLength() async {
-    topicLength = await _topicRepo.getTopicListLength();
-    notifyListeners();
-  }
-
-  Future<bool> isVideoExists(String videoCode) async {
+  /// Adds a new topic document. Returns `false` (and shows a toast) on
+  /// failure.
+  Future<bool> createTopic(TopicModel topicModel) async {
     try {
-      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-          .collection(video)
-          .where('video_code', isEqualTo: videoCode)
-          .limit(1)
-          .get();
-      return querySnapshot.docs.isNotEmpty;
+      await _topicRepo.addTopic(topicModel);
+      return true;
     } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while adding the topic", isSuccess: false);
       return false;
     }
   }
-  
+
+  /// Saves the edited topic. Returns `false` (and shows a toast) on
+  /// failure.
+  Future<bool> updateTopic(TopicModel topicModel, String docId) async {
+    try {
+      await _topicRepo.updateTopic(topicModel, docId);
+      return true;
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while updating the topic", isSuccess: false);
+      return false;
+    }
+  }
+
+  /// Deletes the topic. The row is removed from the list (and the total
+  /// lowered) only after Firestore confirms the delete.
+  Future<bool> deleteTopic(String docId) async {
+    try {
+      await _topicRepo.deleteTopic(docId);
+      items.removeWhere((element) => element.docId == docId);
+      if (totalCount > 0) totalCount--;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while deleting the topic", isSuccess: false);
+      return false;
+    }
+  }
+
+  // ---- Attached content ----------------------------------------------------
+
+  /// Saves one content array ([kind] = videos, PDFs, …) and mirrors it onto
+  /// the in-memory [topicModel], so the list's counts update without a
+  /// refetch.
+  Future<bool> saveContentCodes(
+      TopicModel topicModel, ContentKind kind, List<String> codes) async {
+    try {
+      await _topicRepo.setContentCodes(topicModel.docId, kind, codes);
+      topicModel.setContentCodes(kind, codes);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while saving ${kind.inlineLabel} codes",
+          isSuccess: false);
+      return false;
+    }
+  }
+
+  /// Looks up which of [codes] exist in their own collection, returned as
+  /// `code -> title`. A code missing from the result points at nothing.
+  /// Returns null when the lookup failed, so a failure is never mistaken
+  /// for "no item has this code".
+  Future<Map<String, String>?> resolveContentTitles(
+      ContentKind kind, List<String> codes) async {
+    try {
+      return await _topicRepo.resolveContentTitles(kind, codes);
+    } catch (e) {
+      return null;
+    }
+  }
 }

@@ -1,59 +1,106 @@
+import 'package:bbarna/core/repo/firestore_pager.dart';
+import 'package:bbarna/question/model/question.dart';
 import 'package:bbarna/quiz/model/quiz_model.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
+/// Firestore access for the `quiz` collection, plus the `question` lookups
+/// the quiz form's question picker needs.
+///
+/// Every method throws on failure; [QuizViewModel] catches and reports.
 class QuizRepo {
+  /// Firestore client.
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
-  final Reference storageReference = FirebaseStorage.instance.ref();
 
-  Future<DocumentReference<Map<String, dynamic>>> addQuiz(
-      QuizModel quizModel) async {
-    return await _fireStore.collection(quiz).add(quizModel.toMap());
+  /// The `quiz` collection.
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _fireStore.collection(quiz);
+
+  /// The `question` collection (read-only here).
+  CollectionReference<Map<String, dynamic>> get _questions =>
+      _fireStore.collection(question);
+
+  /// Newest-first paging with the cursor kept here, not in the view model.
+  late final FirestorePager _pager = FirestorePager(_collection);
+
+  /// Converts raw quiz documents into models.
+  List<QuizModel> _toModels(List<FirestoreDoc> docs) =>
+      docs.map((doc) => QuizModel.fromDocumentSnapshot(doc)).toList();
+
+  /// Converts raw question documents into models.
+  List<Question> _toQuestions(Iterable<FirestoreDoc> docs) =>
+      docs.map((doc) => Question.fromDocumentSnapshot(doc)).toList();
+
+  // ---- Quizzes -------------------------------------------------------------
+
+  /// Adds a quiz and returns the new document's id.
+  Future<String> addQuiz(QuizModel quizModel) async {
+    final DocumentReference<Map<String, dynamic>> doc =
+        await _collection.add(quizModel.toMap());
+    return doc.id;
   }
 
-  Future<QuerySnapshot<Map<String, dynamic>>> getFirstQuizList(
-      int limit) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(quiz)
-        .orderBy("timeStamp", descending: true)
-        .limit(limit)
-        .get();
-    return snapshot;
+  /// First page, newest first. Resets the paging cursor.
+  Future<List<QuizModel>> getFirstQuizList(int limit) async =>
+      _toModels(await _pager.firstPage(limit));
+
+  /// The page after the last one returned (empty when there is none).
+  Future<List<QuizModel>> getNextQuizList(int limit) async =>
+      _toModels(await _pager.nextPage(limit));
+
+  /// Overwrites the quiz's fields.
+  Future<void> updateQuiz(QuizModel quizModel, String docId) async {
+    await _collection.doc(docId).update(quizModel.toMap());
   }
 
-  Future<QuerySnapshot<Map<String, dynamic>>> getNextQuizList(
-      int limit, lastDoc) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(quiz)
-        .orderBy("timeStamp", descending: true)
-        .startAfterDocument(lastDoc)
-        .limit(limit)
-        .get();
-    return snapshot;
+  /// Deletes the quiz document.
+  Future<void> deleteQuiz(String docId) async {
+    await _collection.doc(docId).delete();
   }
 
-  Future updateQuiz(QuizModel quizModel, String docId) async {
-    await _fireStore.collection(quiz).doc(docId).update(quizModel.toMap());
+  /// Ids of the quizzes whose `quiz_code` is exactly [code].
+  Future<List<String>> quizIdsWithCode(String code) async {
+    final QuerySnapshot<Map<String, dynamic>> snapshot =
+        await _collection.where("quiz_code", isEqualTo: code).get();
+    return [for (final doc in snapshot.docs) doc.id];
   }
 
-  Future deleteQuiz(String docId) async {
-    await _fireStore.collection(quiz).doc(docId).delete();
-  }
-   Future<int> getQuizListLength() async {
-    AggregateQuerySnapshot countSnapshot =
-        await _fireStore.collection(quiz).count().get();
-    return countSnapshot.count ?? 0;
-  }
+  /// Total quizzes in the collection.
+  Future<int> getQuizListLength() => countDocuments(_collection);
 
-  Future<List<QuizModel>> searchQuiz(String searchText) async {
-    QuerySnapshot<Map<String, dynamic>> snapshot = await _fireStore
-        .collection(quiz)
-        .where("quiz_code", isGreaterThanOrEqualTo: searchText)
-        .where("quiz_code", isLessThan: '${searchText}z')
-        .get();
-    return snapshot.docs
-        .map((docSnapshot) => QuizModel.fromDocumentSnapshot(docSnapshot))
-        .toList();
+  /// Quizzes whose `quiz_code` starts with [searchText].
+  Future<List<QuizModel>> searchQuiz(String searchText) async =>
+      _toModels(await prefixSearch(_collection, "quiz_code", searchText));
+
+  // ---- Questions (for the picker) -----------------------------------------
+
+  /// Questions whose `question_code` starts with [questionCode].
+  Future<List<Question>> searchQuestions(String questionCode) async =>
+      _toQuestions(
+          await prefixSearch(_questions, "question_code", questionCode));
+
+  /// The questions named by [codes].
+  ///
+  /// Firestore's `whereIn` accepts at most 30 values, so the codes are
+  /// queried in chunks of 25 and the results concatenated.
+  Future<List<Question>> getQuestionsByCodes(List<String> codes) async {
+    const int chunkSize = 25;
+    final List<List<String>> chunks = [
+      for (int i = 0; i < codes.length; i += chunkSize)
+        codes.sublist(
+            i, i + chunkSize > codes.length ? codes.length : i + chunkSize),
+    ];
+
+    // The chunks are independent, so query them all at once; results are
+    // concatenated in chunk order.
+    final List<QuerySnapshot<Map<String, dynamic>>> snapshots =
+        await Future.wait([
+      for (final List<String> chunk in chunks)
+        _questions.where("question_code", whereIn: chunk).get(),
+    ]);
+    return [
+      for (final QuerySnapshot<Map<String, dynamic>> snapshot in snapshots)
+        ..._toQuestions(snapshot.docs),
+    ];
   }
 }
