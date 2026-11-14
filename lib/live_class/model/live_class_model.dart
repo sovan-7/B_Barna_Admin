@@ -21,9 +21,33 @@ extension LiveClassStatusLabel on LiveClassStatus {
   }
 }
 
+/// Where a class's chat (Realtime Database `live_rooms/{docId}/messages`)
+/// stands. The admin requests the delete; a Cloud Function carries it out.
+enum LiveClassChatState { none, deleting, deleted }
+
 /// A scheduled live class (`liveClasses` collection), in the field names
 /// the student app reads.
 class LiveClassModel {
+  /// [classType] of a class any student can open, bought or not.
+  static const String liveClassFree = "Free";
+
+  /// [classType] of a class only students who bought the subject can open.
+  /// The student app treats a class saved without a type as this.
+  static const String liveClassPaid = "Paid";
+
+  /// "Free" or "Paid" (`classType`), in the exact casing the student app
+  /// stores and compares.
+  String classType = liveClassPaid;
+
+  /// When the admin asked for the chat to be deleted
+  /// (`chatDeleteRequestedAt`); cleared by the Cloud Function once done.
+  /// Never written through [toMap], so editing a class can't wipe it.
+  DateTime? chatDeleteRequestedAt;
+
+  /// When the Cloud Function deleted the chat (`chatDeletedAt`). Never
+  /// written through [toMap].
+  DateTime? chatDeletedAt;
+
   /// Firestore document id.
   String docId = stringDefault;
 
@@ -106,8 +130,11 @@ class LiveClassModel {
     this.teacherPhone = "",
     this.subject = "",
     this.subjectCode = "",
+    this.classType = liveClassPaid,
     this.createdAt,
     this.updatedAt,
+    this.chatDeleteRequestedAt,
+    this.chatDeletedAt,
   });
 
   /// The caller-editable fields only (`createdAt` / `updatedAt` are set by
@@ -131,6 +158,7 @@ class LiveClassModel {
       "teacherId": teacherId.trim(),
       "teacherPhone": teacherPhone.trim(),
       "youtubeVideoLink": youtubeLink.trim(),
+      "classType": classType,
       "startTime": startDateTime.millisecondsSinceEpoch,
       "endTime": endDateTime.millisecondsSinceEpoch,
     };
@@ -154,6 +182,10 @@ class LiveClassModel {
         teacherPhone = doc.data()?["teacherPhone"] ?? "",
         subject = doc.data()?["subject"] ?? "",
         subjectCode = doc.data()?["subjectId"] ?? "",
+        classType = normalizeClassType(doc.data()?["classType"]),
+        chatDeleteRequestedAt =
+            _toDateTime(doc.data()?["chatDeleteRequestedAt"]),
+        chatDeletedAt = _toDateTime(doc.data()?["chatDeletedAt"]),
         startDateTime = _toDateTime(doc.data()?["startTime"]) ??
             _toDateTime(doc.data()?["startDateTime"]) ??
             DateTime.fromMillisecondsSinceEpoch(0),
@@ -163,6 +195,30 @@ class LiveClassModel {
         createdAt = _toDateTime(doc.data()?["createdAt"]),
         updatedAt = _toDateTime(doc.data()?["updatedAt"]),
         needsAppSync = doc.data()?["startTime"] == null;
+
+  /// "Free" for anything the app would read as free (it compares
+  /// case-insensitively); "Paid" for everything else, missing included —
+  /// the app's own default.
+  static String normalizeClassType(dynamic value) =>
+      value?.toString().trim().toLowerCase() == "free"
+          ? liveClassFree
+          : liveClassPaid;
+
+  /// True for a Free class.
+  bool get isFree => classType == liveClassFree;
+
+  /// Deleted once the function stamped [chatDeletedAt] — unless a newer
+  /// request is still pending, which wins.
+  LiveClassChatState get chatState {
+    final DateTime? requested = chatDeleteRequestedAt;
+    final DateTime? deleted = chatDeletedAt;
+    if (requested != null &&
+        (deleted == null || requested.isAfter(deleted))) {
+      return LiveClassChatState.deleting;
+    }
+    if (deleted != null) return LiveClassChatState.deleted;
+    return LiveClassChatState.none;
+  }
 
   /// Tolerates the three shapes a date can arrive in: a Firestore
   /// [Timestamp] (what we write), an int of millis (what a hand-edited or

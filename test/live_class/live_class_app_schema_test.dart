@@ -49,6 +49,7 @@ void main() {
           'teacherId',
           'teacherPhone',
           'youtubeVideoLink',
+          'classType',
           'startTime',
           'endTime',
         },

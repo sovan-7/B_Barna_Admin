@@ -1,3 +1,4 @@
+import 'package:bbarna/core/widgets/card/card_chips.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
@@ -8,6 +9,7 @@ import 'package:bbarna/live_class/widgets/live_class_theme.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:bbarna/utils/navigation.dart';
+import 'package:bbarna/utils/session.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -146,11 +148,37 @@ class _LiveClassCardState extends State<LiveClassCard> {
           runSpacing: LiveClassTheme.gapXs,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
+            // Same colours as the quiz FREE / PAID chip.
+            StatusChip(
+              key: Key('live_class_type_chip_${_data.docId}'),
+              icon: _data.isFree
+                  ? Icons.lock_open_outlined
+                  : Icons.paid_outlined,
+              label: _data.classType,
+              color: _data.isFree
+                  ? const Color(0xFF108460)
+                  : const Color(0xFFB54708),
+              filled: true,
+            ),
             _chip(Icons.person_outline, _data.teacherName),
             _chip(
                 Icons.timelapse_outlined,
                 LiveClassFormat.duration(
                     _data.startDateTime, _data.endDateTime)),
+            if (_data.chatState == LiveClassChatState.deleting)
+              StatusChip(
+                key: Key('live_class_chat_deleting_${_data.docId}'),
+                icon: Icons.hourglass_top_rounded,
+                label: "Deleting chat…",
+                color: LiveClassTheme.inkMuted,
+              ),
+            if (_data.chatState == LiveClassChatState.deleted)
+              StatusChip(
+                key: Key('live_class_chat_deleted_${_data.docId}'),
+                icon: Icons.speaker_notes_off_outlined,
+                label: "Chat deleted",
+                color: LiveClassTheme.inkMuted,
+              ),
           ],
         ),
         if (hasDescription) ...[
@@ -274,6 +302,18 @@ class _LiveClassCardState extends State<LiveClassCard> {
               color: LiveClassTheme.inkMuted,
               onTap: _openEdit,
             ),
+            // A finished class's chat can be cleared, by an admin only, and
+            // only while there is something to clear.
+            if (_canDeleteChat) ...[
+              const SizedBox(width: 2),
+              _iconButton(
+                key: Key('live_class_delete_chat_${_data.docId}'),
+                icon: Icons.speaker_notes_off_outlined,
+                tooltip: "Delete chat",
+                color: LiveClassTheme.danger,
+                onTap: () => _confirmDeleteChat(context),
+              ),
+            ],
             const SizedBox(width: 2),
             _iconButton(
               key: Key('live_class_delete_${_data.docId}'),
@@ -319,6 +359,32 @@ class _LiveClassCardState extends State<LiveClassCard> {
         builder: (context) => EditLiveClass(liveClassData: _data),
       ),
     ).ifSaved(() => widget.onChanged());
+  }
+
+  /// True when the Delete chat button shows: a Past class, an admin, and a
+  /// chat not already deleted or being deleted.
+  bool get _canDeleteChat =>
+      Session.isAdmin &&
+      _data.status == LiveClassStatus.past &&
+      _data.chatState == LiveClassChatState.none;
+
+  /// Asks for confirmation, then asks for this class's chat to be deleted.
+  void _confirmDeleteChat(BuildContext context) {
+    final LiveClassViewModel liveClassViewModel =
+        Provider.of<LiveClassViewModel>(context, listen: false);
+    RemoveAlert.showRemoveAlert(
+      title: "Delete chat of ${_data.title}",
+      description: "Every chat message of this class will be deleted for "
+          "everyone. This can't be undone.",
+      confirmLabel: "Delete chat",
+      onPressYes: () async {
+        Navigator.pop(navigatorKey.currentContext!);
+        final bool success = await liveClassViewModel.deleteChat(_data);
+        if (success) {
+          Helper.showInfoMessage(msg: "Chat is being deleted");
+        }
+      },
+    );
   }
 
   /// Asks for confirmation, then deletes this item.

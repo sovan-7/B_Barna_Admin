@@ -26,7 +26,13 @@ class LiveClassSubject {
 
   /// Subject name printed on the student's class card.
   final String name;
-  const LiveClassSubject({required this.code, required this.name});
+
+  /// The subject's `course_type` ("Full Course", "Part Course", ...).
+  final String courseType;
+  const LiveClassSubject(
+      {required this.code,
+      required this.name,
+      this.courseType = courseTypeFullCourse});
 }
 
 /// Firestore access for live classes, plus the teacher / subject lookups
@@ -113,7 +119,26 @@ class LiveClassRepo {
     return teachers;
   }
 
-  /// Options for the Subject dropdown, read from the `subject` collection.
+  /// Asks for the class's chat to be deleted. The panel has no Firebase Auth,
+  /// so it cannot touch the Realtime Database itself: the
+  /// `deleteLiveClassChat` Cloud Function (b_barna_app/functions) sees this
+  /// stamp, removes `live_rooms/{docId}/messages`, then stamps
+  /// `chatDeletedAt` and clears this field.
+  Future<void> requestChatDelete(String docId) async {
+    await _fireStore.collection(liveClasses).doc(docId).update({
+      "chatDeleteRequestedAt": FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// True for a subject the student app gives live classes to: a full
+  /// course. Compared the way the app does (trimmed, any casing).
+  static bool isFullCourse(String courseType) =>
+      courseType.trim().toLowerCase() ==
+      courseTypeFullCourse.toLowerCase();
+
+  /// Options for the Subject dropdown: the Full Course subjects of the
+  /// `subject` collection, since only those show live classes in the app.
+  /// Filtered in memory so odd casing in `course_type` is still matched.
   /// Sorted case-insensitively; blank / default names are dropped.
   Future<List<LiveClassSubject>> getSubjects() async {
     final QuerySnapshot<Map<String, dynamic>> snapshot =
@@ -122,8 +147,12 @@ class LiveClassRepo {
         .map((doc) => LiveClassSubject(
               code: (doc.data()["subject_code"] ?? "").toString().trim(),
               name: (doc.data()["subject_name"] ?? "").toString().trim(),
+              courseType: (doc.data()["course_type"] ?? "").toString(),
             ))
-        .where((s) => s.name.isNotEmpty && s.name != stringDefault)
+        .where((s) =>
+            s.name.isNotEmpty &&
+            s.name != stringDefault &&
+            isFullCourse(s.courseType))
         .toList();
     subjects
         .sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));

@@ -29,6 +29,10 @@ class MockTransaction extends Mock implements Transaction {}
 class DocumentReferenceFake extends Fake
     implements DocumentReference<Map<String, dynamic>> {}
 
+class MockQuery extends Mock implements Query<Map<String, dynamic>> {}
+
+class MockWriteBatch extends Mock implements WriteBatch {}
+
 void main() {
   setUpAll(() {
     registerFallbackValue(<String, dynamic>{});
@@ -192,6 +196,76 @@ void main() {
       await repo.updateTeacher(model);
 
       verify(() => docRef.update(model.toMap())).called(1);
+    });
+  });
+
+  group('syncLiveClassTeacherPhone', () {
+    late MockCollectionReference classes;
+    late MockQuery query;
+    late MockWriteBatch batch;
+
+    MockQueryDocumentSnapshot classDoc(
+        String id, Object? phone, MockDocumentReference ref) {
+      final doc = MockQueryDocumentSnapshot();
+      when(() => doc.id).thenReturn(id);
+      when(() => doc.data()).thenReturn({
+        'teacherId': 'jane_doe',
+        if (phone != null) 'teacherPhone': phone,
+      });
+      when(() => doc.reference).thenReturn(ref);
+      return doc;
+    }
+
+    setUp(() {
+      classes = MockCollectionReference();
+      query = MockQuery();
+      batch = MockWriteBatch();
+      when(() => firestore.collection('live_classes')).thenReturn(classes);
+      when(() => classes.where('teacherId', isEqualTo: 'jane_doe'))
+          .thenReturn(query);
+      when(() => firestore.batch()).thenReturn(batch);
+      when(() => batch.commit()).thenAnswer((_) async {});
+    });
+
+    test('rewrites only the classes whose phone is blank or different',
+        () async {
+      final oldRef = MockDocumentReference();
+      final blankRef = MockDocumentReference();
+      final missingRef = MockDocumentReference();
+      final currentRef = MockDocumentReference();
+      final docs = [
+        classDoc('old', '9876543210', oldRef),
+        classDoc('blank', '', blankRef),
+        classDoc('missing', null, missingRef),
+        classDoc('current', '9123456780', currentRef),
+      ];
+      final snapshot = MockQuerySnapshot();
+      when(() => snapshot.docs).thenReturn(docs);
+      when(() => query.get()).thenAnswer((_) async => snapshot);
+
+      final changed =
+          await repo.syncLiveClassTeacherPhone('jane_doe', ' 9123456780 ');
+
+      expect(changed, 3);
+      for (final ref in [oldRef, blankRef, missingRef]) {
+        verify(() => batch.update(ref, {'teacherPhone': '9123456780'}))
+            .called(1);
+      }
+      verifyNever(() => batch.update(currentRef, any()));
+      verify(() => batch.commit()).called(1);
+    });
+
+    test('writes nothing when every class already has the number', () async {
+      final docs = [classDoc('current', '9123456780', MockDocumentReference())];
+      final snapshot = MockQuerySnapshot();
+      when(() => snapshot.docs).thenReturn(docs);
+      when(() => query.get()).thenAnswer((_) async => snapshot);
+
+      final changed =
+          await repo.syncLiveClassTeacherPhone('jane_doe', '9123456780');
+
+      expect(changed, 0);
+      verifyNever(() => firestore.batch());
     });
   });
 

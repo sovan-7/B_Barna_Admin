@@ -137,6 +137,11 @@ const List<String> moduleList = [
 /// moves; remove an index from here to bring its module back.
 const Set<int> hiddenModuleIndices = {bookModuleIndex, bookOrderModuleIndex};
 
+/// The `course_type` of a subject that is a full course. Only these
+/// subjects get live classes (the student app shows its Live Class tab on
+/// full courses only).
+const String courseTypeFullCourse = "Full Course";
+
 /// What a teacher's access can be chosen from: everything except modules
 /// only an admin may ever open and modules switched off for everyone.
 final List<String> assignableModuleList = [

@@ -90,6 +90,9 @@ class _LiveClassFormState extends State<LiveClassForm> {
   /// True while saving or deleting; disables every control.
   bool _isSaving = false;
 
+  /// "Free" or "Paid"; a new class starts Paid, the student app's default.
+  String _classType = LiveClassModel.liveClassPaid;
+
   /// Start as a full date-time (null until date and start time are set).
   DateTime? get _startDateTime => ClassTime.combine(_classDate, _startTime);
 
@@ -114,6 +117,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
       _selectedTeacherPhone = existing.teacherPhone;
       _selectedSubject = existing.subject.isEmpty ? null : existing.subject;
       _selectedSubjectCode = existing.subjectCode;
+      _classType = existing.classType;
       _classDate = ClassTime.dateOnly(existing.startDateTime);
       _startTime = TimeOfDay.fromDateTime(existing.startDateTime);
       _endTime = TimeOfDay.fromDateTime(existing.endDateTime);
@@ -213,16 +217,25 @@ class _LiveClassFormState extends State<LiveClassForm> {
       _isSaving = true;
     });
 
+    final String teacherName =
+        (_selectedTeacher ?? teacherNameController.text).trim();
+    // The teacher's id and phone as the Teacher module has them now, so
+    // re-saving an older class (blank phone) or one whose teacher changed
+    // number fixes it. The app knows the teacher by this phone.
+    final LiveClassTeacher? currentTeacher = liveClassViewModel.teacherFor(
+        id: _selectedTeacherId, name: teacherName);
+
     final LiveClassModel model = LiveClassModel(
       docId: widget.existing?.docId ?? stringDefault,
       title: titleController.text,
       description: descriptionController.text,
       youtubeLink: youtubeLinkController.text,
-      teacherName: (_selectedTeacher ?? teacherNameController.text).trim(),
-      teacherId: _selectedTeacherId,
-      teacherPhone: _selectedTeacherPhone,
+      teacherName: teacherName,
+      teacherId: currentTeacher?.id ?? _selectedTeacherId,
+      teacherPhone: currentTeacher?.phoneNumber ?? _selectedTeacherPhone,
       subject: _selectedSubject ?? "",
       subjectCode: _selectedSubjectCode,
+      classType: _classType,
       startDateTime: _startDateTime!,
       endDateTime: _endDateTime!,
     );
@@ -464,6 +477,22 @@ class _LiveClassFormState extends State<LiveClassForm> {
                         const SizedBox(height: LiveClassTheme.gapMd),
                         _subjectField(liveClassViewModel),
                         const SizedBox(height: LiveClassTheme.gapMd),
+                        // Free: any student can open it. Paid: only those
+                        // who bought the subject.
+                        FormAccessTypeField(
+                          label: "Class type",
+                          types: const [
+                            LiveClassModel.liveClassFree,
+                            LiveClassModel.liveClassPaid,
+                          ],
+                          selected: _classType,
+                          keyPrefix: 'live_class',
+                          error: null,
+                          enabled: !_isSaving,
+                          onSelect: (type) =>
+                              setState(() => _classType = type),
+                        ),
+                        const SizedBox(height: LiveClassTheme.gapMd),
                         _textField(
                           label: "Description",
                           hint: "What will this class cover? (optional)",
@@ -544,6 +573,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
         teacherPhone: _selectedTeacherPhone,
         subject: _selectedSubject ?? "",
         subjectCode: _selectedSubjectCode,
+        classType: _classType,
         startDateTime: _startDateTime!,
         endDateTime: _endDateTime!,
       );
@@ -647,7 +677,8 @@ class _LiveClassFormState extends State<LiveClassForm> {
     );
   }
 
-  /// Dropdown of subjects from the `subject` collection.
+  /// Dropdown of the Full Course subjects from the `subject` collection
+  /// (only full courses show live classes in the student app).
   ///
   /// The student app draws this name on the class card — on the thumbnail,
   /// in the title, and on its own line underneath — so a class needs one
@@ -672,7 +703,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
       hint: liveClassViewModel.subjectOptions.hintFor(
         hasOptions: names.isNotEmpty,
         loading: "Loading subjects…",
-        empty: "No subjects found",
+        empty: "No Full Course subjects found",
         select: "Select a subject",
       ),
       value: _selectedSubject,
