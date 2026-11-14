@@ -1,0 +1,30 @@
+{
+  "hosting": [
+    {
+      "target": "admin",
+      "public": "build/web",
+      "ignore": [
+        "firebase.json",
+        "**/.DS_Store",
+        "**/netlify.toml"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        }
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    }
+  ]
+}
