@@ -390,7 +390,7 @@ class FormImagePickerField extends StatelessWidget {
 /// "Access": a FREE / PAID choice shown as two segments (with only two
 /// options, a dropdown would hide half the answer behind a tap).
 class FormAccessTypeField extends StatelessWidget {
-  /// The options, e.g. `["FREE", "PAID"]`.
+  /// The options, e.g. `["FREE", "PAID"]` (or `["Free", "Paid"]`).
   final List<String> types;
 
   /// The chosen option, or null.
@@ -408,6 +408,9 @@ class FormAccessTypeField extends StatelessWidget {
   /// Called with the chosen option.
   final ValueChanged<String> onSelect;
 
+  /// Text above the control.
+  final String label;
+
   const FormAccessTypeField({
     required this.types,
     required this.selected,
@@ -415,6 +418,7 @@ class FormAccessTypeField extends StatelessWidget {
     required this.error,
     required this.enabled,
     required this.onSelect,
+    this.label = "Access",
     super.key,
   });
 
@@ -424,7 +428,7 @@ class FormAccessTypeField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Access", style: AppTokens.fieldLabel),
+        Text(label, style: AppTokens.fieldLabel),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.all(3),
@@ -440,8 +444,9 @@ class FormAccessTypeField extends StatelessWidget {
                 Expanded(
                   child: _segment(
                     key: Key('${keyPrefix}_type_${type.toLowerCase()}'),
-                    label: type == "FREE" ? "Free" : "Paid",
-                    icon: type == "FREE"
+                    // Either casing: quizzes store FREE, live classes Free.
+                    label: type.toUpperCase() == "FREE" ? "Free" : "Paid",
+                    icon: type.toUpperCase() == "FREE"
                         ? Icons.lock_open_outlined
                         : Icons.paid_outlined,
                     selected: selected == type,

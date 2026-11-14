@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "bbarna-6a725"
+  },
+  "targets": {
+    "bbarna-6a725": {
+      "hosting": {
+        "admin": [
+          "bbarna-admin"
+        ]
+      }
+    }
+  }
+}

@@ -76,6 +76,38 @@ class TeacherRepo {
         .update(teacherModel.toMap());
   }
 
+  /// Most writes one Firestore batch may hold.
+  static const int _maxBatchWrites = 500;
+
+  /// Copies [phoneNumber] onto every live class taught by [teacherId] whose
+  /// `teacherPhone` differs. Returns how many classes it changed.
+  ///
+  /// The student app spots the teacher by comparing their login number
+  /// with the class's `teacherPhone`. Classes only store a copy, so without
+  /// this a number changed here leaves the teacher marked as a student in
+  /// every class saved before the change.
+  Future<int> syncLiveClassTeacherPhone(
+      String teacherId, String phoneNumber) async {
+    final String phone = phoneNumber.trim();
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection(liveClasses)
+        .where("teacherId", isEqualTo: teacherId)
+        .get();
+    final List<DocumentReference<Map<String, dynamic>>> stale = [
+      for (final doc in snapshot.docs)
+        if ((doc.data()["teacherPhone"] ?? "").toString().trim() != phone)
+          doc.reference,
+    ];
+    for (int start = 0; start < stale.length; start += _maxBatchWrites) {
+      final WriteBatch batch = _firestore.batch();
+      for (final ref in stale.skip(start).take(_maxBatchWrites)) {
+        batch.update(ref, {"teacherPhone": phone});
+      }
+      await batch.commit();
+    }
+    return stale.length;
+  }
+
   /// Every teacher.
   Future<List<TeacherModel>> getTeacherList() async {
     final QuerySnapshot<Map<String, dynamic>> snapshot =

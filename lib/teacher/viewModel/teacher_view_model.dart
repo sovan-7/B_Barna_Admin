@@ -139,6 +139,19 @@ class TeacherViewModel extends ChangeNotifier with SafeNotifier {
       return false;
     }
 
+    // Done on every save, not only when the number changed, so re-saving a
+    // teacher also repairs classes saved with a blank or old number. The
+    // teacher itself is saved either way, so a failure here is a warning.
+    try {
+      await _teacherRepo.syncLiveClassTeacherPhone(
+          original.docId, phoneNumber);
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Teacher saved, but their live classes still have the old "
+              "phone number — save again to retry",
+          isSuccess: false);
+    }
+
     return true;
   }
 
