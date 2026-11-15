@@ -69,11 +69,10 @@ class _LiveClassFormState extends State<LiveClassForm> {
   /// teacher who has since been removed.
   String _selectedTeacherPhone = "";
 
-  /// Subject chosen in the dropdown, by name.
-  String? _selectedSubject;
-
-  /// Code of the chosen subject.
-  String _selectedSubjectCode = "";
+  /// The ticked subjects, in the order they were ticked. The first is the
+  /// one app versions from before multi-subject classes list the class
+  /// under.
+  List<LiveClassSubject> _selectedSubjects = [];
 
   /// A class runs within a single day, so the schedule is one date plus two
   /// times rather than two independent date-times. Holding it that way is
@@ -115,8 +114,11 @@ class _LiveClassFormState extends State<LiveClassForm> {
       _selectedTeacher = existing.teacherName;
       _selectedTeacherId = existing.teacherId;
       _selectedTeacherPhone = existing.teacherPhone;
-      _selectedSubject = existing.subject.isEmpty ? null : existing.subject;
-      _selectedSubjectCode = existing.subjectCode;
+      _selectedSubjects = [
+        for (int i = 0; i < existing.subjectCodes.length; i++)
+          LiveClassSubject(
+              code: existing.subjectCodes[i], name: existing.subjectNames[i]),
+      ];
       _classType = existing.classType;
       _classDate = ClassTime.dateOnly(existing.startDateTime);
       _startTime = TimeOfDay.fromDateTime(existing.startDateTime);
@@ -156,11 +158,10 @@ class _LiveClassFormState extends State<LiveClassForm> {
     if (titleController.text.trim().isEmpty) {
       errors[_Field.title] = "Give the class a title";
     }
-    if ((_selectedSubject ?? "").trim().isEmpty) {
-      // Required, not optional: the app prints the subject on the class
-      // card three times over, so a class saved without one reaches
-      // students with blank lines where the subject belongs.
-      errors[_Field.subject] = "Choose the subject this class is for";
+    if (_selectedSubjects.isEmpty) {
+      // Required, not optional: the app lists a class only under its
+      // subjects, so a class saved without one reaches no student at all.
+      errors[_Field.subject] = "Choose at least one subject for this class";
     }
     if ((_selectedTeacher ?? teacherNameController.text).trim().isEmpty) {
       errors[_Field.teacher] = "Choose or type a teacher";
@@ -224,6 +225,8 @@ class _LiveClassFormState extends State<LiveClassForm> {
     // number fixes it. The app knows the teacher by this phone.
     final LiveClassTeacher? currentTeacher = liveClassViewModel.teacherFor(
         id: _selectedTeacherId, name: teacherName);
+    final List<LiveClassSubject> subjects =
+        _resolvedSubjects(liveClassViewModel.subjects);
 
     final LiveClassModel model = LiveClassModel(
       docId: widget.existing?.docId ?? stringDefault,
@@ -233,8 +236,8 @@ class _LiveClassFormState extends State<LiveClassForm> {
       teacherName: teacherName,
       teacherId: currentTeacher?.id ?? _selectedTeacherId,
       teacherPhone: currentTeacher?.phoneNumber ?? _selectedTeacherPhone,
-      subject: _selectedSubject ?? "",
-      subjectCode: _selectedSubjectCode,
+      subjectNames: [for (final LiveClassSubject s in subjects) s.name],
+      subjectCodes: [for (final LiveClassSubject s in subjects) s.code],
       classType: _classType,
       startDateTime: _startDateTime!,
       endDateTime: _endDateTime!,
@@ -571,8 +574,8 @@ class _LiveClassFormState extends State<LiveClassForm> {
         teacherName: _selectedTeacher ?? "",
         teacherId: _selectedTeacherId,
         teacherPhone: _selectedTeacherPhone,
-        subject: _selectedSubject ?? "",
-        subjectCode: _selectedSubjectCode,
+        subjectNames: [for (final LiveClassSubject s in _selectedSubjects) s.name],
+        subjectCodes: [for (final LiveClassSubject s in _selectedSubjects) s.code],
         classType: _classType,
         startDateTime: _startDateTime!,
         endDateTime: _endDateTime!,
@@ -677,56 +680,61 @@ class _LiveClassFormState extends State<LiveClassForm> {
     );
   }
 
-  /// Dropdown of the Full Course subjects from the `subject` collection
-  /// (only full courses show live classes in the student app).
+  /// The Full Course subjects from the `subject` collection (only full
+  /// courses show live classes in the student app), any number of them
+  /// ticked: one class — one chat — for every subject it is ticked under.
   ///
-  /// The student app draws this name on the class card — on the thumbnail,
-  /// in the title, and on its own line underneath — so a class needs one
-  /// before it is worth showing.
+  /// Each subject document is its own row, told apart by code, so two
+  /// subjects sharing a display name can both be picked.
   Widget _subjectField(LiveClassViewModel liveClassViewModel) {
-    // Deduplicated: two subject docs can share a display name (different
-    // codes, or a straight duplicate), and DropdownButton asserts there is
-    // exactly one item per value — a repeated name crashes the whole form.
-    final List<String> names =
-        liveClassViewModel.subjects.map((s) => s.name).toSet().toList();
+    final List<LiveClassSubject> options = liveClassViewModel.subjects;
+    final String first =
+        _selectedSubjects.isEmpty ? "" : _selectedSubjects.first.name;
 
-    // An existing class may name a subject that has since been renamed or
-    // removed — keep that value selectable so editing doesn't drop it.
-    final String? current = _selectedSubject;
-    if (current != null && current.isNotEmpty && !names.contains(current)) {
-      names.insert(0, current);
-    }
-
-    return LiveClassDropdownField(
-      dropdownKey: const Key('live_class_subject_dropdown'),
-      label: "Subject",
+    return LiveClassMultiSelectField(
+      fieldKey: const Key('live_class_subject_picker'),
+      label: "Subjects",
       hint: liveClassViewModel.subjectOptions.hintFor(
-        hasOptions: names.isNotEmpty,
+        hasOptions: options.isNotEmpty,
         loading: "Loading subjects…",
         empty: "No Full Course subjects found",
-        select: "Select a subject",
+        select: "Select subjects",
       ),
-      value: _selectedSubject,
-      items: names,
-      icon: Icons.library_books_outlined,
+      options: options,
+      selected: _selectedSubjects,
       error: _errors[_Field.subject],
+      // Until students update the app, only the first subject lists it.
+      note: _selectedSubjects.length > 1
+          ? "Older app versions show this class under $first only."
+          : null,
       loadError: liveClassViewModel.subjectOptions.error,
       onRetry: liveClassViewModel.subjectOptions.retry,
-      // Disabled while the subjects load.
-      onChanged: liveClassViewModel.subjectOptions.isLoading
-          ? null
-          : (String? newValue) {
-              setState(() {
-                _selectedSubject = newValue;
-                _selectedSubjectCode = liveClassViewModel.subjects
-                        .where((s) => s.name == newValue)
-                        .map((s) => s.code)
-                        .firstOrNull ??
-                    "";
-              });
-              _revalidate();
-            },
+      // Disabled while the subjects load or the form saves.
+      enabled: !liveClassViewModel.subjectOptions.isLoading && !_isSaving,
+      onChanged: (List<LiveClassSubject> picked) {
+        setState(() => _selectedSubjects = picked);
+        _revalidate();
+      },
     );
+  }
+
+  /// [_selectedSubjects] ready to save: a subject kept from a class saved
+  /// with a name but no code gets its code from [options] when one subject
+  /// there has that name, and a subject that then appears twice is kept
+  /// once.
+  List<LiveClassSubject> _resolvedSubjects(List<LiveClassSubject> options) {
+    final List<LiveClassSubject> resolved = [];
+    final Set<String> seen = {};
+    for (final LiveClassSubject s in _selectedSubjects) {
+      LiveClassSubject subject = s;
+      if (s.code.isEmpty) {
+        final List<LiveClassSubject> named =
+            options.where((o) => o.name == s.name).toList();
+        if (named.length == 1) subject = named.single;
+      }
+      if (seen.add(liveClassSubjectId(subject))) resolved.add(subject);
+    }
+    return resolved;
   }
 
   /// Dropdown of names from the `teacher` collection. Falls back to a plain

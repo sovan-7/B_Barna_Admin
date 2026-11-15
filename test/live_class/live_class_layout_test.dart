@@ -251,7 +251,8 @@ void main() {
     await tester.pump();
 
     expect(find.text('Give the class a title'), findsOneWidget);
-    expect(find.text('Choose the subject this class is for'), findsOneWidget);
+    expect(find.text('Choose at least one subject for this class'),
+        findsOneWidget);
     expect(find.text('Pick the class date'), findsOneWidget);
     expect(find.text('Pick a start time'), findsOneWidget);
     expect(find.text('Pick an end time'), findsOneWidget);
@@ -315,8 +316,9 @@ void main() {
       await tester.tap(find.text('1h'));
       await tester.pump();
 
-      // Subject and teacher both come from dropdowns.
-      await _pickFromDropdown(tester, 'live_class_subject_dropdown', 'Mechanics');
+      // Subjects are ticked in a list (Organic Chemistry first, though it is
+      // second in the list); the teacher comes from a dropdown.
+      await _pickSubjects(tester, ['ORG', 'MECH']);
       await _pickFromDropdown(tester, 'live_class_teacher_dropdown', 'Ravi Kumar');
 
       await tester.tap(find.byKey(const Key('live_class_save_button')));
@@ -336,8 +338,11 @@ void main() {
       // The app needs the ids, not just the labels: it prints the subject
       // on the class card and matches teacherId against the uid a
       // participant joined the live room under.
-      expect(saved.subject, 'Mechanics');
-      expect(saved.subjectCode, 'MECH');
+      expect(saved.subjectCodes, ['ORG', 'MECH']);
+      expect(saved.subjectNames, ['Organic Chemistry', 'Mechanics']);
+      // The first ticked is the one older app versions list it under.
+      expect(saved.subject, 'Organic Chemistry');
+      expect(saved.subjectCode, 'ORG');
       expect(saved.teacherName, 'Ravi Kumar');
       expect(saved.teacherId, 'ravi');
     });
@@ -440,9 +445,97 @@ void main() {
 
     final vm = LiveClassViewModel(liveClassRepo: repo);
     await _pump(tester, const Size(1024, 900),
-        EditLiveClass(liveClassData: _fixture().first), vm);
+        EditLiveClass(liveClassData: _upcoming()), vm);
 
     expect(tester.takeException(), isNull);
+
+    // Each subject doc is its own row, told apart by code.
+    await _openSubjectPicker(tester);
+    expect(find.byKey(const Key('live_class_subject_option_BEN1')),
+        findsOneWidget);
+    expect(find.byKey(const Key('live_class_subject_option_BEN2')),
+        findsOneWidget);
+    expect(find.text('BEN1'), findsOneWidget);
+    expect(find.text('BEN2'), findsOneWidget);
+  });
+
+  group('several subjects', () {
+    testWidgets('ticked subjects show as chips; × removes one',
+        (tester) async {
+      final vm = LiveClassViewModel(liveClassRepo: repo);
+      await _pump(tester, const Size(1024, 900), const AddLiveClass(), vm);
+
+      await _pickSubjects(tester, ['MECH', 'ORG']);
+      expect(find.byKey(const Key('live_class_subject_chip_MECH')),
+          findsOneWidget);
+      expect(find.byKey(const Key('live_class_subject_chip_ORG')),
+          findsOneWidget);
+      expect(find.text('Older app versions show this class under Mechanics '
+          'only.'), findsOneWidget);
+
+      await tester.tap(
+          find.byKey(const Key('live_class_subject_chip_remove_MECH')));
+      await tester.pump();
+      expect(find.byKey(const Key('live_class_subject_chip_MECH')),
+          findsNothing);
+      expect(find.byKey(const Key('live_class_subject_chip_ORG')),
+          findsOneWidget);
+      expect(find.textContaining('Older app versions'), findsNothing);
+    });
+
+    testWidgets('search narrows the list; Cancel changes nothing',
+        (tester) async {
+      final vm = LiveClassViewModel(liveClassRepo: repo);
+      await _pump(tester, const Size(1024, 900), const AddLiveClass(), vm);
+
+      await _openSubjectPicker(tester);
+      await tester.enterText(
+          find.byKey(const Key('live_class_subject_search')), 'org');
+      await tester.pump();
+      expect(find.byKey(const Key('live_class_subject_option_ORG')),
+          findsOneWidget);
+      expect(find.byKey(const Key('live_class_subject_option_MECH')),
+          findsNothing);
+
+      await tester.tap(find.byKey(const Key('live_class_subject_option_ORG')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('live_class_subject_cancel')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('live_class_subject_chip_ORG')),
+          findsNothing);
+      expect(find.text('Select subjects'), findsOneWidget);
+    });
+
+    testWidgets('editing keeps a subject that has since been removed',
+        (tester) async {
+      when(() => repo.updateLiveClass(any())).thenAnswer((_) async {});
+      final LiveClassModel liveClass = _upcoming(
+          subjectNames: const ['Old Physics', 'Mechanics'],
+          subjectCodes: const ['OPHY', 'MECH']);
+      final vm = LiveClassViewModel(liveClassRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          EditLiveClass(liveClassData: liveClass), vm);
+
+      expect(find.byKey(const Key('live_class_subject_chip_OPHY')),
+          findsOneWidget);
+      // Still in the list, still ticked, so Done keeps it.
+      await _openSubjectPicker(tester);
+      final CheckboxListTile row = tester.widget(
+          find.byKey(const Key('live_class_subject_option_OPHY')));
+      expect(row.value, isTrue);
+      await tester.tap(find.byKey(const Key('live_class_subject_done')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('live_class_save_button')));
+      await tester.pump();
+      await tester.pump();
+
+      final LiveClassModel saved =
+          verify(() => repo.updateLiveClass(captureAny())).captured.single
+              as LiveClassModel;
+      expect(saved.subjectCodes, ['OPHY', 'MECH']);
+      expect(saved.subjectNames, ['Old Physics', 'Mechanics']);
+    });
   });
 
   testWidgets(
@@ -459,6 +552,45 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+}
+
+/// A class tomorrow (no pulsing LIVE badge, so pumpAndSettle can settle).
+LiveClassModel _upcoming(
+    {List<String> subjectNames = const ['Mechanics'],
+    List<String> subjectCodes = const ['MECH']}) {
+  final DateTime start = DateTime.now().add(const Duration(days: 1));
+  return LiveClassModel(
+    docId: 'up',
+    title: "Optics drill",
+    description: "",
+    youtubeLink: "https://www.youtube.com/watch?v=abc",
+    teacherName: "Ravi Kumar",
+    teacherId: "ravi",
+    subjectNames: subjectNames,
+    subjectCodes: subjectCodes,
+    startDateTime: DateTime(start.year, start.month, start.day, 18),
+    endDateTime: DateTime(start.year, start.month, start.day, 19),
+  );
+}
+
+/// Opens the subject list from the Subjects field.
+Future<void> _openSubjectPicker(WidgetTester tester) async {
+  final Finder field = find.byKey(const Key('live_class_subject_picker'));
+  await tester.ensureVisible(field);
+  await tester.pumpAndSettle();
+  await tester.tap(field);
+  await tester.pumpAndSettle();
+}
+
+/// Ticks [codes] in order in the subject list, then presses Done.
+Future<void> _pickSubjects(WidgetTester tester, List<String> codes) async {
+  await _openSubjectPicker(tester);
+  for (final String code in codes) {
+    await tester.tap(find.byKey(Key('live_class_subject_option_$code')));
+    await tester.pump();
+  }
+  await tester.tap(find.byKey(const Key('live_class_subject_done')));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _pickFromDropdown(

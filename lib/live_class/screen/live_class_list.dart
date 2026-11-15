@@ -370,7 +370,7 @@ class _LiveClassListState extends State<LiveClassList> {
     );
   }
 
-  /// Search box; filters the loaded classes by title or teacher.
+  /// Search box; filters the loaded classes by title, teacher or subject.
   Widget _search(LiveClassViewModel liveClassViewModel) {
     final bool hasText = searchController.text.isNotEmpty;
 
@@ -393,7 +393,7 @@ class _LiveClassListState extends State<LiveClassList> {
               decoration: const InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
-                hintText: "Search by class or teacher",
+                hintText: "Search by class, teacher or subject",
                 hintStyle:
                     TextStyle(fontSize: 13, color: LiveClassTheme.inkFaint),
               ),

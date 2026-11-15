@@ -4,7 +4,6 @@ import 'package:bbarna/live_class/screen/edit_live_class.dart';
 import 'package:bbarna/live_class/screen/live_class_list.dart';
 import 'package:bbarna/live_class/viewModel/live_class_view_model.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -27,8 +26,8 @@ LiveClassModel _class(String id, String title, DateTime start,
       teacherName: 'Ravi Kumar',
       teacherId: 'ravi',
       teacherPhone: '9876543210',
-      subject: 'Mechanics',
-      subjectCode: 'MECH',
+      subjectNames: const ['Mechanics'],
+      subjectCodes: const ['MECH'],
       classType: classType,
       startDateTime: start,
       endDateTime: start.add(const Duration(hours: 1)),
@@ -190,13 +189,13 @@ void main() {
       await tester.tap(find.byKey(const Key('live_class_tab_past')));
       await tester.pump();
 
-      // The card's actions take taps only while the pointer is over it.
-      final TestGesture mouse =
-          await tester.createGesture(kind: PointerDeviceKind.mouse);
-      addTearDown(mouse.removePointer);
-      await mouse.addPointer(location: Offset.zero);
-      await mouse.moveTo(tester.getCenter(find.text('Algebra recap')));
-      await tester.pump(const Duration(milliseconds: 200));
+      // A labelled button, tappable without hovering the card first (the
+      // view is wide enough that the row icons hide until hover).
+      expect(
+          find.descendant(
+              of: find.byKey(const Key('live_class_delete_chat_past')),
+              matching: find.text('Delete chat')),
+          findsOneWidget);
 
       await tester.tap(find.byKey(const Key('live_class_delete_chat_past')));
       await tester.pumpAndSettle();

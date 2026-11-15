@@ -81,13 +81,24 @@ class LiveClassModel {
   /// removed teacher.
   String teacherPhone = "";
 
-  /// The subject's display name, shown on the class card in the app.
-  String subject = "";
+  /// Display names of the subjects this class is for, in the order they
+  /// were ticked (`subjects`). Index-aligned with [subjectCodes]; the
+  /// student app prints the name of the subject being browsed on the card.
+  List<String> subjectNames;
 
-  /// The subject's `subject_code`. Stored under `subjectId` because that is
-  /// the key the app reads, but it holds the code — the join key every other
-  /// collection in this project uses (`subject_code`, `subjectCodeList`).
-  String subjectCode = "";
+  /// The subjects' `subject_code`s, in the same order (`subjectIds`). The
+  /// student app lists a subject's classes by looking its code up here.
+  /// Codes, not document ids: the join key every other collection in this
+  /// project uses (`subject_code`, `subjectCodeList`).
+  List<String> subjectCodes;
+
+  /// The first subject's name, also stored alone under `subject`: app
+  /// versions from before multi-subject classes read only that.
+  String get subject => subjectNames.isEmpty ? "" : subjectNames.first;
+
+  /// The first subject's code, also stored alone under `subjectId` — the
+  /// only subject older app versions list the class under.
+  String get subjectCode => subjectCodes.isEmpty ? "" : subjectCodes.first;
 
   /// When the class starts (`startTime`).
   DateTime startDateTime;
@@ -128,14 +139,15 @@ class LiveClassModel {
     required this.endDateTime,
     this.teacherId = "",
     this.teacherPhone = "",
-    this.subject = "",
-    this.subjectCode = "",
+    this.subjectNames = const [],
+    this.subjectCodes = const [],
     this.classType = liveClassPaid,
     this.createdAt,
     this.updatedAt,
     this.chatDeleteRequestedAt,
     this.chatDeletedAt,
-  });
+  }) : assert(subjectNames.length == subjectCodes.length,
+            "subjectNames and subjectCodes are index-aligned");
 
   /// The caller-editable fields only (`createdAt` / `updatedAt` are set by
   /// [LiveClassRepo] from the server clock), in the field names the student
@@ -147,13 +159,18 @@ class LiveClassModel {
   ///
   /// The panel adapts to the app (not the other way round) because the
   /// panel updates everywhere at once, while an app change only reaches
-  /// users who update.
+  /// users who update. That is also why every subject goes under
+  /// `subjects`/`subjectIds` while the first one is repeated under
+  /// `subject`/`subjectId`: an app that predates multi-subject classes still
+  /// lists the class under that first subject.
   Map<String, dynamic> toMap() {
     return {
       "title": title.trim(),
       "subtitle": description.trim(),
       "subject": subject.trim(),
       "subjectId": subjectCode.trim(),
+      "subjects": [for (final String name in subjectNames) name.trim()],
+      "subjectIds": [for (final String code in subjectCodes) code.trim()],
       "teacherName": teacherName.trim(),
       "teacherId": teacherId.trim(),
       "teacherPhone": teacherPhone.trim(),
@@ -180,8 +197,12 @@ class LiveClassModel {
         teacherName = doc.data()?["teacherName"] ?? stringDefault,
         teacherId = doc.data()?["teacherId"] ?? "",
         teacherPhone = doc.data()?["teacherPhone"] ?? "",
-        subject = doc.data()?["subject"] ?? "",
-        subjectCode = doc.data()?["subjectId"] ?? "",
+        subjectNames = [
+          for (final (String, String) s in subjectsOf(doc.data())) s.$2
+        ],
+        subjectCodes = [
+          for (final (String, String) s in subjectsOf(doc.data())) s.$1
+        ],
         classType = normalizeClassType(doc.data()?["classType"]),
         chatDeleteRequestedAt =
             _toDateTime(doc.data()?["chatDeleteRequestedAt"]),
@@ -206,6 +227,29 @@ class LiveClassModel {
 
   /// True for a Free class.
   bool get isFree => classType == liveClassFree;
+
+  /// The stored subjects as (code, name) pairs, in order.
+  ///
+  /// Reads the `subjectIds`/`subjects` lists; a class saved before those
+  /// existed has only `subjectId`/`subject`, read as a one-subject list.
+  /// Entries blank in both code and name are dropped, and a missing name
+  /// reads as "", so the two lists always come back the same length.
+  static List<(String, String)> subjectsOf(Map<String, dynamic>? data) {
+    String text(Object? value) => value?.toString().trim() ?? "";
+    final Object? codes = data?["subjectIds"];
+    final Object? names = data?["subjects"];
+    if (codes is List && codes.isNotEmpty) {
+      final List<Object?> nameList = names is List ? names : const [];
+      return [
+        for (int i = 0; i < codes.length; i++)
+          (text(codes[i]), i < nameList.length ? text(nameList[i]) : ""),
+      ].where((s) => s.$1.isNotEmpty || s.$2.isNotEmpty).toList();
+    }
+    final String code = text(data?["subjectId"]);
+    final String name = text(data?["subject"]);
+    if (code.isEmpty && name.isEmpty) return [];
+    return [(code, name)];
+  }
 
   /// Deleted once the function stamped [chatDeletedAt] — unless a newer
   /// request is still pending, which wins.

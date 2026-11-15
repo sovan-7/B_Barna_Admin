@@ -32,8 +32,8 @@ LiveClassModel _class(
       teacherName: 'Ravi Kumar',
       teacherId: teacherId,
       teacherPhone: teacherPhone,
-      subject: 'Mechanics',
-      subjectCode: 'MECH',
+      subjectNames: const ['Mechanics'],
+      subjectCodes: const ['MECH'],
       startDateTime: DateTime.now().add(const Duration(days: 1)),
       endDateTime: DateTime.now().add(const Duration(days: 1, hours: 1)),
     );

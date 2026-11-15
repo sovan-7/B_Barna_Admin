@@ -41,6 +41,16 @@ class _LiveClassCardState extends State<LiveClassCard> {
   /// Shortcut for the item shown.
   LiveClassModel get _data => widget.liveClassData;
 
+  /// The class's subject names, blanks dropped (a code stands in for a
+  /// missing name).
+  List<String> get _subjectNames => [
+        for (int i = 0; i < _data.subjectNames.length; i++)
+          if (_data.subjectNames[i].trim().isNotEmpty)
+            _data.subjectNames[i].trim()
+          else if (_data.subjectCodes[i].trim().isNotEmpty)
+            _data.subjectCodes[i].trim(),
+      ];
+
   @override
   Widget build(BuildContext context) {
     final LiveClassStatus status = _data.status;
@@ -160,6 +170,16 @@ class _LiveClassCardState extends State<LiveClassCard> {
                   : const Color(0xFFB54708),
               filled: true,
             ),
+            if (_subjectNames.isNotEmpty)
+              Tooltip(
+                key: Key('live_class_subjects_${_data.docId}'),
+                message: _subjectNames.join("\n"),
+                child: _chip(
+                    Icons.library_books_outlined,
+                    _subjectNames.length == 1
+                        ? _subjectNames.first
+                        : "${_subjectNames.first} +${_subjectNames.length - 1}"),
+              ),
             _chip(Icons.person_outline, _data.teacherName),
             _chip(
                 Icons.timelapse_outlined,
@@ -179,6 +199,9 @@ class _LiveClassCardState extends State<LiveClassCard> {
                 label: "Chat deleted",
                 color: LiveClassTheme.inkMuted,
               ),
+            // Always shown (not behind hover like the row icons) so an admin
+            // can find it on every finished class.
+            if (_canDeleteChat) _deleteChatButton(),
           ],
         ),
         if (hasDescription) ...[
@@ -302,18 +325,6 @@ class _LiveClassCardState extends State<LiveClassCard> {
               color: LiveClassTheme.inkMuted,
               onTap: _openEdit,
             ),
-            // A finished class's chat can be cleared, by an admin only, and
-            // only while there is something to clear.
-            if (_canDeleteChat) ...[
-              const SizedBox(width: 2),
-              _iconButton(
-                key: Key('live_class_delete_chat_${_data.docId}'),
-                icon: Icons.speaker_notes_off_outlined,
-                tooltip: "Delete chat",
-                color: LiveClassTheme.danger,
-                onTap: () => _confirmDeleteChat(context),
-              ),
-            ],
             const SizedBox(width: 2),
             _iconButton(
               key: Key('live_class_delete_${_data.docId}'),
@@ -323,6 +334,43 @@ class _LiveClassCardState extends State<LiveClassCard> {
               onTap: () => _confirmDelete(context),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// The labelled red "Delete chat" pill on a Past class's card. Its own
+  /// [InkWell] takes the tap, so it never opens Edit as well.
+  Widget _deleteChatButton() {
+    final BorderRadius radius =
+        BorderRadius.circular(LiveClassTheme.radiusPill);
+    return Material(
+      color: LiveClassTheme.danger.withValues(alpha: .08),
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: BorderSide(color: LiveClassTheme.danger.withValues(alpha: .35)),
+      ),
+      child: InkWell(
+        key: Key('live_class_delete_chat_${_data.docId}'),
+        borderRadius: radius,
+        onTap: () => _confirmDeleteChat(context),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.speaker_notes_off_outlined,
+                  size: 13, color: LiveClassTheme.danger),
+              SizedBox(width: 5),
+              Text(
+                "Delete chat",
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: LiveClassTheme.danger),
+              ),
+            ],
+          ),
         ),
       ),
     );

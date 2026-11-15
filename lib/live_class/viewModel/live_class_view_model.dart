@@ -262,7 +262,9 @@ class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
       liveClassList = copyLiveClassList
           .where((liveClass) =>
               liveClass.title.toLowerCase().contains(query) ||
-              liveClass.teacherName.toLowerCase().contains(query))
+              liveClass.teacherName.toLowerCase().contains(query) ||
+              liveClass.subjectNames
+                  .any((name) => name.toLowerCase().contains(query)))
           .toList();
     }
   }
