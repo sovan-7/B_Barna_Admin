@@ -1,4 +1,5 @@
 import 'package:bbarna/core/widgets/card/card_chips.dart';
+import 'package:bbarna/core/widgets/card/card_helpers.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
@@ -10,6 +11,7 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:bbarna/utils/navigation.dart';
 import 'package:bbarna/utils/session.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -35,6 +37,12 @@ class LiveClassCard extends StatefulWidget {
 }
 
 class _LiveClassCardState extends State<LiveClassCard> {
+  /// Colour of the PDF icon and the Upload / Replace PDF actions.
+  static const Color _pdfRed = Color(0xFFD92D20);
+
+  /// Colour of the Upload PDF pill.
+  static const Color _uploadBlue = Color(0xFF2563EB);
+
   /// True while the pointer is over it.
   bool _hovered = false;
 
@@ -120,6 +128,9 @@ class _LiveClassCardState extends State<LiveClassCard> {
         _data.description != stringDefault;
     final bool hasLink = _data.youtubeLink.trim().isNotEmpty &&
         _data.youtubeLink != stringDefault;
+    final bool hasPdf = _data.hasPdf;
+    final bool uploadingPdf = context.select<LiveClassViewModel, bool>(
+        (vm) => vm.isUploadingPdf(_data.docId));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,6 +213,9 @@ class _LiveClassCardState extends State<LiveClassCard> {
             // Always shown (not behind hover like the row icons) so an admin
             // can find it on every finished class.
             if (_canDeleteChat) _deleteChatButton(),
+            // Same: a finished class without notes yet.
+            if (_canUploadPdf)
+              uploadingPdf ? _uploadingChip() : _uploadPdfButton(),
           ],
         ),
         if (hasDescription) ...[
@@ -213,14 +227,16 @@ class _LiveClassCardState extends State<LiveClassCard> {
             style: LiveClassTheme.body,
           ),
         ],
-        if (hasLink) ...[
+        if (hasLink || hasPdf) ...[
           // Takes up whatever height this card was stretched to beyond its
-          // own content, so the link row lands on the same line in every
-          // card of the row instead of floating directly under a shorter
-          // block of text.
+          // own content, so the link / PDF rows land on the same line in
+          // every card of the row instead of floating directly under a
+          // shorter block of text.
           const Spacer(),
           const SizedBox(height: 12),
-          _linkRow(),
+          if (hasLink) _linkRow(),
+          if (hasLink && hasPdf) const SizedBox(height: LiveClassTheme.gapSm),
+          if (hasPdf) _pdfRow(uploadingPdf),
         ],
       ],
     );
@@ -305,6 +321,140 @@ class _LiveClassCardState extends State<LiveClassCard> {
           ),
         ],
       ),
+    );
+  }
+
+  /// The class's notes PDF, under the link: tap the name to open it in a
+  /// new tab. Admins also get Replace (a class keeps exactly one PDF; it is
+  /// removed only with the class). Each part has its own [InkWell], so a
+  /// tap never opens Edit as well.
+  Widget _pdfRow(bool uploading) {
+    final BorderRadius radius = BorderRadius.circular(LiveClassTheme.radiusSm);
+    final String name =
+        _data.pdfName.trim().isEmpty ? "Class notes.pdf" : _data.pdfName.trim();
+    return Material(
+      key: Key('live_class_pdf_${_data.docId}'),
+      color: LiveClassTheme.surfaceMuted,
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: const BorderSide(color: LiveClassTheme.hairline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        children: [
+          Expanded(
+            child: Tooltip(
+              message: "Open PDF",
+              child: InkWell(
+                key: Key('live_class_pdf_open_${_data.docId}'),
+                onTap: () => openExternalUrl(_data.pdfLink,
+                    failureMessage: "Couldn't open the PDF"),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.picture_as_pdf_outlined,
+                          size: 15, color: _pdfRed),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: LiveClassTheme.inkMuted),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.open_in_new,
+                          size: 13, color: LiveClassTheme.inkFaint),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (Session.isAdmin) ...[
+            Container(width: 1, height: 18, color: LiveClassTheme.hairline),
+            if (uploading)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14),
+                child: SizedBox(
+                  width: 13,
+                  height: 13,
+                  child: CircularProgressIndicator(strokeWidth: 1.8),
+                ),
+              )
+            else
+              Tooltip(
+                message: "Upload a different PDF in its place",
+                child: InkWell(
+                  key: Key('live_class_pdf_replace_${_data.docId}'),
+                  onTap: _pickAndUploadPdf,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    child: Text(
+                      "Replace",
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: _uploadBlue),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// The labelled "Upload PDF" pill on a Past class's card with no notes
+  /// yet. Its own [InkWell] takes the tap, so it never opens Edit as well.
+  Widget _uploadPdfButton() {
+    final BorderRadius radius =
+        BorderRadius.circular(LiveClassTheme.radiusPill);
+    return Material(
+      color: _uploadBlue.withValues(alpha: .08),
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: BorderSide(color: _uploadBlue.withValues(alpha: .35)),
+      ),
+      child: InkWell(
+        key: Key('live_class_upload_pdf_${_data.docId}'),
+        borderRadius: radius,
+        onTap: _pickAndUploadPdf,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.upload_file_outlined, size: 13, color: _uploadBlue),
+              SizedBox(width: 5),
+              Text(
+                "Upload PDF",
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: _uploadBlue),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Stands in for the Upload PDF pill while the file uploads.
+  Widget _uploadingChip() {
+    return StatusChip(
+      key: Key('live_class_pdf_uploading_${_data.docId}'),
+      icon: Icons.hourglass_top_rounded,
+      label: "Uploading PDF…",
+      color: LiveClassTheme.inkMuted,
     );
   }
 
@@ -415,6 +565,33 @@ class _LiveClassCardState extends State<LiveClassCard> {
       Session.isAdmin &&
       _data.status == LiveClassStatus.past &&
       _data.chatState == LiveClassChatState.none;
+
+  /// True when the Upload PDF pill shows: a Past class, an admin, and no
+  /// PDF yet (once there is one, the PDF row's Replace takes over).
+  bool get _canUploadPdf =>
+      Session.isAdmin &&
+      _data.status == LiveClassStatus.past &&
+      !_data.hasPdf;
+
+  /// Lets the admin pick a PDF, then uploads it as this class's notes,
+  /// replacing any earlier one.
+  Future<void> _pickAndUploadPdf() async {
+    final LiveClassViewModel liveClassViewModel =
+        Provider.of<LiveClassViewModel>(context, listen: false);
+    final bool replacing = _data.hasPdf;
+    final FilePickerResult? picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+      withData: true,
+    );
+    final PlatformFile? file = picked?.files.firstOrNull;
+    if (file == null || file.bytes == null) return;
+    final bool success = await liveClassViewModel.uploadClassPdf(
+        _data, file.bytes!, file.name);
+    if (success) {
+      Helper.showInfoMessage(msg: replacing ? "PDF replaced" : "PDF uploaded");
+    }
+  }
 
   /// Asks for confirmation, then asks for this class's chat to be deleted.
   void _confirmDeleteChat(BuildContext context) {

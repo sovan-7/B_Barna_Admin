@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:bbarna/core/viewModel/async_list.dart';
 import 'package:bbarna/core/mixins/safe_notifier.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
@@ -237,6 +239,48 @@ class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
       Helper.showSnackBarMessage(
           msg: "Error while deleting chat", isSuccess: false);
       return false;
+    }
+  }
+
+  /// Largest notes PDF accepted. The student app's phone viewer downloads
+  /// the whole file (with a timeout) before showing it, so a huge file
+  /// would fail for students on a slow connection.
+  static const int maxClassPdfBytes = 25 * 1024 * 1024;
+
+  /// Classes whose PDF is uploading right now, by document id.
+  final Set<String> _uploadingPdf = {};
+
+  /// True while class [docId]'s PDF is uploading.
+  bool isUploadingPdf(String docId) => _uploadingPdf.contains(docId);
+
+  /// Uploads [bytes] as [liveClass]'s notes PDF, replacing any earlier one.
+  /// On success the class's [LiveClassModel.pdfLink] / `pdfName` update in
+  /// place so the card shows the PDF without a refetch. Same contract as
+  /// [addLiveClass]; a file over [maxClassPdfBytes] is refused with a toast.
+  Future<bool> uploadClassPdf(
+      LiveClassModel liveClass, Uint8List bytes, String fileName) async {
+    if (bytes.length > maxClassPdfBytes) {
+      Helper.showSnackBarMessage(
+          msg: "PDF is too large — the limit is "
+              "${maxClassPdfBytes ~/ (1024 * 1024)} MB",
+          isSuccess: false);
+      return false;
+    }
+    if (!_uploadingPdf.add(liveClass.docId)) return false;
+    notifyListeners();
+    try {
+      final String url =
+          await _liveClassRepo.uploadClassPdf(liveClass.docId, bytes, fileName);
+      liveClass.pdfLink = url;
+      liveClass.pdfName = fileName.trim();
+      return true;
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while uploading the PDF", isSuccess: false);
+      return false;
+    } finally {
+      _uploadingPdf.remove(liveClass.docId);
+      notifyListeners();
     }
   }
 

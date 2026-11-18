@@ -48,6 +48,18 @@ class LiveClassModel {
   /// written through [toMap].
   DateTime? chatDeletedAt;
 
+  /// Download URL of the class's notes PDF (`pdfLink`); "" when none was
+  /// uploaded. A class has at most one: the file always sits at
+  /// `live_class_pdf/pdf_<docId>` in Storage, so uploading again replaces
+  /// it. Set by [LiveClassRepo.uploadClassPdf] only — never written
+  /// through [toMap], so editing the class, or deleting its chat, can't
+  /// wipe it. Deleted with the class.
+  String pdfLink = "";
+
+  /// The PDF's original file name (`pdfName`), shown on the card. Written
+  /// alongside [pdfLink], never through [toMap].
+  String pdfName = "";
+
   /// Firestore document id.
   String docId = stringDefault;
 
@@ -146,6 +158,8 @@ class LiveClassModel {
     this.updatedAt,
     this.chatDeleteRequestedAt,
     this.chatDeletedAt,
+    this.pdfLink = "",
+    this.pdfName = "",
   }) : assert(subjectNames.length == subjectCodes.length,
             "subjectNames and subjectCodes are index-aligned");
 
@@ -163,6 +177,9 @@ class LiveClassModel {
   /// `subjects`/`subjectIds` while the first one is repeated under
   /// `subject`/`subjectId`: an app that predates multi-subject classes still
   /// lists the class under that first subject.
+  ///
+  /// The chat stamps and the PDF fields ([pdfLink], [pdfName]) are left out
+  /// on purpose: `update()` merges, so a save never touches them.
   Map<String, dynamic> toMap() {
     return {
       "title": title.trim(),
@@ -207,6 +224,8 @@ class LiveClassModel {
         chatDeleteRequestedAt =
             _toDateTime(doc.data()?["chatDeleteRequestedAt"]),
         chatDeletedAt = _toDateTime(doc.data()?["chatDeletedAt"]),
+        pdfLink = (doc.data()?["pdfLink"] ?? "").toString().trim(),
+        pdfName = (doc.data()?["pdfName"] ?? "").toString().trim(),
         startDateTime = _toDateTime(doc.data()?["startTime"]) ??
             _toDateTime(doc.data()?["startDateTime"]) ??
             DateTime.fromMillisecondsSinceEpoch(0),
@@ -227,6 +246,9 @@ class LiveClassModel {
 
   /// True for a Free class.
   bool get isFree => classType == liveClassFree;
+
+  /// True once a notes PDF has been uploaded for this class.
+  bool get hasPdf => pdfLink.trim().isNotEmpty && pdfLink != stringDefault;
 
   /// The stored subjects as (code, name) pairs, in order.
   ///
