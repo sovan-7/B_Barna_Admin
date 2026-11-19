@@ -20,6 +20,7 @@ import 'package:bbarna/subject/screen/subject_list.dart';
 import 'package:bbarna/teacher/screen/teacher_list.dart';
 import 'package:bbarna/transactions/screen/transaction_list.dart';
 import 'package:bbarna/topic/screen/topic_list.dart';
+import 'package:bbarna/topic1/screen/topic1_list.dart';
 import 'package:bbarna/units/screen/unit_list.dart';
 import 'package:bbarna/utils/helper.dart';
 
@@ -64,6 +65,7 @@ class _SidebarState extends State<Sidebar> {
     const BookOrderList(),
     const NotificationList(),
     const TransactionList(),
+    const Topic1List(),
   ];
 
   @override
@@ -311,8 +313,7 @@ class SidebarNav extends StatelessWidget {
     );
   }
 
-  /// One flat list, in [moduleList] order, of the modules this user may
-  /// see.
+  /// One flat list, in [moduleNavOrder], of the modules this user may see.
   Widget _modules(List<int> allowed, bool isCollapsed) {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: AppTokens.gapSm),

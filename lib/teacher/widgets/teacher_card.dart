@@ -158,10 +158,10 @@ class _TeacherCardState extends State<TeacherCard> {
 
   /// The modules this teacher can open, as chips.
   Widget _moduleAccess() {
-    // Positions in moduleList, so the chips keep the sidebar's order rather
-    // than whatever order the access list happens to be stored in.
+    // Positions in moduleList, walked in the sidebar's order rather than
+    // whatever order the access list happens to be stored in.
     final List<int> granted = [
-      for (int i = 0; i < moduleList.length; i++)
+      for (final int i in moduleNavOrder)
         if (!hiddenModuleIndices.contains(i) &&
             _data.moduleAccess.contains(moduleList[i]))
           i,

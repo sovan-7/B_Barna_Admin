@@ -215,7 +215,7 @@ void main() {
     test('Transactions was appended, so no older module moved', () {
       expect(moduleList[transactionModuleIndex], 'TRANSACTIONS');
       expect(moduleDisplayList[transactionModuleIndex], 'Transactions');
-      expect(transactionModuleIndex, moduleList.length - 1);
+      expect(transactionModuleIndex, notificationModuleIndex + 1);
     });
 
     test('a teacher cannot be given it', () {

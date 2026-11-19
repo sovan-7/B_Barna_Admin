@@ -60,10 +60,12 @@ class Helper {
   /// store that cannot be read, grants nothing.
   ///
   /// Nobody sees a module in [hiddenModuleIndices].
+  ///
+  /// Returned in [moduleNavOrder], the order the sidebar lists them.
   static List<int> allowedModuleIndices() {
     if (Session.isAdmin) {
       return [
-        for (int i = 0; i < moduleList.length; i++)
+        for (final int i in moduleNavOrder)
           if (!hiddenModuleIndices.contains(i)) i,
       ];
     }
@@ -75,7 +77,7 @@ class Helper {
       access = [];
     }
     return [
-      for (int i = 0; i < moduleList.length; i++)
+      for (final int i in moduleNavOrder)
         if (i != teacherModuleIndex &&
             i != transactionModuleIndex &&
             !hiddenModuleIndices.contains(i) &&
