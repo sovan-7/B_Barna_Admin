@@ -124,7 +124,7 @@ class MyApp extends StatelessWidget {
         scaffoldMessengerKey: snackBarKey,
         navigatorKey: navigatorKey,
         key: scaffoldKey,
-        title: "BBARNA",
+        title: "B_BARNA Admin",
         home: Session.isSignedIn
             ? const Sidebar(sidebarIndex: 0)
             : const LoginScreen());

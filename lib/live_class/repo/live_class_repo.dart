@@ -1,6 +1,10 @@
+import 'dart:typed_data';
+
+import 'package:bbarna/core/repo/storage_upload.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 /// A teacher as the class form needs them: a name to show and the document
 /// id to store (the student app uses the id to mark who is teaching in the
@@ -26,11 +30,18 @@ class LiveClassSubject {
 
   /// Subject name printed on the student's class card.
   final String name;
-  const LiveClassSubject({required this.code, required this.name});
+
+  /// The subject's `course_type` ("Full Course", "Part Course", ...).
+  final String courseType;
+  const LiveClassSubject(
+      {required this.code,
+      required this.name,
+      this.courseType = courseTypeFullCourse});
 }
 
-/// Firestore access for live classes, plus the teacher / subject lookups
-/// the class form's dropdowns need. Firestore is injectable for tests.
+/// Firestore / Storage access for live classes, plus the teacher / subject
+/// lookups the class form's dropdowns need. Firestore and Storage are
+/// injectable for tests.
 ///
 /// Every method throws on failure; [LiveClassViewModel] catches and
 /// reports.
@@ -38,8 +49,21 @@ class LiveClassRepo {
   /// Firestore client.
   final FirebaseFirestore _fireStore;
 
-  LiveClassRepo({FirebaseFirestore? firestore})
-      : _fireStore = firestore ?? FirebaseFirestore.instance;
+  /// Storage client passed in by a test; null means the real one.
+  final FirebaseStorage? _storageOverride;
+
+  LiveClassRepo({FirebaseFirestore? firestore, FirebaseStorage? storage})
+      : _fireStore = firestore ?? FirebaseFirestore.instance,
+        _storageOverride = storage;
+
+  /// Storage client, looked up only when a PDF is uploaded or deleted.
+  FirebaseStorage get _storage => _storageOverride ?? FirebaseStorage.instance;
+
+  /// Where class [docId]'s notes PDF is stored. One fixed path per class,
+  /// so a class can only ever have one file: uploading again overwrites it,
+  /// and deleting the class finds it without knowing its URL.
+  Reference classPdfRef(String docId) =>
+      _storage.ref().child("live_class_pdf").child("pdf_$docId");
 
   /// Adds the class with server-stamped `createdAt`/`updatedAt`, so a wrong
   /// clock on the admin's machine cannot skew ordering.
@@ -75,9 +99,36 @@ class LiveClassRepo {
     });
   }
 
-  /// Deletes the class document.
+  /// Deletes the class document, then its notes PDF (if it has one).
+  ///
+  /// The PDF goes only here — deleting the chat leaves it alone. A failure
+  /// to remove the file (most often: the class never had one) is ignored,
+  /// since the class itself is already gone.
   Future<void> deleteLiveClass(String docId) async {
     await _fireStore.collection(liveClasses).doc(docId).delete();
+    try {
+      await classPdfRef(docId).delete();
+    } catch (_) {
+      // No PDF was uploaded, or it is already gone.
+    }
+  }
+
+  /// Uploads [bytes] as class [docId]'s notes PDF, replacing any earlier
+  /// one, and stores its download URL and [fileName] on the class as
+  /// `pdfLink` / `pdfName`. Returns the download URL.
+  ///
+  /// A replaced file gets a new download token, so the URL changes and the
+  /// student app's URL-keyed PDF cache fetches the new file.
+  Future<String> uploadClassPdf(
+      String docId, Uint8List bytes, String fileName) async {
+    final String url = await uploadToStorage(classPdfRef(docId), bytes,
+        contentType: "application/pdf");
+    await _fireStore.collection(liveClasses).doc(docId).update({
+      "pdfLink": url,
+      "pdfName": fileName.trim(),
+      "updatedAt": FieldValue.serverTimestamp(),
+    });
+    return url;
   }
 
   /// Every class, newest-scheduled first. The whole collection is fetched
@@ -113,7 +164,26 @@ class LiveClassRepo {
     return teachers;
   }
 
-  /// Options for the Subject dropdown, read from the `subject` collection.
+  /// Asks for the class's chat to be deleted. The panel has no Firebase Auth,
+  /// so it cannot touch the Realtime Database itself: the
+  /// `deleteLiveClassChat` Cloud Function (b_barna_app/functions) sees this
+  /// stamp, removes `live_rooms/{docId}/messages`, then stamps
+  /// `chatDeletedAt` and clears this field.
+  Future<void> requestChatDelete(String docId) async {
+    await _fireStore.collection(liveClasses).doc(docId).update({
+      "chatDeleteRequestedAt": FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// True for a subject the student app gives live classes to: a full
+  /// course. Compared the way the app does (trimmed, any casing).
+  static bool isFullCourse(String courseType) =>
+      courseType.trim().toLowerCase() ==
+      courseTypeFullCourse.toLowerCase();
+
+  /// Options for the Subject dropdown: the Full Course subjects of the
+  /// `subject` collection, since only those show live classes in the app.
+  /// Filtered in memory so odd casing in `course_type` is still matched.
   /// Sorted case-insensitively; blank / default names are dropped.
   Future<List<LiveClassSubject>> getSubjects() async {
     final QuerySnapshot<Map<String, dynamic>> snapshot =
@@ -122,8 +192,12 @@ class LiveClassRepo {
         .map((doc) => LiveClassSubject(
               code: (doc.data()["subject_code"] ?? "").toString().trim(),
               name: (doc.data()["subject_name"] ?? "").toString().trim(),
+              courseType: (doc.data()["course_type"] ?? "").toString(),
             ))
-        .where((s) => s.name.isNotEmpty && s.name != stringDefault)
+        .where((s) =>
+            s.name.isNotEmpty &&
+            s.name != stringDefault &&
+            isFullCourse(s.courseType))
         .toList();
     subjects
         .sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));

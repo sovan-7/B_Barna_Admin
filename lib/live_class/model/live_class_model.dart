@@ -21,9 +21,45 @@ extension LiveClassStatusLabel on LiveClassStatus {
   }
 }
 
+/// Where a class's chat (Realtime Database `live_rooms/{docId}/messages`)
+/// stands. The admin requests the delete; a Cloud Function carries it out.
+enum LiveClassChatState { none, deleting, deleted }
+
 /// A scheduled live class (`liveClasses` collection), in the field names
 /// the student app reads.
 class LiveClassModel {
+  /// [classType] of a class any student can open, bought or not.
+  static const String liveClassFree = "Free";
+
+  /// [classType] of a class only students who bought the subject can open.
+  /// The student app treats a class saved without a type as this.
+  static const String liveClassPaid = "Paid";
+
+  /// "Free" or "Paid" (`classType`), in the exact casing the student app
+  /// stores and compares.
+  String classType = liveClassPaid;
+
+  /// When the admin asked for the chat to be deleted
+  /// (`chatDeleteRequestedAt`); cleared by the Cloud Function once done.
+  /// Never written through [toMap], so editing a class can't wipe it.
+  DateTime? chatDeleteRequestedAt;
+
+  /// When the Cloud Function deleted the chat (`chatDeletedAt`). Never
+  /// written through [toMap].
+  DateTime? chatDeletedAt;
+
+  /// Download URL of the class's notes PDF (`pdfLink`); "" when none was
+  /// uploaded. A class has at most one: the file always sits at
+  /// `live_class_pdf/pdf_<docId>` in Storage, so uploading again replaces
+  /// it. Set by [LiveClassRepo.uploadClassPdf] only — never written
+  /// through [toMap], so editing the class, or deleting its chat, can't
+  /// wipe it. Deleted with the class.
+  String pdfLink = "";
+
+  /// The PDF's original file name (`pdfName`), shown on the card. Written
+  /// alongside [pdfLink], never through [toMap].
+  String pdfName = "";
+
   /// Firestore document id.
   String docId = stringDefault;
 
@@ -57,13 +93,24 @@ class LiveClassModel {
   /// removed teacher.
   String teacherPhone = "";
 
-  /// The subject's display name, shown on the class card in the app.
-  String subject = "";
+  /// Display names of the subjects this class is for, in the order they
+  /// were ticked (`subjects`). Index-aligned with [subjectCodes]; the
+  /// student app prints the name of the subject being browsed on the card.
+  List<String> subjectNames;
 
-  /// The subject's `subject_code`. Stored under `subjectId` because that is
-  /// the key the app reads, but it holds the code — the join key every other
-  /// collection in this project uses (`subject_code`, `subjectCodeList`).
-  String subjectCode = "";
+  /// The subjects' `subject_code`s, in the same order (`subjectIds`). The
+  /// student app lists a subject's classes by looking its code up here.
+  /// Codes, not document ids: the join key every other collection in this
+  /// project uses (`subject_code`, `subjectCodeList`).
+  List<String> subjectCodes;
+
+  /// The first subject's name, also stored alone under `subject`: app
+  /// versions from before multi-subject classes read only that.
+  String get subject => subjectNames.isEmpty ? "" : subjectNames.first;
+
+  /// The first subject's code, also stored alone under `subjectId` — the
+  /// only subject older app versions list the class under.
+  String get subjectCode => subjectCodes.isEmpty ? "" : subjectCodes.first;
 
   /// When the class starts (`startTime`).
   DateTime startDateTime;
@@ -104,11 +151,17 @@ class LiveClassModel {
     required this.endDateTime,
     this.teacherId = "",
     this.teacherPhone = "",
-    this.subject = "",
-    this.subjectCode = "",
+    this.subjectNames = const [],
+    this.subjectCodes = const [],
+    this.classType = liveClassPaid,
     this.createdAt,
     this.updatedAt,
-  });
+    this.chatDeleteRequestedAt,
+    this.chatDeletedAt,
+    this.pdfLink = "",
+    this.pdfName = "",
+  }) : assert(subjectNames.length == subjectCodes.length,
+            "subjectNames and subjectCodes are index-aligned");
 
   /// The caller-editable fields only (`createdAt` / `updatedAt` are set by
   /// [LiveClassRepo] from the server clock), in the field names the student
@@ -120,17 +173,26 @@ class LiveClassModel {
   ///
   /// The panel adapts to the app (not the other way round) because the
   /// panel updates everywhere at once, while an app change only reaches
-  /// users who update.
+  /// users who update. That is also why every subject goes under
+  /// `subjects`/`subjectIds` while the first one is repeated under
+  /// `subject`/`subjectId`: an app that predates multi-subject classes still
+  /// lists the class under that first subject.
+  ///
+  /// The chat stamps and the PDF fields ([pdfLink], [pdfName]) are left out
+  /// on purpose: `update()` merges, so a save never touches them.
   Map<String, dynamic> toMap() {
     return {
       "title": title.trim(),
       "subtitle": description.trim(),
       "subject": subject.trim(),
       "subjectId": subjectCode.trim(),
+      "subjects": [for (final String name in subjectNames) name.trim()],
+      "subjectIds": [for (final String code in subjectCodes) code.trim()],
       "teacherName": teacherName.trim(),
       "teacherId": teacherId.trim(),
       "teacherPhone": teacherPhone.trim(),
       "youtubeVideoLink": youtubeLink.trim(),
+      "classType": classType,
       "startTime": startDateTime.millisecondsSinceEpoch,
       "endTime": endDateTime.millisecondsSinceEpoch,
     };
@@ -152,8 +214,18 @@ class LiveClassModel {
         teacherName = doc.data()?["teacherName"] ?? stringDefault,
         teacherId = doc.data()?["teacherId"] ?? "",
         teacherPhone = doc.data()?["teacherPhone"] ?? "",
-        subject = doc.data()?["subject"] ?? "",
-        subjectCode = doc.data()?["subjectId"] ?? "",
+        subjectNames = [
+          for (final (String, String) s in subjectsOf(doc.data())) s.$2
+        ],
+        subjectCodes = [
+          for (final (String, String) s in subjectsOf(doc.data())) s.$1
+        ],
+        classType = normalizeClassType(doc.data()?["classType"]),
+        chatDeleteRequestedAt =
+            _toDateTime(doc.data()?["chatDeleteRequestedAt"]),
+        chatDeletedAt = _toDateTime(doc.data()?["chatDeletedAt"]),
+        pdfLink = (doc.data()?["pdfLink"] ?? "").toString().trim(),
+        pdfName = (doc.data()?["pdfName"] ?? "").toString().trim(),
         startDateTime = _toDateTime(doc.data()?["startTime"]) ??
             _toDateTime(doc.data()?["startDateTime"]) ??
             DateTime.fromMillisecondsSinceEpoch(0),
@@ -163,6 +235,56 @@ class LiveClassModel {
         createdAt = _toDateTime(doc.data()?["createdAt"]),
         updatedAt = _toDateTime(doc.data()?["updatedAt"]),
         needsAppSync = doc.data()?["startTime"] == null;
+
+  /// "Free" for anything the app would read as free (it compares
+  /// case-insensitively); "Paid" for everything else, missing included —
+  /// the app's own default.
+  static String normalizeClassType(dynamic value) =>
+      value?.toString().trim().toLowerCase() == "free"
+          ? liveClassFree
+          : liveClassPaid;
+
+  /// True for a Free class.
+  bool get isFree => classType == liveClassFree;
+
+  /// True once a notes PDF has been uploaded for this class.
+  bool get hasPdf => pdfLink.trim().isNotEmpty && pdfLink != stringDefault;
+
+  /// The stored subjects as (code, name) pairs, in order.
+  ///
+  /// Reads the `subjectIds`/`subjects` lists; a class saved before those
+  /// existed has only `subjectId`/`subject`, read as a one-subject list.
+  /// Entries blank in both code and name are dropped, and a missing name
+  /// reads as "", so the two lists always come back the same length.
+  static List<(String, String)> subjectsOf(Map<String, dynamic>? data) {
+    String text(Object? value) => value?.toString().trim() ?? "";
+    final Object? codes = data?["subjectIds"];
+    final Object? names = data?["subjects"];
+    if (codes is List && codes.isNotEmpty) {
+      final List<Object?> nameList = names is List ? names : const [];
+      return [
+        for (int i = 0; i < codes.length; i++)
+          (text(codes[i]), i < nameList.length ? text(nameList[i]) : ""),
+      ].where((s) => s.$1.isNotEmpty || s.$2.isNotEmpty).toList();
+    }
+    final String code = text(data?["subjectId"]);
+    final String name = text(data?["subject"]);
+    if (code.isEmpty && name.isEmpty) return [];
+    return [(code, name)];
+  }
+
+  /// Deleted once the function stamped [chatDeletedAt] — unless a newer
+  /// request is still pending, which wins.
+  LiveClassChatState get chatState {
+    final DateTime? requested = chatDeleteRequestedAt;
+    final DateTime? deleted = chatDeletedAt;
+    if (requested != null &&
+        (deleted == null || requested.isAfter(deleted))) {
+      return LiveClassChatState.deleting;
+    }
+    if (deleted != null) return LiveClassChatState.deleted;
+    return LiveClassChatState.none;
+  }
 
   /// Tolerates the three shapes a date can arrive in: a Firestore
   /// [Timestamp] (what we write), an int of millis (what a hand-edited or

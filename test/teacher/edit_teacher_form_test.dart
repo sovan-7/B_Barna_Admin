@@ -88,6 +88,8 @@ void main() {
     repo = MockTeacherRepo();
     viewModel = TeacherViewModel(teacherRepo: repo);
     when(() => repo.updateTeacher(any())).thenAnswer((_) async {});
+    when(() => repo.syncLiveClassTeacherPhone(any(), any()))
+        .thenAnswer((_) async => 0);
   });
 
   testWidgets('prefills name and username from the given teacher',

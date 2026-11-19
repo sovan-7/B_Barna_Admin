@@ -17,8 +17,8 @@ void main() {
   LiveClassModel model({
     DateTime? start,
     DateTime? end,
-    String subject = "Mechanics",
-    String subjectCode = "MECH",
+    List<String> subjectNames = const ["Mechanics"],
+    List<String> subjectCodes = const ["MECH"],
     String teacherId = "ravi",
     String teacherPhone = "9876543210",
   }) =>
@@ -30,8 +30,8 @@ void main() {
         teacherName: "  Ravi Kumar  ",
         teacherId: teacherId,
         teacherPhone: teacherPhone,
-        subject: subject,
-        subjectCode: subjectCode,
+        subjectNames: subjectNames,
+        subjectCodes: subjectCodes,
         startDateTime: start ?? DateTime(2026, 4, 2, 18, 0),
         endDateTime: end ?? DateTime(2026, 4, 2, 19, 30),
       );
@@ -45,10 +45,13 @@ void main() {
           'subtitle',
           'subject',
           'subjectId',
+          'subjects',
+          'subjectIds',
           'teacherName',
           'teacherId',
           'teacherPhone',
           'youtubeVideoLink',
+          'classType',
           'startTime',
           'endTime',
         },
@@ -82,13 +85,67 @@ void main() {
     });
 
     test('the subject code lands under subjectId', () {
-      final Map<String, dynamic> map =
-          model(subject: "Organic Chemistry", subjectCode: "ORG").toMap();
+      final Map<String, dynamic> map = model(
+          subjectNames: const ["Organic Chemistry"],
+          subjectCodes: const ["ORG"]).toMap();
 
       expect(map['subject'], 'Organic Chemistry');
       // Named `subjectId` because that is what the app reads, but it holds
       // the code — the join key the rest of the project uses.
       expect(map['subjectId'], 'ORG');
+      expect(map['subjects'], ['Organic Chemistry']);
+      expect(map['subjectIds'], ['ORG']);
+    });
+
+    test('every subject goes in the lists; the first also stands alone', () {
+      final Map<String, dynamic> map = model(
+        subjectNames: const ["Mathematics", " Physics ", "WBCS Foundation"],
+        subjectCodes: const ["MATH", "PHY ", "WBCS"],
+      ).toMap();
+
+      // The new app lists the class under each of these codes.
+      expect(map['subjectIds'], ['MATH', 'PHY', 'WBCS']);
+      expect(map['subjects'], ['Mathematics', 'Physics', 'WBCS Foundation']);
+      // An app from before multi-subject classes reads only these, and so
+      // still lists the class under the first subject.
+      expect(map['subjectId'], 'MATH');
+      expect(map['subject'], 'Mathematics');
+    });
+  });
+
+  group('reading the subjects back', () {
+    test('the lists, in order', () {
+      expect(
+        LiveClassModel.subjectsOf({
+          'subjectIds': ['MATH', 'PHY'],
+          'subjects': ['Mathematics', 'Physics'],
+          'subjectId': 'MATH',
+          'subject': 'Mathematics',
+        }),
+        [('MATH', 'Mathematics'), ('PHY', 'Physics')],
+      );
+    });
+
+    test('a class saved before the lists reads as one subject', () {
+      expect(
+        LiveClassModel.subjectsOf(
+            {'subjectId': 'MECH', 'subject': 'Mechanics'}),
+        [('MECH', 'Mechanics')],
+      );
+      expect(LiveClassModel.subjectsOf({'subject': 'Mechanics'}),
+          [('', 'Mechanics')]);
+      expect(LiveClassModel.subjectsOf({}), isEmpty);
+      expect(LiveClassModel.subjectsOf(null), isEmpty);
+    });
+
+    test('a short names list pads with "", blank entries are dropped', () {
+      expect(
+        LiveClassModel.subjectsOf({
+          'subjectIds': ['MATH', '', 'PHY'],
+          'subjects': ['Mathematics'],
+        }),
+        [('MATH', 'Mathematics'), ('PHY', '')],
+      );
     });
 
     test('an unresolved teacher writes an empty id, never a stale one', () {

@@ -26,6 +26,8 @@ void main() {
   setUp(() {
     repo = MockTeacherRepo();
     viewModel = TeacherViewModel(teacherRepo: repo);
+    when(() => repo.syncLiveClassTeacherPhone(any(), any()))
+        .thenAnswer((_) async => 0);
   });
 
   // addTeacher's success path never touches Helper.showSnackBarMessage or
@@ -394,6 +396,38 @@ void main() {
 
       expect(result, isTrue);
     });
+
+    test('copies the saved phone number onto the teacher\'s live classes',
+        () async {
+      when(() => repo.updateTeacher(any())).thenAnswer((_) async {});
+
+      await viewModel.updateTeacher(
+        original: original,
+        name: 'Jane Doe',
+        phoneNumber: '9123456780',
+        moduleAccess: const ['COURSES'],
+        role: roleSubadmin,
+      );
+
+      verify(() => repo.syncLiveClassTeacherPhone('jane_doe', '9123456780'))
+          .called(1);
+    });
+
+    test('syncs classes even when the number is unchanged (repairs old ones)',
+        () async {
+      when(() => repo.updateTeacher(any())).thenAnswer((_) async {});
+
+      await viewModel.updateTeacher(
+        original: original,
+        name: 'Jane Doe',
+        phoneNumber: '9876543210',
+        moduleAccess: const ['COURSES'],
+        role: roleSubadmin,
+      );
+
+      verify(() => repo.syncLiveClassTeacherPhone('jane_doe', '9876543210'))
+          .called(1);
+    });
   });
 
   // Failure paths call Helper.showSnackBarMessage, which needs a real
@@ -454,6 +488,29 @@ void main() {
       );
 
       expect(result, isFalse);
+    });
+
+    testWidgets('still returns true when only the class sync fails',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        navigatorKey: navigatorKey,
+        home: const Scaffold(body: SizedBox()),
+      ));
+
+      when(() => repo.updateTeacher(any())).thenAnswer((_) async {});
+      when(() => repo.syncLiveClassTeacherPhone(any(), any()))
+          .thenThrow(Exception('firestore failure'));
+
+      final result = await viewModel.updateTeacher(
+        original: original,
+        name: 'Jane Doe',
+        phoneNumber: '9123456780',
+        moduleAccess: const ['COURSES'],
+        role: roleSubadmin,
+      );
+
+      expect(result, isTrue);
+      verify(() => repo.updateTeacher(any())).called(1);
     });
   });
 
