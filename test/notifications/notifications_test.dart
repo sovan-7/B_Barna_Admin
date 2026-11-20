@@ -1,8 +1,7 @@
-import 'dart:typed_data';
-
 import 'package:bbarna/banners/model/banners_model.dart';
 import 'package:bbarna/banners/repo/banners_repo.dart';
 import 'package:bbarna/banners/viewModel/banners_view_model.dart';
+import 'package:bbarna/core/widgets/app_toast.dart';
 import 'package:bbarna/notifications/model/notification_model.dart';
 import 'package:bbarna/notifications/repo/notifications_repo.dart';
 import 'package:bbarna/notifications/screen/notification_list.dart';
@@ -12,6 +11,7 @@ import 'package:bbarna/notifications/widgets/notification_card.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
@@ -129,6 +129,19 @@ void main() {
       expect(model.toMap()['image_url'], isNull);
       expect(model.toMap()['status'], 'pending');
     });
+
+    test('copies the title and the whole text, links included', () {
+      const model = NotificationModel(
+          title: 'Live class',
+          body: 'Join at 7 pm.\nhttps://meet.example.com/abc-defg-hij');
+      expect(model.copyText,
+          'Live class\nJoin at 7 pm.\nhttps://meet.example.com/abc-defg-hij');
+    });
+
+    test('with no text, copies just the title', () {
+      const model = NotificationModel(title: 'Holiday', body: '');
+      expect(model.copyText, 'Holiday');
+    });
   });
 
   group('sendNotification', () {
@@ -207,6 +220,39 @@ void main() {
       await pump(tester, const Scaffold(body: NotificationList()));
 
       expect(find.text("Couldn't load notifications"), findsOneWidget);
+    });
+
+    testWidgets('the copy button puts the title and text on the clipboard',
+        (tester) async {
+      // A toast left over from an earlier test still points at that test's
+      // overlay; clear it so this one shows in this test's window.
+      AppToast.dismissAll();
+      addTearDown(AppToast.dismissAll);
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (MethodCall call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(() => tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null));
+
+      await pump(tester, const Scaffold(body: NotificationList()));
+      expect(find.byKey(const Key('notification_copy')), findsNWidgets(3));
+
+      await tester.tap(find.byKey(const Key('notification_copy')).first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(copied, 'Holiday notice\nBody of Holiday notice');
+      expect(find.text('Copied to clipboard'), findsOneWidget);
+      // Let the toast run out so no timer is left pending.
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 1));
     });
   });
 

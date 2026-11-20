@@ -1,11 +1,15 @@
 import 'package:bbarna/core/widgets/card/card_chips.dart';
+import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/notifications/model/notification_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
+import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 /// One row of the notification history: picture (if any), title, text,
-/// when it was sent and whether it went out.
+/// when it was sent and whether it went out. The title and text can be
+/// selected, and the copy button copies both in full.
 class NotificationCard extends StatelessWidget {
   /// The notification shown.
   final NotificationModel notification;
@@ -35,15 +39,44 @@ class NotificationCard extends StatelessWidget {
           _thumbnail(),
           const SizedBox(width: AppTokens.gapMd),
           Expanded(child: _texts()),
-          IconButton(
-            tooltip: "Remove from history",
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline,
-                size: 19, color: AppTokens.inkMuted),
-          ),
+          _actions(context),
         ],
       ),
     );
+  }
+
+  /// Copy and Remove: side by side, or stacked on a phone, where side by
+  /// side leaves the text too narrow for the status chip.
+  Widget _actions(BuildContext context) {
+    final bool narrow = MediaQuery.sizeOf(context).width < 600;
+    final VisualDensity density =
+        narrow ? VisualDensity.compact : VisualDensity.standard;
+    final List<Widget> buttons = [
+      IconButton(
+        key: const Key('notification_copy'),
+        tooltip: "Copy title and text",
+        visualDensity: density,
+        onPressed: _copy,
+        icon: const Icon(Icons.content_copy_outlined,
+            size: 18, color: AppTokens.inkMuted),
+      ),
+      IconButton(
+        tooltip: "Remove from history",
+        visualDensity: density,
+        onPressed: onDelete,
+        icon: const Icon(Icons.delete_outline,
+            size: 19, color: AppTokens.inkMuted),
+      ),
+    ];
+    return narrow
+        ? Column(mainAxisSize: MainAxisSize.min, children: buttons)
+        : Row(mainAxisSize: MainAxisSize.min, children: buttons);
+  }
+
+  /// Puts the title and the whole text (links included) on the clipboard.
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: notification.copyText));
+    Helper.showSnackBarMessage(msg: "Copied to clipboard", isSuccess: true);
   }
 
   /// The picture, or a megaphone for a text-only notification.
@@ -75,19 +108,16 @@ class NotificationCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        SelectableLabel(
           notification.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
               fontSize: 14, fontWeight: FontWeight.w600, color: AppTokens.ink),
         ),
         if (notification.body.isNotEmpty) ...[
           const SizedBox(height: 3),
-          Text(
+          SelectableLabel(
             notification.body,
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
                 fontSize: 12.5, height: 1.35, color: AppTokens.inkMuted),
           ),

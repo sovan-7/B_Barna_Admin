@@ -72,6 +72,11 @@ class NotificationModel {
   /// Whether a picture goes with it.
   bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
 
+  /// What the list's copy button puts on the clipboard: the title, then the
+  /// whole text on the next line (links typed into it included), even though
+  /// the row cuts the text off after two lines.
+  String get copyText => body.isEmpty ? title : "$title\n$body";
+
   /// The document the panel writes. `created_at` is set by the repo (it
   /// needs the server's clock).
   Map<String, dynamic> toMap() {
