@@ -340,6 +340,26 @@ void main() {
       expect(find.byKey(const Key('paged_list_load_more')), findsOneWidget);
     });
 
+    testWidgets('loads 300 at a time, first page and Load more',
+        (tester) async {
+      when(() => repo.getQuestionListLength()).thenAnswer((_) async => 640);
+      when(() => repo.getNextQuestionList(any()))
+          .thenAnswer((_) async => [_question('d', 'PHY-004')]);
+      final vm = QuestionViewModel(questionRepo: repo);
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: QuestionList()), vm);
+
+      verify(() => repo.getFirstQuestionList(300)).called(1);
+      expect(find.text('Load 300 more'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('paged_list_load_more')));
+      await tester.pump();
+      await tester.pump();
+
+      verify(() => repo.getNextQuestionList(300)).called(1);
+      expect(find.text('Showing 4 of 640'), findsOneWidget);
+    });
+
     testWidgets('search runs server-side, uppercased', (tester) async {
       when(() => repo.searchQuestion(any()))
           .thenAnswer((_) async => [_fixture().first]);

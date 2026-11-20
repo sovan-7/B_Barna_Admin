@@ -37,7 +37,7 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
   int studentListLength = 0;
 
   /// Students fetched per page.
-  final int limit = 50;
+  final int limit = 300;
 
   /// True while the first page is loading (drives the skeleton rows).
   bool isLoading = true;

@@ -23,6 +23,10 @@ class QuestionViewModel extends PagedListViewModel<Question> {
   @override
   String get itemsLabel => "questions";
 
+  /// 300 per page, rather than the base class's 50.
+  @override
+  int get limit => QuestionRepo.pageSize;
+
   @override
   Future<List<Question>> fetchFirstPage(int limit) =>
       _questionRepo.getFirstQuestionList(limit);

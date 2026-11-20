@@ -33,8 +33,8 @@ abstract class PagedListViewModel<T> extends ChangeNotifier with SafeNotifier {
   /// "showing 50 of 320" rather than just "50".
   int totalCount = 0;
 
-  /// Rows fetched per page.
-  final int limit = 50;
+  /// Rows fetched per page. A subclass may override it (Question loads 300).
+  int get limit => 50;
 
   /// True while the first page (or a search) is in flight — drives the
   /// skeleton rows.

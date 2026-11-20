@@ -17,6 +17,9 @@ class QuestionRepo {
   /// Newest-first paging with the cursor kept here, not in the view model.
   late final FirestorePager _pager = FirestorePager(_collection);
 
+  /// Questions per page, and the most one code search returns.
+  static const int pageSize = 300;
+
   /// Converts raw documents into models.
   List<Question> _toModels(List<FirestoreDoc> docs) =>
       docs.map((doc) => Question.fromDocumentSnapshot(doc)).toList();
@@ -97,7 +100,9 @@ class QuestionRepo {
   /// Total questions in the collection.
   Future<int> getQuestionListLength() => countDocuments(_collection);
 
-  /// Questions whose `question_code` starts with [searchText].
+  /// Questions whose `question_code` starts with [searchText] (at most
+  /// [pageSize], the same as a page of the list).
   Future<List<Question>> searchQuestion(String searchText) async =>
-      _toModels(await prefixSearch(_collection, "question_code", searchText));
+      _toModels(await prefixSearch(_collection, "question_code", searchText,
+          limit: pageSize));
 }

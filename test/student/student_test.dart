@@ -151,6 +151,29 @@ void main() {
       expect(find.byKey(const Key('paged_list_load_more')), findsOneWidget);
     });
 
+    testWidgets('loads 300 at a time, first page and Load more',
+        (tester) async {
+      when(() => repo.getFirstStudentList(any(), sort: any(named: 'sort')))
+          .thenAnswer((_) async => _fixture());
+      when(() => repo.getStudentListLength()).thenAnswer((_) async => 4200);
+      when(() => repo.getNextStudentList(any())).thenAnswer(
+          (_) async => [_student('d', 'Zara Khan', phone: "9000000004")]);
+      final vm = StudentViewModel(studentRepo: repo);
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: StudentList()), vm);
+
+      verify(() => repo.getFirstStudentList(300, sort: StudentSort.name))
+          .called(1);
+      expect(find.text('Load 300 more'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('paged_list_load_more')));
+      await tester.pump();
+      await tester.pump();
+
+      verify(() => repo.getNextStudentList(300)).called(1);
+      expect(find.text('Showing 4 of 4200'), findsOneWidget);
+    });
+
     testWidgets('search filters by name, phone or email', (tester) async {
       final vm = StudentViewModel(studentRepo: repo);
       await _pump(tester, const Size(1440, 900),
