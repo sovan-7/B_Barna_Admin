@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:bbarna/core/repo/firestore_pager.dart';
@@ -15,7 +16,20 @@ import 'package:firebase_storage/firebase_storage.dart';
 /// Storage path it sits at.
 typedef Topic1UploadedPdf = ({String url, String path});
 
-/// Firestore / Storage access for the `topic1` collection: the topics
+/// The ids in [sourceIds] (documents in `topic1`) that are not in
+/// [existingIds] (documents already in `topics`), in source order: what
+/// [Topic1Repo.copyFromTopic1] writes. A document already in `topics` is
+/// never overwritten, so running the copy again copies nothing new and
+/// keeps any edits made in `topics` since.
+List<String> topic1IdsToCopy(
+        Iterable<String> sourceIds, Set<String> existingIds) =>
+    [
+      for (final String id in sourceIds)
+        if (!existingIds.contains(id)) id,
+    ];
+
+/// Firestore / Storage access for the `topics` collection (written by the
+/// Topic1 module; it used to be `topic1`, see [copyFromTopic1]): the topics
 /// themselves, the subject/unit lookups the form's dropdowns need, the
 /// audio/quiz codes, and the PDFs and videos stored on each topic.
 /// Firestore and Storage are injectable for tests.
@@ -40,9 +54,9 @@ class Topic1Repo {
   /// Storage client, looked up only when a PDF is uploaded or deleted.
   FirebaseStorage get _storage => _storageOverride ?? FirebaseStorage.instance;
 
-  /// The `topic1` collection.
+  /// The `topics` collection.
   CollectionReference<Map<String, dynamic>> get _collection =>
-      _fireStore.collection(topic1);
+      _fireStore.collection(topics);
 
   /// Newest-first paging with the cursor kept here, not in the view model.
   late final FirestorePager _pager = FirestorePager(_collection);
@@ -169,4 +183,41 @@ class Topic1Repo {
   /// Topic1 documents whose `topic_code` starts with [searchText].
   Future<List<Topic1Model>> searchTopic(String searchText) async =>
       _toModels(await prefixSearch(_collection, "topic_code", searchText));
+
+  /// Most writes one copy batch commits (Firestore allows 500).
+  static const int copyBatchSize = 450;
+
+  /// Copies every document of the old `topic1` collection that `topics`
+  /// does not have yet into `topics`, under the same document id and with
+  /// the same fields, and returns how many were copied. `topic1` itself is
+  /// left as it is.
+  ///
+  /// Keeping the id keeps each topic's uploaded PDFs
+  /// (`topic1_pdf/<docId>/…`) lined up with its document. Documents already
+  /// in `topics` are skipped (see [topic1IdsToCopy]). Each batch of
+  /// [copyBatchSize] lands whole or not at all; if one fails, the ones
+  /// before it stay copied and the error is rethrown, and running the copy
+  /// again picks up the rest.
+  Future<int> copyFromTopic1() async {
+    final QuerySnapshot<Map<String, dynamic>> source =
+        await _fireStore.collection(topic1).get();
+    final QuerySnapshot<Map<String, dynamic>> existing =
+        await _collection.get();
+    final Map<String, Map<String, dynamic>> dataById = {
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in source.docs)
+        doc.id: doc.data(),
+    };
+    final List<String> ids = topic1IdsToCopy(
+        dataById.keys, {for (final doc in existing.docs) doc.id});
+
+    for (int start = 0; start < ids.length; start += copyBatchSize) {
+      final WriteBatch batch = _fireStore.batch();
+      for (final String id
+          in ids.sublist(start, min(start + copyBatchSize, ids.length))) {
+        batch.set(_collection.doc(id), dataById[id]!);
+      }
+      await batch.commit();
+    }
+    return ids.length;
+  }
 }

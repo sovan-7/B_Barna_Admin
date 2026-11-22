@@ -53,9 +53,14 @@ const String unit = "unit";
 /// `topic` collection.
 const String topic = "topic";
 
-/// `topic1` collection: topics whose PDFs are uploaded and whose videos are
-/// YouTube links, both stored on the topic itself rather than attached by
-/// code (see `Topic1Model`).
+/// `topics` collection, written by the Topic1 module: topics whose PDFs are
+/// uploaded and whose videos are YouTube links, both stored on the topic
+/// itself rather than attached by code (see `Topic1Model`).
+const String topics = "topics";
+
+/// `topic1` collection: where the Topic1 module kept its topics before they
+/// moved to [topics]. Kept in the database as a backup and read only by the
+/// one-time copy into [topics] (`Topic1Repo.copyFromTopic1`).
 const String topic1 = "topic1";
 
 /// `video` collection.

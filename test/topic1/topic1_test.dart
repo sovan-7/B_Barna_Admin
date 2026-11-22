@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/course/repo/course_repo.dart';
 import 'package:bbarna/course/viewModel/course_view_model.dart';
+import 'package:bbarna/core/widgets/app_toast.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/topic/model/topic_model.dart';
@@ -39,6 +40,28 @@ class MockCollectionReference extends Mock
 
 class MockDocumentReference extends Mock
     implements DocumentReference<Map<String, dynamic>> {}
+
+class MockQuerySnapshot extends Mock
+    implements QuerySnapshot<Map<String, dynamic>> {}
+
+class MockQueryDocumentSnapshot extends Mock
+    implements QueryDocumentSnapshot<Map<String, dynamic>> {}
+
+class MockWriteBatch extends Mock implements WriteBatch {}
+
+/// A query result holding a document per entry of [docs] (`id -> data`).
+MockQuerySnapshot _snapshot(Map<String, Map<String, dynamic>> docs) {
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> results = [];
+  docs.forEach((String id, Map<String, dynamic> data) {
+    final MockQueryDocumentSnapshot doc = MockQueryDocumentSnapshot();
+    when(() => doc.id).thenReturn(id);
+    when(() => doc.data()).thenReturn(data);
+    results.add(doc);
+  });
+  final MockQuerySnapshot snapshot = MockQuerySnapshot();
+  when(() => snapshot.docs).thenReturn(results);
+  return snapshot;
+}
 
 final Uint8List _bytes = Uint8List.fromList([37, 80, 68, 70]); // %PDF
 
@@ -262,7 +285,7 @@ void main() {
       final MockFirebaseFirestore firestore = MockFirebaseFirestore();
       final MockCollectionReference collection = MockCollectionReference();
       doc = MockDocumentReference();
-      when(() => firestore.collection(topic1)).thenReturn(collection);
+      when(() => firestore.collection(topics)).thenReturn(collection);
       when(() => collection.doc('a')).thenReturn(doc);
       when(() => doc.update(any())).thenAnswer((_) async {});
       topic1Repo = Topic1Repo(firestore: firestore, storage: storage);
@@ -305,6 +328,144 @@ void main() {
       expect(writes[1], {
         'video_list': [_video('v1').toMap()]
       });
+    });
+  });
+
+  group('copying from topic1', () {
+    test('only the topics not already in topics are picked, in order', () {
+      expect(topic1IdsToCopy(['a', 'b', 'c'], {'b'}), ['a', 'c']);
+      expect(topic1IdsToCopy(['a', 'b'], {}), ['a', 'b']);
+      expect(topic1IdsToCopy(['a', 'b'], {'a', 'b', 'z'}), isEmpty);
+    });
+
+    group('the repo', () {
+      late MockFirebaseFirestore firestore;
+      late MockCollectionReference target;
+      late MockWriteBatch batch;
+      late Topic1Repo topic1Repo;
+      final Map<String, MockDocumentReference> targetDocs = {};
+
+      setUp(() {
+        registerFallbackValue(<String, dynamic>{});
+        registerFallbackValue(MockDocumentReference());
+        firestore = MockFirebaseFirestore();
+        final MockCollectionReference source = MockCollectionReference();
+        target = MockCollectionReference();
+        batch = MockWriteBatch();
+        targetDocs.clear();
+        when(() => firestore.collection(topic1)).thenReturn(source);
+        when(() => firestore.collection(topics)).thenReturn(target);
+        when(() => firestore.batch()).thenReturn(batch);
+        when(() => batch.commit()).thenAnswer((_) async {});
+        when(() => target.doc(any())).thenAnswer((invocation) =>
+            targetDocs.putIfAbsent(
+                invocation.positionalArguments.first as String,
+                MockDocumentReference.new));
+        final MockQuerySnapshot sourceSnapshot = _snapshot({
+          'a': {'topic_code': 'NEWT-01', 'pdf_list': []},
+          'b': {'topic_code': 'NEWT-02'},
+          'c': {'topic_code': 'NEWT-03', 'video_list': []},
+        });
+        when(() => source.get()).thenAnswer((_) async => sourceSnapshot);
+        topic1Repo = Topic1Repo(firestore: firestore);
+      });
+
+      test('copies the missing topics under the same id with the same fields',
+          () async {
+        final MockQuerySnapshot targetSnapshot = _snapshot({
+          'b': {'topic_code': 'NEWT-02', 'topic_name': 'Edited in topics'},
+        });
+        when(() => target.get()).thenAnswer((_) async => targetSnapshot);
+
+        expect(await topic1Repo.copyFromTopic1(), 2);
+
+        verify(() => batch.set<Map<String, dynamic>>(
+                targetDocs['a']!, {'topic_code': 'NEWT-01', 'pdf_list': []}))
+            .called(1);
+        verify(() => batch.set<Map<String, dynamic>>(
+                targetDocs['c']!, {'topic_code': 'NEWT-03', 'video_list': []}))
+            .called(1);
+        expect(targetDocs.keys, isNot(contains('b')),
+            reason: 'a topic already in topics must not be overwritten');
+        verify(() => batch.commit()).called(1);
+      });
+
+      test('writes nothing when every topic is already there', () async {
+        final MockQuerySnapshot targetSnapshot = _snapshot({
+          'a': {},
+          'b': {},
+          'c': {},
+        });
+        when(() => target.get()).thenAnswer((_) async => targetSnapshot);
+
+        expect(await topic1Repo.copyFromTopic1(), 0);
+        verifyNever(() => firestore.batch());
+      });
+    });
+
+    test('the view model reloads the list after copying', () async {
+      when(() => repo.copyFromTopic1()).thenAnswer((_) async => 2);
+      final Topic1ViewModel vm = Topic1ViewModel(topic1Repo: repo);
+
+      final Future<int?> copying = vm.copyFromTopic1();
+      expect(vm.copying, isTrue);
+      expect(await copying, 2);
+      expect(vm.copying, isFalse);
+      verify(() => repo.getFirstTopicList(any())).called(1);
+    });
+
+    test('the view model skips the reload when nothing was copied', () async {
+      when(() => repo.copyFromTopic1()).thenAnswer((_) async => 0);
+      final Topic1ViewModel vm = Topic1ViewModel(topic1Repo: repo);
+
+      expect(await vm.copyFromTopic1(), 0);
+      verifyNever(() => repo.getFirstTopicList(any()));
+    });
+
+    testWidgets('a failed copy reports null and stops copying', (tester) async {
+      await _pumpShell(tester);
+      when(() => repo.copyFromTopic1()).thenThrow(Exception('denied'));
+      final Topic1ViewModel vm = Topic1ViewModel(topic1Repo: repo);
+
+      expect(await vm.copyFromTopic1(), isNull);
+      expect(vm.copying, isFalse);
+      expect(AppToast.messages,
+          contains('Error while copying topics from topic1'));
+      AppToast.dismissAll();
+    });
+
+    testWidgets('the list button asks first, then copies and says how many',
+        (tester) async {
+      when(() => repo.copyFromTopic1()).thenAnswer((_) async => 2);
+      final vm = Topic1ViewModel(topic1Repo: repo);
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: Topic1List()), vm);
+
+      await tester.tap(find.byKey(const Key('topic1_copy_button')));
+      await tester.pumpAndSettle();
+      expect(find.text('Copy topics from topic1?'), findsOneWidget);
+      verifyNever(() => repo.copyFromTopic1());
+
+      await tester.tap(find.byKey(const Key('topic1_copy_confirm')));
+      await tester.pump();
+      await tester.pump();
+
+      verify(() => repo.copyFromTopic1()).called(1);
+      expect(AppToast.messages, contains('Copied 2 topics from topic1'));
+      AppToast.dismissAll();
+    });
+
+    testWidgets('cancelling the dialog copies nothing', (tester) async {
+      final vm = Topic1ViewModel(topic1Repo: repo);
+      await _pump(
+          tester, const Size(380, 820), const Scaffold(body: Topic1List()), vm);
+
+      await tester.tap(find.byKey(const Key('topic1_copy_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      verifyNever(() => repo.copyFromTopic1());
     });
   });
 
@@ -557,7 +718,7 @@ void main() {
       verifyNever(() => repo.addTopic(any()));
     });
 
-    testWidgets('editing saves the topic fields to topic1', (tester) async {
+    testWidgets('editing saves the topic fields', (tester) async {
       when(() => repo.updateTopic(any(), any())).thenAnswer((_) async {});
       final vm = Topic1ViewModel(topic1Repo: repo);
       await _pump(tester, const Size(1024, 900),
