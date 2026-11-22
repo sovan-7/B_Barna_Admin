@@ -22,6 +22,13 @@ const List<LiveClassTeacher> _teachers = [
   LiveClassTeacher(id: 'asha', name: 'Asha Das', phoneNumber: '9000000001'),
 ];
 
+/// 10:00 tomorrow. A fixed time of day: "now + 1 day" run after 23:00 gives a
+/// class that ends past midnight, which the form refuses to save.
+DateTime _tomorrowAt10() {
+  final DateTime now = DateTime.now();
+  return DateTime(now.year, now.month, now.day + 1, 10);
+}
+
 LiveClassModel _class(
         {required String teacherId, required String teacherPhone}) =>
     LiveClassModel(
@@ -34,8 +41,8 @@ LiveClassModel _class(
       teacherPhone: teacherPhone,
       subjectNames: const ['Mechanics'],
       subjectCodes: const ['MECH'],
-      startDateTime: DateTime.now().add(const Duration(days: 1)),
-      endDateTime: DateTime.now().add(const Duration(days: 1, hours: 1)),
+      startDateTime: _tomorrowAt10(),
+      endDateTime: _tomorrowAt10().add(const Duration(hours: 1)),
     );
 
 Future<void> _pumpEdit(WidgetTester tester, LiveClassModel liveClass,
