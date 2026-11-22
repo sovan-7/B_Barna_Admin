@@ -1,0 +1,210 @@
+import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/form_page_body.dart';
+import 'package:bbarna/resources/app_tokens.dart';
+import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/topic/model/topic_model.dart';
+import 'package:bbarna/topic/widgets/topic_content_section.dart';
+import 'package:bbarna/topic1/model/topic1_model.dart';
+import 'package:bbarna/topic1/viewModel/topic1_view_model.dart';
+import 'package:bbarna/topic1/widgets/topic1_pdf_section.dart';
+import 'package:bbarna/topic1/widgets/topic1_video_section.dart';
+import 'package:bbarna/utils/helper.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+/// Everything on one Topic1: uploaded PDFs ([Topic1PdfSection]), YouTube
+/// videos ([Topic1VideoSection]), and audio and quizzes attached by code
+/// exactly as on a topic ([TopicContentSection]). Each list saves on its
+/// own.
+class Topic1Details extends StatefulWidget {
+  /// The topic whose content is managed.
+  final Topic1Model topicData;
+
+  /// Picks a PDF file; replaceable so tests need no real file picker.
+  final Future<PickedPdf?> Function() pickFile;
+
+  const Topic1Details(
+      {required this.topicData, this.pickFile = pickPdfFile, super.key});
+
+  @override
+  State<Topic1Details> createState() => _Topic1DetailsState();
+}
+
+class _Topic1DetailsState extends State<Topic1Details> {
+  /// `code -> title` per code kind (audio, quiz), so each row can say what
+  /// it points at. Absent means "still loading".
+  final Map<ContentKind, Map<String, String>> _titles = {};
+
+  /// Code kinds whose lookup failed: their rows say the code couldn't be
+  /// checked, rather than that it points at nothing.
+  final Set<ContentKind> _checkFailed = {};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _resolveAll());
+  }
+
+  /// Looks up titles for the audio and quiz codes (both at once).
+  Future<void> _resolveAll() async {
+    await Future.wait([
+      for (final ContentKind kind in Topic1Model.codeKinds)
+        _resolve(kind, widget.topicData.contentCodes(kind)),
+    ]);
+  }
+
+  /// Looks up which of [codes] exist and stores their titles.
+  Future<void> _resolve(ContentKind kind, List<String> codes) async {
+    if (!mounted) return;
+    final Topic1ViewModel viewModel =
+        Provider.of<Topic1ViewModel>(context, listen: false);
+    setState(() => _checkFailed.remove(kind));
+    final Map<String, String>? resolved =
+        await viewModel.resolveContentTitles(kind, codes);
+    if (!mounted) return;
+    setState(() {
+      if (resolved == null) {
+        _titles.remove(kind);
+        _checkFailed.add(kind);
+      } else {
+        _titles[kind] = resolved;
+      }
+    });
+  }
+
+  /// Saves the audio or quiz codes, then re-checks what they point at.
+  Future<bool> _saveCodes(
+      Topic1ViewModel viewModel, ContentKind kind, List<String> codes) async {
+    final bool ok =
+        await viewModel.saveContentCodes(widget.topicData, kind, codes);
+    if (!ok) return false;
+    Helper.showSnackBarMessage(
+        msg: "${kind.label} codes saved", isSuccess: true);
+    await _resolve(kind, codes);
+    return true;
+  }
+
+  /// Uploads and saves the PDFs; returns the saved list, or null.
+  Future<List<Topic1Pdf>?> _savePdfs(
+      Topic1ViewModel viewModel, List<Topic1PdfDraft> drafts) async {
+    final bool ok = await viewModel.savePdfs(widget.topicData, drafts);
+    if (!ok) return null;
+    Helper.showSnackBarMessage(msg: "PDFs saved", isSuccess: true);
+    return widget.topicData.pdfList;
+  }
+
+  /// Saves the videos.
+  Future<bool> _saveVideos(
+      Topic1ViewModel viewModel, List<Topic1Video> videos) async {
+    final bool ok = await viewModel.saveVideos(widget.topicData, videos);
+    if (ok) Helper.showSnackBarMessage(msg: "Videos saved", isSuccess: true);
+    return ok;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AdminFormScaffold(
+      headerTitle: "Topic1",
+      sidebarIndex: topic1ModuleIndex,
+      body: (context, width) => FormPageBody(
+        width: width,
+        children: [
+          _pageHeader(),
+          const SizedBox(height: AppTokens.gapLg),
+          ..._sections(Provider.of<Topic1ViewModel>(context, listen: false)),
+          const SizedBox(height: AppTokens.gapLg),
+        ],
+      ),
+    );
+  }
+
+  /// PDFs, videos, then audio and quiz codes. Each section keeps its own
+  /// rows and reports saves through its callback, so nothing here needs to
+  /// rebuild when the view model changes.
+  List<Widget> _sections(Topic1ViewModel viewModel) {
+    final Topic1Model topic = widget.topicData;
+    return [
+      Topic1PdfSection(
+        key: const ValueKey('topic1_pdfs'),
+        initialPdfs: topic.pdfList,
+        pickFile: widget.pickFile,
+        onSave: (drafts) => _savePdfs(viewModel, drafts),
+      ),
+      Topic1VideoSection(
+        key: const ValueKey('topic1_videos'),
+        initialVideos: topic.videoList,
+        onSave: (videos) => _saveVideos(viewModel, videos),
+      ),
+      for (final ContentKind kind in Topic1Model.codeKinds)
+        TopicContentSection(
+          key: ValueKey(kind),
+          kind: kind,
+          initialCodes: topic.contentCodes(kind),
+          titles: _titles[kind],
+          checkFailed: _checkFailed.contains(kind),
+          onRecheck: (codes) => _resolve(kind, codes),
+          onSave: (codes) => _saveCodes(viewModel, kind, codes),
+        ),
+    ];
+  }
+
+  /// Back button, name, code, breadcrumb and a one-line explanation.
+  Widget _pageHeader() {
+    final Topic1Model data = widget.topicData;
+    String or(String value, String fallback) =>
+        value.isEmpty || value == stringDefault ? fallback : value;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FormBackButton(onTap: () => Navigator.pop(context)),
+        const SizedBox(width: AppTokens.gapMd),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(or(data.name, "Topic"),
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTokens.pageTitle),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTokens.surface,
+                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                      border: Border.all(color: AppTokens.hairline),
+                    ),
+                    child: Text(data.code,
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
+                            color: AppTokens.inkMuted)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                "${or(data.courseName, 'No course')}  ›  "
+                "${or(data.subjectName, 'No subject')}  ›  "
+                "${or(data.unitName, 'No unit')}",
+                overflow: TextOverflow.ellipsis,
+                style: AppTokens.pageSubtitle,
+              ),
+              const SizedBox(height: 3),
+              const Text(
+                  "Upload PDFs and add YouTube links here; audio and quizzes "
+                  "attach by code. Each list saves on its own.",
+                  style: TextStyle(fontSize: 12, color: AppTokens.inkFaint)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

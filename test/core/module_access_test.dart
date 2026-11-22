@@ -44,9 +44,10 @@ Future<void> _freshStore([Map<String, Object> values = const {}]) async {
 List<String> _visibleModules() =>
     [for (final int i in Helper.allowedModuleIndices()) moduleList[i]];
 
-/// Every module an admin is offered: all of them, minus the hidden ones.
+/// Every module an admin is offered: all of them, minus the hidden ones,
+/// in sidebar order.
 final List<String> _shownModules = [
-  for (int i = 0; i < moduleList.length; i++)
+  for (final int i in moduleNavOrder)
     if (!hiddenModuleIndices.contains(i)) moduleList[i],
 ];
 
@@ -58,7 +59,20 @@ void main() {
       "BOOK ORDERS",
       "NOTIFICATIONS",
       "TRANSACTIONS",
+      "TOPIC1",
     ], moduleList);
+  });
+
+  test('Topic1 is listed right after Topics, without moving any position', () {
+    expect(moduleList[topicModuleIndex], "TOPIC");
+    expect(moduleList[topic1ModuleIndex], "TOPIC1");
+    expect(topic1ModuleIndex, moduleList.length - 1);
+    expect(moduleNavOrder.toSet(),
+        {for (int i = 0; i < moduleList.length; i++) i});
+    expect(moduleNavOrder, hasLength(moduleList.length));
+    final int at = moduleNavOrder.indexOf(topicModuleIndex);
+    expect(moduleNavOrder.sublist(at, at + 3),
+        [topicModuleIndex, topic1ModuleIndex, topicModuleIndex + 1]);
   });
 
   group('an admin', () {
@@ -86,6 +100,15 @@ void main() {
           Helper.allowedModuleIndices(), isNot(contains(bookOrderModuleIndex)));
     });
 
+    test('sees Topic1 right after Topics', () async {
+      await _freshStore();
+      await Session.signIn(const LoginResult(
+          adminId: 't1', moduleAccess: _modulesBeforeBooks, role: roleAdmin));
+
+      final List<String> visible = _visibleModules();
+      expect(visible.indexOf("TOPIC1"), visible.indexOf("TOPIC") + 1);
+    });
+
     test('sees everything even with a short module list', () async {
       await _freshStore();
       await Session.signIn(const LoginResult(
@@ -106,6 +129,24 @@ void main() {
 
       expect(Session.isAdmin, isFalse);
       expect(_visibleModules(), ["COURSES", "TOPIC"]);
+    });
+
+    test('sees Topic1 only once it is ticked, next to Topics', () async {
+      await _freshStore();
+      await Session.signIn(const LoginResult(
+        adminId: 't2',
+        moduleAccess: ["TOPIC"],
+        role: roleSubadmin,
+      ));
+      expect(_visibleModules(), ["TOPIC"]);
+
+      await Session.signOut();
+      await Session.signIn(const LoginResult(
+        adminId: 't2',
+        moduleAccess: ["VIDEOS", "TOPIC1", "COURSES", "TOPIC"],
+        role: roleSubadmin,
+      ));
+      expect(_visibleModules(), ["COURSES", "TOPIC", "TOPIC1", "VIDEOS"]);
     });
 
     test('does not get Books just because it exists', () async {

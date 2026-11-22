@@ -57,39 +57,10 @@ class TopicRepo {
   }
 
   /// Looks the codes up in their own collection and returns
-  /// `code -> title`. A code with no document simply does not come back, so
-  /// the caller can tell attached-and-real from attached-and-a-typo.
-  ///
-  /// `whereIn` takes at most 30 values per query, so this goes in chunks
-  /// of 30. Blank and duplicate codes are ignored.
+  /// `code -> title` (see [resolveContentTitlesIn]).
   Future<Map<String, String>> resolveContentTitles(
-      ContentKind kind, List<String> codes) async {
-    final List<String> unique =
-        codes.map((c) => c.trim()).where((c) => c.isNotEmpty).toSet().toList();
-    if (unique.isEmpty) return <String, String>{};
-
-    // Chunks are independent, so query them all at once.
-    final List<QuerySnapshot<Map<String, dynamic>>> snapshots =
-        await Future.wait([
-      for (int i = 0; i < unique.length; i += 30)
-        _fireStore
-            .collection(kind.collection)
-            .where(kind.codeField,
-                whereIn: unique.sublist(
-                    i, i + 30 > unique.length ? unique.length : i + 30))
-            .get(),
-    ]);
-    final Map<String, String> titles = <String, String>{};
-    for (final QuerySnapshot<Map<String, dynamic>> snapshot in snapshots) {
-      for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
-          in snapshot.docs) {
-        final Object? code = doc.data()[kind.codeField];
-        final Object? title = doc.data()[kind.titleField];
-        if (code is String) titles[code] = title is String ? title : "";
-      }
-    }
-    return titles;
-  }
+          ContentKind kind, List<String> codes) =>
+      resolveContentTitlesIn(_fireStore, kind, codes);
 
   /// All subjects whose `course_code` is [courseCode] (form dropdown).
   Future<List<SubjectModel>> getSubjectList(
@@ -120,4 +91,40 @@ class TopicRepo {
   /// Topics whose `topic_code` starts with [searchText].
   Future<List<TopicModel>> searchTopic(String searchText) async =>
       _toModels(await prefixSearch(_collection, "topic_code", searchText));
+}
+
+/// Looks [codes] up in [kind]'s own collection and returns `code -> title`.
+/// A code with no document simply does not come back, so the caller can
+/// tell attached-and-real from attached-and-a-typo. Shared by the Topic and
+/// Topic1 repos.
+///
+/// `whereIn` takes at most 30 values per query, so this goes in chunks of
+/// 30. Blank and duplicate codes are ignored.
+Future<Map<String, String>> resolveContentTitlesIn(
+    FirebaseFirestore fireStore, ContentKind kind, List<String> codes) async {
+  final List<String> unique =
+      codes.map((c) => c.trim()).where((c) => c.isNotEmpty).toSet().toList();
+  if (unique.isEmpty) return <String, String>{};
+
+  // Chunks are independent, so query them all at once.
+  final List<QuerySnapshot<Map<String, dynamic>>> snapshots =
+      await Future.wait([
+    for (int i = 0; i < unique.length; i += 30)
+      fireStore
+          .collection(kind.collection)
+          .where(kind.codeField,
+              whereIn: unique.sublist(
+                  i, i + 30 > unique.length ? unique.length : i + 30))
+          .get(),
+  ]);
+  final Map<String, String> titles = <String, String>{};
+  for (final QuerySnapshot<Map<String, dynamic>> snapshot in snapshots) {
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
+        in snapshot.docs) {
+      final Object? code = doc.data()[kind.codeField];
+      final Object? title = doc.data()[kind.titleField];
+      if (code is String) titles[code] = title is String ? title : "";
+    }
+  }
+  return titles;
 }

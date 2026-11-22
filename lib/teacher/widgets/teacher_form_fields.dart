@@ -305,7 +305,7 @@ class ModuleAccessSection extends StatelessWidget {
           spacing: AppTokens.gapSm,
           runSpacing: AppTokens.gapSm,
           children: [
-            for (int i = 0; i < moduleList.length; i++)
+            for (final int i in moduleNavOrder)
               if (i != transactionModuleIndex &&
                   !hiddenModuleIndices.contains(i))
                 _chip(i),

@@ -53,6 +53,11 @@ const String unit = "unit";
 /// `topic` collection.
 const String topic = "topic";
 
+/// `topic1` collection: topics whose PDFs are uploaded and whose videos are
+/// YouTube links, both stored on the topic itself rather than attached by
+/// code (see `Topic1Model`).
+const String topic1 = "topic1";
+
 /// `video` collection.
 const String video = "video";
 
@@ -130,6 +135,7 @@ const List<String> moduleList = [
   "BOOK ORDERS",
   "NOTIFICATIONS",
   "TRANSACTIONS",
+  "TOPIC1",
 ];
 
 /// Modules switched off for everyone, admins included. They stay in
@@ -145,9 +151,23 @@ const String courseTypeFullCourse = "Full Course";
 /// What a teacher's access can be chosen from: everything except modules
 /// only an admin may ever open and modules switched off for everyone.
 final List<String> assignableModuleList = [
-  for (int i = 0; i < moduleList.length; i++)
+  for (final int i in moduleNavOrder)
     if (i != transactionModuleIndex && !hiddenModuleIndices.contains(i))
       moduleList[i],
+];
+
+/// Every position in [moduleList], in the order the sidebar (and the
+/// teacher module chips) list them.
+///
+/// New modules are appended to [moduleList] so no stored position moves,
+/// but some belong next to an older one on screen: Topic1 is listed right
+/// after Topics.
+final List<int> moduleNavOrder = [
+  for (int i = 0; i < moduleList.length; i++)
+    if (i != topic1ModuleIndex) ...[
+      i,
+      if (i == topicModuleIndex) topic1ModuleIndex,
+    ],
 ];
 
 /// Position of the Books module within [moduleList] — the value the Book
@@ -174,6 +194,14 @@ const int teacherModuleIndex = 11;
 /// every Live Class screen passes as `ExtraSideBar(sidebarIndex: ...)`.
 const int liveClassModuleIndex = 12;
 
+/// Position of the Topics module within [moduleList].
+const int topicModuleIndex = 4;
+
+/// Position of the Topic1 module within [moduleList] — the value every
+/// Topic1 screen passes as `sidebarIndex`. Shown right after Topics (see
+/// [moduleNavOrder]).
+const int topic1ModuleIndex = 17;
+
 /// What the sidebar *shows*, index-aligned with [moduleList].
 ///
 /// [moduleList] is the persisted identity of a module: a teacher's
@@ -199,6 +227,7 @@ const List<String> moduleDisplayList = [
   "Book orders",
   "Notifications",
   "Transactions",
+  "Topic1",
 ];
 
 /// Role with full access, including managing teachers.
@@ -257,4 +286,5 @@ const List<IconData> moduleIconList = [
   Icons.local_shipping_outlined,
   Icons.campaign_outlined,
   Icons.receipt_long_outlined,
+  Icons.topic,
 ];

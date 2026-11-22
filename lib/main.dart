@@ -17,6 +17,7 @@ import 'package:bbarna/student/viewModel/student_view_model.dart';
 import 'package:bbarna/subject/viewModel/subject_view_model.dart';
 import 'package:bbarna/teacher/viewModel/teacher_view_model.dart';
 import 'package:bbarna/topic/viewModel/topic_view_model.dart';
+import 'package:bbarna/topic1/viewModel/topic1_view_model.dart';
 import 'package:bbarna/transactions/viewModel/transaction_view_model.dart';
 import 'package:bbarna/units/viewModel/unit_view_model.dart';
 import 'package:bbarna/utils/session.dart';
@@ -59,6 +60,7 @@ void main() async {
       ChangeNotifierProvider(create: (_) => SubjectViewModel()),
       ChangeNotifierProvider(create: (_) => UnitViewModel()),
       ChangeNotifierProvider(create: (_) => TopicViewModel()),
+      ChangeNotifierProvider(create: (_) => Topic1ViewModel()),
       ChangeNotifierProvider(create: (_) => VideoViewModel()),
       ChangeNotifierProvider(create: (_) => PdfViewModel()),
       ChangeNotifierProvider(create: (_) => AudioViewModel()),

@@ -58,16 +58,19 @@ void main() {
     });
   });
 
-  testWidgets('the nav renders every shown module, in moduleList order',
+  testWidgets('the nav renders every shown module, in moduleNavOrder',
       (tester) async {
     await _pumpNav(tester);
 
     final List<SidebarWidget> items =
         tester.widgetList<SidebarWidget>(find.byType(SidebarWidget)).toList();
     final List<int> shown = [
-      for (int i = 0; i < moduleList.length; i++)
+      for (final int i in moduleNavOrder)
         if (!hiddenModuleIndices.contains(i)) i,
     ];
+    final List<String> labels = items.map((item) => item.itemText).toList();
+    expect(labels.indexOf('Topic1'), labels.indexOf('Topics') + 1,
+        reason: 'Topic1 sits right after Topics');
 
     expect(items.map((item) => item.itemText).toList(),
         [for (final int i in shown) moduleDisplayList[i]]);
