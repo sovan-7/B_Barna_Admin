@@ -46,3 +46,6 @@ app.*.map.json
 
 # Firebase CLI deploy cache
 .firebase/
+
+# Claude Code worktrees (local checkouts, never committed)
+.claude/worktrees/
