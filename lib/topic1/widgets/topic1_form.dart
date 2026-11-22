@@ -266,7 +266,7 @@ class _Topic1FormState extends State<Topic1Form> {
   @override
   Widget build(BuildContext context) {
     return AdminFormScaffold(
-      headerTitle: "Topic1",
+      headerTitle: "New Topics",
       sidebarIndex: topic1ModuleIndex,
       body: (context, width) => Consumer2<Topic1ViewModel, CourseViewModel>(
         builder: (context, topic1ViewModel, courseViewModel, child) =>

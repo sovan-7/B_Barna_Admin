@@ -7,16 +7,16 @@ import 'package:bbarna/topic1/widgets/topic1_card.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// The Topic1 list (sidebar module). All the behaviour lives in
-/// [PagedListScreen]; this only supplies the Topic1 texts and card, and
-/// preloads the course list the Add/Edit form needs.
+/// The New Topics list (sidebar module; `Topic1…` in code). All the
+/// behaviour lives in [PagedListScreen]; this only supplies the texts and
+/// card, and preloads the course list the Add/Edit form needs.
 class Topic1List extends StatelessWidget {
   const Topic1List({super.key});
 
   @override
   Widget build(BuildContext context) {
     return PagedListScreen<Topic1ViewModel, Topic1Model>(
-      title: "Topic1",
+      title: "New Topics",
       subtitle: "Newest first. PDFs are uploaded and videos are YouTube "
           "links, straight on the topic.",
       addButtonLabel: "NEW TOPIC",

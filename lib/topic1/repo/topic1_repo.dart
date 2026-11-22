@@ -15,9 +15,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 /// Storage path it sits at.
 typedef Topic1UploadedPdf = ({String url, String path});
 
-/// Firestore / Storage access for the `topic1` collection: the topics
-/// themselves, the subject/unit lookups the form's dropdowns need, the
-/// audio/quiz codes, and the PDFs and videos stored on each topic.
+/// Firestore / Storage access for the `topics` collection (the New Topics
+/// module): the topics themselves, the subject/unit lookups the form's
+/// dropdowns need, the audio/quiz codes, and the PDFs and videos stored on
+/// each topic.
 /// Firestore and Storage are injectable for tests.
 ///
 /// Every method throws on failure (except the deliberately quiet
@@ -40,9 +41,9 @@ class Topic1Repo {
   /// Storage client, looked up only when a PDF is uploaded or deleted.
   FirebaseStorage get _storage => _storageOverride ?? FirebaseStorage.instance;
 
-  /// The `topic1` collection.
+  /// The `topics` collection.
   CollectionReference<Map<String, dynamic>> get _collection =>
-      _fireStore.collection(topic1);
+      _fireStore.collection(topics);
 
   /// Newest-first paging with the cursor kept here, not in the view model.
   late final FirestorePager _pager = FirestorePager(_collection);

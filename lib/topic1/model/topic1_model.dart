@@ -175,7 +175,7 @@ class Topic1PdfDraft {
   });
 }
 
-/// A Topic1 (`topic1` collection): placed exactly like a topic (course ›
+/// A Topic1 (`topics` collection): placed exactly like a topic (course ›
 /// subject › unit, plus extra unit codes), with audio and quizzes attached
 /// by code as on a topic — but its PDFs are uploaded onto it ([pdfList])
 /// and its videos are YouTube links on it ([videoList]).

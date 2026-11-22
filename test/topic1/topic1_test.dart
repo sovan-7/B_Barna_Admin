@@ -262,7 +262,7 @@ void main() {
       final MockFirebaseFirestore firestore = MockFirebaseFirestore();
       final MockCollectionReference collection = MockCollectionReference();
       doc = MockDocumentReference();
-      when(() => firestore.collection(topic1)).thenReturn(collection);
+      when(() => firestore.collection(topics)).thenReturn(collection);
       when(() => collection.doc('a')).thenReturn(doc);
       when(() => doc.update(any())).thenAnswer((_) async {});
       topic1Repo = Topic1Repo(firestore: firestore, storage: storage);
@@ -473,7 +473,7 @@ void main() {
         await _pump(tester, size, const Scaffold(body: Topic1List()), vm);
 
         expect(tester.takeException(), isNull);
-        expect(find.text('Topic1'), findsOneWidget);
+        expect(find.text('New Topics'), findsOneWidget);
         expect(find.byType(Topic1Card), findsNWidgets(3));
       });
 
@@ -524,6 +524,8 @@ void main() {
       expect(find.text('Quiz 1'), findsOneWidget);
       expect(find.text('Audio 0'), findsNothing);
       expect(find.text('No content yet'), findsNWidgets(2));
+      expect(find.byKey(const Key('topic1_copy_button')), findsNothing,
+          reason: 'the one-time copy button is gone');
     });
 
     testWidgets('search runs on the topic code', (tester) async {
@@ -557,7 +559,7 @@ void main() {
       verifyNever(() => repo.addTopic(any()));
     });
 
-    testWidgets('editing saves the topic fields to topic1', (tester) async {
+    testWidgets('editing saves the topic fields', (tester) async {
       when(() => repo.updateTopic(any(), any())).thenAnswer((_) async {});
       final vm = Topic1ViewModel(topic1Repo: repo);
       await _pump(tester, const Size(1024, 900),
