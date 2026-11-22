@@ -3,6 +3,8 @@ import 'package:bbarna/core/widgets/card/card_actions.dart';
 import 'package:bbarna/core/widgets/card/card_chips.dart';
 import 'package:bbarna/core/widgets/card/card_helpers.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
+import 'package:bbarna/live_class/widgets/live_class_theme.dart'
+    show LiveClassFormat;
 import 'package:bbarna/quiz/model/quiz_model.dart';
 import 'package:bbarna/quiz/screen/add_quiz.dart';
 import 'package:bbarna/quiz/screen/edit_quiz.dart';
@@ -14,8 +16,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 /// One row of the quiz list: name, code and the numbers that define a
-/// quiz (length, marks, question count); status and FREE/PAID chips;
-/// edit / delete buttons.
+/// quiz (length, marks, question count), plus when an upcoming quiz opens;
+/// status and FREE/PAID chips; edit / delete buttons.
 class QuizCard extends StatefulWidget {
   /// The item shown in this row.
   final QuizModel quizData;
@@ -93,6 +95,7 @@ class _QuizCardState extends State<QuizCard> {
                   if (_data.numberDeduction > 0)
                     _fact(Icons.remove_circle_outline,
                         "-${_data.numberDeduction} per wrong answer"),
+                  if (_data.isUpcoming) _opensFact(),
                 ],
               ),
             ],
@@ -117,6 +120,20 @@ class _QuizCardState extends State<QuizCard> {
   String _marksLabel() =>
       _data.totalMarks > 0 ? "${_data.totalMarks} marks" : "No marks set";
 
+  /// When an upcoming quiz opens to students — or opened, once the time
+  /// has passed and it shows as LIVE.
+  Widget _opensFact() {
+    final DateTime? opensAt = _data.availableAt;
+    if (opensAt == null) {
+      return _fact(Icons.event_busy_outlined, "No opening time set");
+    }
+    final String when = LiveClassFormat.full.format(opensAt);
+    if (DateTime.now().isBefore(opensAt)) {
+      return _fact(Icons.event_outlined, "Opens $when");
+    }
+    return _fact(Icons.event_available_outlined, "Opened $when");
+  }
+
   /// A small grey icon + text pair (e.g. "90 min").
   Widget _fact(IconData icon, String label) {
     return Row(
@@ -140,6 +157,8 @@ class _QuizCardState extends State<QuizCard> {
   /// Status chips shown beside (or, when compact, under) the identity.
   Widget _chips() {
     final bool isFree = _data.type.toUpperCase() == "FREE";
+    // What students see: an upcoming quiz whose time has come is live.
+    final String status = _data.effectiveStatus;
     final Color typeColor =
         isFree ? const Color(0xFF108460) : const Color(0xFFB54708);
 
@@ -149,11 +168,11 @@ class _QuizCardState extends State<QuizCard> {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         _chip(
-          icon: statusIcon(_data.status),
-          label: _data.status.isEmpty || _data.status == stringDefault
+          icon: statusIcon(status),
+          label: status.isEmpty || status == stringDefault
               ? "No status"
-              : _data.status.toUpperCase(),
-          color: statusColor(_data.status),
+              : status.toUpperCase(),
+          color: statusColor(status),
         ),
         _chip(
           icon: isFree ? Icons.lock_open_outlined : Icons.paid_outlined,

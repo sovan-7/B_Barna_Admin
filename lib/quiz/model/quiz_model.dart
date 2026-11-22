@@ -17,7 +17,8 @@ class QuizModel {
   /// Display name (`quiz_name`).
   String name = stringDefault;
 
-  /// "LIVE", "UPCOMING" or "PENDING" (`quiz_status`).
+  /// "LIVE", "UPCOMING" or "PENDING" (`quiz_status`), as the admin set it.
+  /// What students see can differ: see [statusAt].
   String status = stringDefault;
 
   /// "FREE" or "PAID" (`quiz_type`).
@@ -41,6 +42,22 @@ class QuizModel {
   /// Codes of the questions on the quiz, in order (`question_code_list`).
   List<String> questionCodeList = [];
 
+  /// [status] of a quiz that is scheduled to open at [availableAt].
+  static const String statusUpcoming = "UPCOMING";
+
+  /// [status] of a quiz students can take now.
+  static const String statusLive = "LIVE";
+
+  /// When students can start an [statusUpcoming] quiz (`available_at`,
+  /// epoch milliseconds — the same shape as [timeStamp] and a live class's
+  /// `startTime`).
+  ///
+  /// Once this time is reached the quiz counts as live (see [statusAt]):
+  /// nothing rewrites [status], so it opens on time with no backend job.
+  /// Null for every other status, and for upcoming quizzes saved before
+  /// opening times existed — the student app keeps those open.
+  DateTime? availableAt;
+
   /// Creates a quiz from the Add/Edit form values.
   QuizModel(
       this.code,
@@ -53,10 +70,15 @@ class QuizModel {
       this.numberDeduction,
       this.totalWrongAnswer,
       this.totalQuestion,
-      this.questionCodeList);
+      this.questionCodeList,
+      {this.availableAt});
 
   /// Converts this model to the Firestore document map (field names as
   /// stored in the collection).
+  ///
+  /// `available_at` is always written — null unless the quiz is upcoming —
+  /// because `update()` merges: leaving it out would keep an old opening
+  /// time on a quiz switched to LIVE or PENDING.
   Map<String, dynamic> toMap() {
     return {
       "quiz_code": code.trim(),
@@ -69,7 +91,8 @@ class QuizModel {
       "number_deduction": numberDeduction,
       "total_wrong_answer": totalWrongAnswer,
       "total_question": totalQuestion,
-      "question_code_list": questionCodeList
+      "question_code_list": questionCodeList,
+      "available_at": isUpcoming ? availableAt?.millisecondsSinceEpoch : null,
     };
   }
 
@@ -93,5 +116,34 @@ class QuizModel {
         questionCodeList = doc.data()!["question_code_list"] == null
             ? []
             : List<String>.from(
-                doc.data()!["question_code_list"].map((x) => x));
+                doc.data()!["question_code_list"].map((x) => x)),
+        availableAt = _toDateTime(doc.data()!["available_at"]);
+
+  /// True when the stored status is [statusUpcoming] (whether or not its
+  /// opening time has passed).
+  bool get isUpcoming => status.toUpperCase() == statusUpcoming;
+
+  /// The status students see at [now]: an upcoming quiz whose opening time
+  /// has been reached is [statusLive] (inclusive, like
+  /// `LiveClassModel.statusAt`, so it is never briefly neither). Every other
+  /// quiz, an upcoming one without a time included, keeps its stored
+  /// status.
+  String statusAt(DateTime now) {
+    final DateTime? opensAt = availableAt;
+    if (isUpcoming && opensAt != null && !now.isBefore(opensAt)) {
+      return statusLive;
+    }
+    return status;
+  }
+
+  /// [statusAt] for the current time.
+  String get effectiveStatus => statusAt(DateTime.now());
+
+  /// Epoch milliseconds (what this panel writes) or a [Timestamp] (a
+  /// hand-edited document); anything else reads as no time.
+  static DateTime? _toDateTime(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    return null;
+  }
 }

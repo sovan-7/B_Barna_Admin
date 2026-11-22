@@ -3,6 +3,10 @@ import 'package:bbarna/core/widgets/form/form_action_bar.dart';
 import 'package:bbarna/core/widgets/form/form_fields.dart';
 import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
+import 'package:bbarna/live_class/widgets/class_time.dart';
+import 'package:bbarna/live_class/widgets/live_class_form_fields.dart'
+    show LiveClassPickerField;
+import 'package:bbarna/live_class/widgets/live_class_theme.dart';
 import 'package:bbarna/quiz/model/quiz_model.dart';
 import 'package:bbarna/quiz/viewModel/quiz_view_model.dart';
 import 'package:bbarna/quiz/widgets/quiz_card.dart'
@@ -19,9 +23,9 @@ import 'package:provider/provider.dart';
 /// The Add/Edit Quiz page. One responsive form serves both Add and Edit; the thin screens in
 /// `screen/` just choose the mode ([existing] null means Add).
 ///
-/// Sections: details (code, name), rules (time limit, marks, negative
-/// marking, status, free/paid) and the question picker, which works in
-/// both modes.
+/// Sections: details (code, name, status — with the opening date and time
+/// when it is UPCOMING — and free/paid), rules (time limit, marks, negative
+/// marking) and the question picker, which works in both modes.
 class QuizForm extends StatefulWidget {
   /// The item being edited; null means "Add".
   final QuizModel? existing;
@@ -44,7 +48,7 @@ class QuizForm extends StatefulWidget {
 }
 
 /// The fields that can carry an inline error.
-enum _Field { code, name, status, type, time, marks }
+enum _Field { code, name, status, opensDate, opensTime, type, time, marks }
 
 class _QuizFormState extends State<QuizForm> {
   /// Text of the code field.
@@ -81,6 +85,20 @@ class _QuizFormState extends State<QuizForm> {
   /// The chosen access type ("FREE" / "PAID").
   String? _selectedType;
 
+  /// Day an upcoming quiz opens to students.
+  DateTime? _opensDate;
+
+  /// Time of day on [_opensDate] it opens.
+  TimeOfDay? _opensTime;
+
+  /// True while UPCOMING is chosen: only then is an opening time asked for
+  /// and saved. The two fields above are kept if the status changes, so
+  /// switching back restores them.
+  bool get _isUpcoming => _selectedStatus == QuizModel.statusUpcoming;
+
+  /// The opening date and time combined (null until both are set).
+  DateTime? get _opensAt => ClassTime.combine(_opensDate, _opensTime);
+
   /// True while saving or deleting; disables every control.
   bool _isSaving = false;
 
@@ -106,9 +124,17 @@ class _QuizFormState extends State<QuizForm> {
       if (source.numberDeduction > 0) {
         deductionController.text = source.numberDeduction.toString();
       }
-      _selectedStatus =
-          statusList.contains(source.status) ? source.status : null;
+      // The status students see now, so an upcoming quiz whose opening
+      // time has passed opens here as LIVE, as its card shows it.
+      final String status = source.statusAt(DateTime.now());
+      _selectedStatus = statusList.contains(status) ? status : null;
       _selectedType = typeList.contains(source.type) ? source.type : null;
+    }
+    // A copy starts as PENDING, so it does not take over the opening time.
+    final DateTime? opensAt = existing?.availableAt;
+    if (opensAt != null) {
+      _opensDate = ClassTime.dateOnly(opensAt);
+      _opensTime = TimeOfDay.fromDateTime(opensAt);
     }
     if (widget.isCopy) {
       // A copy needs its own code, and should not go live by accident.
@@ -156,6 +182,23 @@ class _QuizFormState extends State<QuizForm> {
     }
     if ((_selectedStatus ?? "").isEmpty) {
       errors[_Field.status] = "Choose a status";
+    }
+    if (_isUpcoming) {
+      final DateTime now = DateTime.now();
+      final DateTime? date = _opensDate;
+      final DateTime? opensAt = _opensAt;
+      if (date == null) {
+        errors[_Field.opensDate] = "Pick the day it opens";
+      } else if (date.isBefore(ClassTime.dateOnly(now))) {
+        errors[_Field.opensDate] = "That day has passed — pick today or later";
+      }
+      if (_opensTime == null) {
+        errors[_Field.opensTime] = "Pick the time it opens";
+      } else if (opensAt != null &&
+          !opensAt.isAfter(now) &&
+          !errors.containsKey(_Field.opensDate)) {
+        errors[_Field.opensTime] = "Pick a time in the future";
+      }
     }
     if ((_selectedType ?? "").isEmpty) {
       errors[_Field.type] = "Choose whether it is free or paid";
@@ -252,6 +295,7 @@ class _QuizFormState extends State<QuizForm> {
       // The question count is always the number of questions attached.
       questionCodes.length,
       questionCodes,
+      availableAt: _isUpcoming ? _opensAt : null,
     );
 
     final bool success = widget.isEdit
@@ -333,6 +377,10 @@ class _QuizFormState extends State<QuizForm> {
               )),
           const SizedBox(height: AppTokens.gapMd),
           _statusField(),
+          if (_isUpcoming) ...[
+            const SizedBox(height: AppTokens.gapMd),
+            _opensField(width),
+          ],
           const SizedBox(height: AppTokens.gapMd),
           _typeField(),
         ]),
@@ -509,6 +557,101 @@ class _QuizFormState extends State<QuizForm> {
         ],
       ],
     );
+  }
+
+  /// When an upcoming quiz opens: a date and a time side by side, with what
+  /// happens then spelled out underneath.
+  Widget _opensField(double width) {
+    final DateTime? date = _opensDate;
+    final TimeOfDay? time = _opensTime;
+    final DateTime? opensAt = _opensAt;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FormTwoUp(
+          width: width,
+          left: LiveClassPickerField(
+            fieldKey: const Key('quiz_opens_date_field'),
+            label: "Opening date",
+            icon: Icons.calendar_today_outlined,
+            text: date == null
+                ? "Select the day it opens"
+                : "${LiveClassFormat.weekday.format(date)}, "
+                    "${LiveClassFormat.date.format(date)}",
+            isSet: date != null,
+            error: _errors[_Field.opensDate],
+            onTap: _pickOpensDate,
+          ),
+          right: LiveClassPickerField(
+            fieldKey: const Key('quiz_opens_time_field'),
+            label: "Opening time",
+            icon: Icons.schedule,
+            text: time == null
+                ? "Select the time it opens"
+                : LiveClassFormat.timeOfDay(time),
+            isSet: time != null,
+            error: _errors[_Field.opensTime],
+            onTap: _pickOpensTime,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          opensAt == null
+              ? "Students see the quiz as Upcoming and can't start it until "
+                  "this time."
+              : "Students can start it from "
+                  "${LiveClassFormat.full.format(opensAt)}. Until then they "
+                  "see it as Upcoming; it opens by itself.",
+          style: const TextStyle(fontSize: 11.5, color: AppTokens.inkFaint),
+        ),
+      ],
+    );
+  }
+
+  /// Picks the opening day: today at the earliest, tomorrow when nothing
+  /// usable is set yet. Themed like the live class pickers.
+  Future<void> _pickOpensDate() async {
+    if (_isSaving) return;
+    final DateTime today = ClassTime.dateOnly(DateTime.now());
+    final DateTime? current = _opensDate;
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: current == null || current.isBefore(today)
+          ? today.add(const Duration(days: 1))
+          : current,
+      firstDate: today,
+      lastDate: DateTime(today.year + 5, 12, 31),
+      helpText: "Day the quiz opens",
+      builder: (context, child) => Theme(
+        data: LiveClassTheme.pickerTheme(context),
+        child: child!,
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _opensDate = ClassTime.dateOnly(picked));
+    _revalidate();
+  }
+
+  /// Picks the opening time (10:00 AM to start with): typed entry on wide
+  /// windows, the dial on narrow ones, as on the live class form.
+  Future<void> _pickOpensTime() async {
+    if (_isSaving) return;
+    final bool hasKeyboard = MediaQuery.sizeOf(context).width >= 700;
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _opensTime ?? const TimeOfDay(hour: 10, minute: 0),
+      helpText: "Time the quiz opens",
+      initialEntryMode:
+          hasKeyboard ? TimePickerEntryMode.input : TimePickerEntryMode.dial,
+      builder: (context, child) => Theme(
+        data: LiveClassTheme.pickerTheme(context),
+        child: child!,
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _opensTime = picked);
+    _revalidate();
   }
 
   /// Free / Paid choice chips.

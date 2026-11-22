@@ -1,4 +1,5 @@
 import 'package:bbarna/core/widgets/selectable_label.dart';
+import 'package:bbarna/live_class/widgets/live_class_theme.dart';
 import 'package:bbarna/question/model/question.dart';
 import 'package:bbarna/quiz/model/quiz_model.dart';
 import 'package:bbarna/quiz/repo/quiz_repo.dart';
@@ -8,6 +9,7 @@ import 'package:bbarna/quiz/screen/quiz_list.dart';
 import 'package:bbarna/quiz/viewModel/quiz_view_model.dart';
 import 'package:bbarna/quiz/widgets/quiz_card.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -16,6 +18,11 @@ import 'package:provider/provider.dart';
 class MockQuizRepo extends Mock implements QuizRepo {}
 
 class QuizModelFake extends Fake implements QuizModel {}
+
+// Mocks are fine here: the tests never hand it to Firestore itself.
+// ignore: subtype_of_sealed_class
+class MockDocumentSnapshot extends Mock
+    implements DocumentSnapshot<Map<String, dynamic>> {}
 
 QuizModel _quiz(
   String id,
@@ -29,6 +36,7 @@ QuizModel _quiz(
   int totalQuestion = 2,
   List<String>? questionCodes,
   int timeStamp = 0,
+  DateTime? availableAt,
 }) {
   final QuizModel model = QuizModel(
       code,
@@ -41,7 +49,8 @@ QuizModel _quiz(
       deduction,
       0,
       totalQuestion,
-      questionCodes ?? ["Q-01", "Q-02"]);
+      questionCodes ?? ["Q-01", "Q-02"],
+      availableAt: availableAt);
   model.docId = id;
   return model;
 }
@@ -91,6 +100,30 @@ Future<void> _pump(
   ));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 300));
+}
+
+/// Today at [hour]:[minute], [days] days from now (negative: in the past).
+DateTime _day(int days, [int hour = 10, int minute = 0]) {
+  final DateTime now = DateTime.now();
+  return DateTime(now.year, now.month, now.day + days, hour, minute);
+}
+
+/// Fills every required field of the Add form except the status.
+Future<void> _fillRequired(WidgetTester tester) async {
+  await tester.enterText(find.byType(TextField).at(0), 'mock-09');
+  await tester.enterText(find.byType(TextField).at(1), 'Trial run');
+  await tester.tap(find.byKey(const Key('quiz_type_free')));
+  await tester.enterText(find.byType(TextField).at(2), '1');
+  await tester.enterText(find.byType(TextField).at(4), '50');
+  await tester.pump();
+}
+
+/// Scrolls to [key] and taps it.
+Future<void> _tapKey(WidgetTester tester, String key) async {
+  await tester.ensureVisible(find.byKey(Key(key)));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(Key(key)));
+  await tester.pump();
 }
 
 void main() {
@@ -327,6 +360,28 @@ void main() {
       expect(saved.numberDeduction, 1);
       expect(saved.questionCodeList, ['Q-01', 'Q-02']);
       expect(saved.totalQuestion, 2);
+      expect(saved.availableAt, isNull);
+    });
+
+    testWidgets('a copy of an upcoming quiz does not take its opening time',
+        (tester) async {
+      when(() => repo.addQuiz(any())).thenAnswer((_) async => 'new-id');
+      final QuizModel scheduled = _quiz('s', 'MOCK-05', 'Scheduled',
+          status: "UPCOMING", availableAt: _day(3));
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(
+          tester, const Size(1024, 900), AddQuiz(copyOf: scheduled), vm);
+
+      // A copy starts as PENDING, so no opening time is asked for.
+      expect(find.byKey(const Key('quiz_opens_date_field')), findsNothing);
+      await tester.enterText(find.byType(TextField).at(0), 'mock-05b');
+      await _tapKey(tester, 'quiz_save_button');
+      await tester.pump();
+
+      final QuizModel saved =
+          verify(() => repo.addQuiz(captureAny())).captured.single as QuizModel;
+      expect(saved.status, 'PENDING');
+      expect(saved.toMap()['available_at'], isNull);
     });
 
     testWidgets('a code another quiz uses is refused', (tester) async {
@@ -504,6 +559,238 @@ void main() {
       // They defaulted to `stringDefault` ("NA"), so a document missing any
       // one of them threw a type error on read.
       expect(intDefault, isA<int>());
+    });
+  });
+
+  group('the opening time', () {
+    final DateTime opens = DateTime(2026, 12, 3, 10, 0);
+
+    QuizModel scheduled({DateTime? at, String status = "UPCOMING"}) =>
+        _quiz('u', 'UP-01', 'Scheduled', status: status, availableAt: at);
+
+    test('an upcoming quiz is live from its opening time on', () {
+      final QuizModel quiz = scheduled(at: opens);
+      expect(quiz.statusAt(opens.subtract(const Duration(minutes: 1))),
+          'UPCOMING');
+      expect(quiz.statusAt(opens), 'LIVE',
+          reason: 'inclusive at the instant, like live classes');
+      expect(quiz.statusAt(opens.add(const Duration(days: 2))), 'LIVE');
+      // Nothing is rewritten: only what students see changes.
+      expect(quiz.status, 'UPCOMING');
+    });
+
+    test('an upcoming quiz without an opening time stays upcoming', () {
+      expect(scheduled().statusAt(opens), 'UPCOMING');
+    });
+
+    test('other statuses ignore the opening time', () {
+      expect(
+          scheduled(at: opens, status: "PENDING")
+              .statusAt(opens.add(const Duration(days: 1))),
+          'PENDING');
+      expect(
+          scheduled(at: opens, status: "LIVE")
+              .statusAt(opens.subtract(const Duration(days: 1))),
+          'LIVE');
+    });
+
+    test('it is stored as epoch milliseconds, for upcoming quizzes only', () {
+      expect(scheduled(at: opens).toMap()['available_at'],
+          opens.millisecondsSinceEpoch);
+
+      final Map<String, dynamic> live =
+          scheduled(at: opens, status: "LIVE").toMap();
+      // update() merges, so a cleared time has to be written as null.
+      expect(live.containsKey('available_at'), isTrue);
+      expect(live['available_at'], isNull);
+    });
+
+    test('it is read from milliseconds, a Timestamp, or not at all', () {
+      QuizModel read(Object? value) {
+        final MockDocumentSnapshot doc = MockDocumentSnapshot();
+        when(() => doc.id).thenReturn('u');
+        when(() => doc.data()).thenReturn({
+          'quiz_code': 'UP-01',
+          'quiz_status': 'UPCOMING',
+          if (value != null) 'available_at': value,
+        });
+        return QuizModel.fromDocumentSnapshot(doc);
+      }
+
+      expect(read(opens.millisecondsSinceEpoch).availableAt, opens);
+      expect(read(Timestamp.fromDate(opens)).availableAt, opens);
+      expect(read(null).availableAt, isNull);
+      expect(read('soon').availableAt, isNull);
+    });
+
+    testWidgets('the card says when an upcoming quiz opens', (tester) async {
+      final DateTime future = _day(3);
+      final DateTime past = _day(-1);
+      when(() => repo.getFirstQuizList(any())).thenAnswer((_) async => [
+            _quiz('f', 'UP-01', 'Opens later',
+                status: "UPCOMING", availableAt: future),
+            _quiz('p', 'UP-02', 'Opened already',
+                status: "UPCOMING", availableAt: past),
+            _quiz('n', 'UP-03', 'Saved before opening times',
+                status: "UPCOMING"),
+          ]);
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: QuizList()), vm);
+
+      expect(find.text('Opens ${LiveClassFormat.full.format(future)}'),
+          findsOneWidget);
+      expect(find.text('Opened ${LiveClassFormat.full.format(past)}'),
+          findsOneWidget);
+      expect(find.text('No opening time set'), findsOneWidget);
+      // The one whose time has passed shows as live.
+      expect(find.text('UPCOMING'), findsNWidgets(2));
+      expect(find.text('LIVE'), findsOneWidget);
+    });
+
+    testWidgets('the form asks for it only while UPCOMING is chosen',
+        (tester) async {
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(tester, const Size(1024, 900), const AddQuiz(), vm);
+
+      expect(find.byKey(const Key('quiz_opens_date_field')), findsNothing);
+      await _tapKey(tester, 'quiz_status_upcoming');
+      expect(find.byKey(const Key('quiz_opens_date_field')), findsOneWidget);
+      expect(find.byKey(const Key('quiz_opens_time_field')), findsOneWidget);
+
+      await _tapKey(tester, 'quiz_status_live');
+      expect(find.byKey(const Key('quiz_opens_date_field')), findsNothing);
+      expect(find.byKey(const Key('quiz_opens_time_field')), findsNothing);
+    });
+
+    testWidgets('an upcoming quiz cannot be saved without one', (tester) async {
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(tester, const Size(1024, 900), const AddQuiz(), vm);
+      await _fillRequired(tester);
+      await _tapKey(tester, 'quiz_status_upcoming');
+
+      await _tapKey(tester, 'quiz_save_button');
+
+      expect(find.text('Pick the day it opens'), findsOneWidget);
+      expect(find.text('Pick the time it opens'), findsOneWidget);
+      verifyNever(() => repo.addQuiz(any()));
+    });
+
+    testWidgets('the day and time picked are saved', (tester) async {
+      when(() => repo.addQuiz(any())).thenAnswer((_) async => 'new-id');
+      when(() => repo.getQuestionsByCodes(any())).thenAnswer((_) async => []);
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(tester, const Size(1024, 900), const AddQuiz(), vm);
+      await _fillRequired(tester);
+      await _tapKey(tester, 'quiz_status_upcoming');
+
+      // Both pickers open on a sensible default: tomorrow, 10:00 AM.
+      await _tapKey(tester, 'quiz_opens_date_field');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      await _tapKey(tester, 'quiz_opens_time_field');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      final DateTime expected = _day(1);
+      expect(
+          find.textContaining(
+              'Students can start it from ${LiveClassFormat.full.format(expected)}'),
+          findsOneWidget);
+
+      await _tapKey(tester, 'quiz_save_button');
+      await tester.pump();
+
+      final QuizModel saved =
+          verify(() => repo.addQuiz(captureAny())).captured.single as QuizModel;
+      expect(saved.status, 'UPCOMING');
+      expect(saved.availableAt, expected);
+      expect(saved.toMap()['available_at'], expected.millisecondsSinceEpoch);
+    });
+
+    testWidgets('editing an upcoming quiz keeps its opening time',
+        (tester) async {
+      when(() => repo.updateQuiz(any(), any())).thenAnswer((_) async {});
+      final DateTime opensAt = _day(3, 9, 30);
+      final QuizModel quiz = _quiz('u', 'UP-01', 'Later',
+          status: "UPCOMING", availableAt: opensAt);
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(tester, const Size(1024, 900), EditQuiz(quizData: quiz), vm);
+
+      expect(find.text('9:30 AM'), findsOneWidget);
+      await _tapKey(tester, 'quiz_save_button');
+      await tester.pump();
+
+      final QuizModel saved = verify(() => repo.updateQuiz(captureAny(), 'u'))
+          .captured
+          .single as QuizModel;
+      expect(saved.status, 'UPCOMING');
+      expect(saved.availableAt, opensAt);
+    });
+
+    testWidgets('switching an upcoming quiz to LIVE clears its opening time',
+        (tester) async {
+      when(() => repo.updateQuiz(any(), any())).thenAnswer((_) async {});
+      final QuizModel quiz = _quiz('u', 'UP-01', 'Later',
+          status: "UPCOMING", availableAt: _day(3));
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(tester, const Size(1024, 900), EditQuiz(quizData: quiz), vm);
+
+      await _tapKey(tester, 'quiz_status_live');
+      await _tapKey(tester, 'quiz_save_button');
+      await tester.pump();
+
+      final QuizModel saved = verify(() => repo.updateQuiz(captureAny(), 'u'))
+          .captured
+          .single as QuizModel;
+      expect(saved.status, 'LIVE');
+      expect(saved.toMap()['available_at'], isNull);
+    });
+
+    testWidgets('a quiz whose time came opens in the form as LIVE',
+        (tester) async {
+      // Earlier today: already open to students.
+      final QuizModel quiz = _quiz('u', 'UP-01', 'Opened',
+          status: "UPCOMING", availableAt: _day(0, 0, 0));
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(tester, const Size(1024, 900), EditQuiz(quizData: quiz), vm);
+
+      // LIVE is chosen, so the opening fields are hidden.
+      expect(find.byKey(const Key('quiz_opens_date_field')), findsNothing);
+
+      // Making it upcoming again needs a time that is still ahead.
+      await _tapKey(tester, 'quiz_status_upcoming');
+      await _tapKey(tester, 'quiz_save_button');
+
+      expect(find.text('Pick a time in the future'), findsOneWidget);
+      verifyNever(() => repo.updateQuiz(any(), any()));
+    });
+
+    testWidgets('an opening day that has passed is refused', (tester) async {
+      final QuizModel quiz = _quiz('u', 'UP-01', 'Opened',
+          status: "UPCOMING", availableAt: _day(-2));
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(tester, const Size(1024, 900), EditQuiz(quizData: quiz), vm);
+
+      await _tapKey(tester, 'quiz_status_upcoming');
+      await _tapKey(tester, 'quiz_save_button');
+
+      expect(find.text('That day has passed — pick today or later'),
+          findsOneWidget);
+      verifyNever(() => repo.updateQuiz(any(), any()));
+    });
+
+    testWidgets('the opening fields lay out on a phone', (tester) async {
+      final vm = QuizViewModel(quizRepo: repo);
+      await _pump(tester, const Size(380, 820), const AddQuiz(), vm);
+
+      await _tapKey(tester, 'quiz_status_upcoming');
+      await _tapKey(tester, 'quiz_save_button');
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Pick the day it opens'), findsOneWidget);
     });
   });
 }
