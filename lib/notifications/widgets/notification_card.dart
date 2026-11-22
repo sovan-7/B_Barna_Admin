@@ -1,4 +1,5 @@
 import 'package:bbarna/core/widgets/card/card_chips.dart';
+import 'package:bbarna/core/widgets/card/card_helpers.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/notifications/model/notification_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
@@ -8,8 +9,9 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 /// One row of the notification history: picture (if any), title, text,
-/// when it was sent and whether it went out. The title and text can be
-/// selected, and the copy button copies both in full.
+/// link (if any), when it was sent and whether it went out. The title, text
+/// and link can be selected, the copy button copies all of them in full,
+/// and the link button opens the link in a new tab.
 class NotificationCard extends StatelessWidget {
   /// The notification shown.
   final NotificationModel notification;
@@ -45,16 +47,29 @@ class NotificationCard extends StatelessWidget {
     );
   }
 
-  /// Copy and Remove: side by side, or stacked on a phone, where side by
-  /// side leaves the text too narrow for the status chip.
+  /// Open link (when there is one), Copy and Remove: side by side, or
+  /// stacked on a phone, where side by side leaves the text too narrow for
+  /// the status chip.
   Widget _actions(BuildContext context) {
     final bool narrow = MediaQuery.sizeOf(context).width < 600;
     final VisualDensity density =
         narrow ? VisualDensity.compact : VisualDensity.standard;
     final List<Widget> buttons = [
+      if (notification.hasLink)
+        IconButton(
+          key: const Key('notification_open_link'),
+          tooltip: "Open link",
+          visualDensity: density,
+          onPressed: () => openExternalUrl(notification.url!.trim(),
+              failureMessage: "Couldn't open the link"),
+          icon: const Icon(Icons.open_in_new,
+              size: 18, color: AppTokens.inkMuted),
+        ),
       IconButton(
         key: const Key('notification_copy'),
-        tooltip: "Copy title and text",
+        tooltip: notification.hasLink
+            ? "Copy title, text and link"
+            : "Copy title and text",
         visualDensity: density,
         onPressed: _copy,
         icon: const Icon(Icons.content_copy_outlined,
@@ -73,7 +88,8 @@ class NotificationCard extends StatelessWidget {
         : Row(mainAxisSize: MainAxisSize.min, children: buttons);
   }
 
-  /// Puts the title and the whole text (links included) on the clipboard.
+  /// Puts the title, the whole text (links typed into it included) and the
+  /// link on the clipboard.
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: notification.copyText));
     Helper.showSnackBarMessage(msg: "Copied to clipboard", isSuccess: true);
@@ -103,7 +119,7 @@ class NotificationCard extends StatelessWidget {
     );
   }
 
-  /// Title, text, then the status chip and time.
+  /// Title, text, link, then the status chip and time.
   Widget _texts() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,6 +136,23 @@ class NotificationCard extends StatelessWidget {
             maxLines: 2,
             style: const TextStyle(
                 fontSize: 12.5, height: 1.35, color: AppTokens.inkMuted),
+          ),
+        ],
+        if (notification.hasLink) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.link, size: 14, color: AppTokens.inkFaint),
+              const SizedBox(width: 4),
+              Expanded(
+                child: SelectableLabel(
+                  _shortLink(notification.url!),
+                  key: const Key('notification_link'),
+                  style:
+                      const TextStyle(fontSize: 12, color: AppTokens.inkMuted),
+                ),
+              ),
+            ],
           ),
         ],
         const SizedBox(height: AppTokens.gapSm),
@@ -166,6 +199,12 @@ class NotificationCard extends StatelessWidget {
         );
     }
   }
+
+  /// The link without `https://` or `www.`, which only take up room.
+  static String _shortLink(String url) => url
+      .trim()
+      .replaceFirst(RegExp(r'^https?://', caseSensitive: false), '')
+      .replaceFirst(RegExp(r'^www\.', caseSensitive: false), '');
 
   /// "12 Oct 2026, 4:05 PM" — when it was sent, else when it was queued.
   String _when() {

@@ -51,12 +51,14 @@ class NotificationsViewModel extends ChangeNotifier with SafeNotifier {
   /// The picture is either [newImage] (uploaded first) or
   /// [existingImageUrl] (e.g. a banner that is already uploaded); neither
   /// means a text-only notification. If the upload fails nothing is sent.
+  /// [url] is the link the app opens when it's tapped; blank means none.
   /// Returns `false` (and shows a toast) on failure.
   Future<bool> sendNotification({
     required String title,
     required String body,
     Uint8List? newImage,
     String? existingImageUrl,
+    String? url,
   }) async {
     try {
       String? imageUrl = existingImageUrl;
@@ -67,6 +69,7 @@ class NotificationsViewModel extends ChangeNotifier with SafeNotifier {
         title: title.trim(),
         body: body.trim(),
         imageUrl: imageUrl,
+        url: (url ?? "").trim().isEmpty ? null : url!.trim(),
         createdBy: Session.adminId,
       ));
       return true;

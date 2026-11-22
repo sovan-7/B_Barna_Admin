@@ -5,6 +5,7 @@ import 'package:bbarna/core/widgets/form/form_action_bar.dart';
 import 'package:bbarna/core/widgets/form/form_fields.dart';
 import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
+import 'package:bbarna/notifications/model/notification_model.dart';
 import 'package:bbarna/notifications/viewModel/notifications_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
@@ -27,8 +28,9 @@ enum NotificationImageSource {
 }
 
 /// Compose a push notification for every app user: a title, an optional
-/// message, an optional picture (uploaded, or one of the banners), and a
-/// preview of how it shows on a phone. Sending asks for confirmation first,
+/// message, an optional link (opened when it's tapped in the app), an
+/// optional picture (uploaded, or one of the banners), and a preview of how
+/// it shows on a phone. Sending asks for confirmation first,
 /// since it can't be taken back.
 class SendNotification extends StatefulWidget {
   const SendNotification({super.key});
@@ -46,6 +48,7 @@ class SendNotification extends StatefulWidget {
 class _SendNotificationState extends State<SendNotification> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _bodyController = TextEditingController();
+  final TextEditingController _linkController = TextEditingController();
 
   NotificationImageSource _imageSource = NotificationImageSource.none;
 
@@ -64,6 +67,9 @@ class _SendNotificationState extends State<SendNotification> {
   /// Shown under the title when Send is pressed without one.
   String? _titleError;
 
+  /// Shown under the link when it isn't a full web address.
+  String? _linkError;
+
   /// Shown under the picture when the chosen source has nothing picked.
   String? _imageError;
 
@@ -71,6 +77,7 @@ class _SendNotificationState extends State<SendNotification> {
   void dispose() {
     _titleController.dispose();
     _bodyController.dispose();
+    _linkController.dispose();
     super.dispose();
   }
 
@@ -117,6 +124,8 @@ class _SendNotificationState extends State<SendNotification> {
     if (_titleController.text.trim().isEmpty) {
       titleError = "Enter a title";
     }
+    final String? linkError =
+        NotificationModel.linkProblem(_linkController.text);
     if (_imageSource == NotificationImageSource.upload && _imageBytes == null) {
       imageError = "Choose a picture, or pick \"No picture\"";
     }
@@ -125,9 +134,10 @@ class _SendNotificationState extends State<SendNotification> {
     }
     setState(() {
       _titleError = titleError;
+      _linkError = linkError;
       _imageError = imageError;
     });
-    return titleError == null && imageError == null;
+    return titleError == null && linkError == null && imageError == null;
   }
 
   /// Validates, asks "send to everyone?", then sends and closes the page.
@@ -154,6 +164,7 @@ class _SendNotificationState extends State<SendNotification> {
       body: _bodyController.text,
       newImage: _chosenBytes,
       existingImageUrl: _chosenUrl,
+      url: _linkController.text,
     );
 
     if (!mounted) return;
@@ -202,6 +213,7 @@ class _SendNotificationState extends State<SendNotification> {
                 NotificationPreview(
                   title: _titleController.text,
                   body: _bodyController.text,
+                  link: _linkController.text,
                   imageBytes: _chosenBytes,
                   imageUrl: _chosenUrl,
                 ),
@@ -213,7 +225,7 @@ class _SendNotificationState extends State<SendNotification> {
     );
   }
 
-  /// Title and message.
+  /// Title, message and link.
   Widget _messageSection() {
     return FormSection(
       title: "MESSAGE",
@@ -246,6 +258,20 @@ class _SendNotificationState extends State<SendNotification> {
             LengthLimitingTextInputFormatter(SendNotification.bodyMaxLength),
           ],
           onChanged: () => setState(() {}),
+        ),
+        const SizedBox(height: AppTokens.gapMd),
+        FormTextField(
+          fieldKey: const Key('notification_link_field'),
+          label: "Link (optional)",
+          hint: "e.g. https://meet.google.com/abc-defg-hij",
+          controller: _linkController,
+          enabled: !_isSending,
+          keyboardType: TextInputType.url,
+          prefixIcon: Icons.link,
+          error: _linkError,
+          note: "A YouTube, Google Meet or Zoom link, or any website. "
+              "It opens when the notification is tapped in the app.",
+          onChanged: () => setState(() => _linkError = null),
         ),
       ],
     );
@@ -392,13 +418,16 @@ class _SendNotificationState extends State<SendNotification> {
 }
 
 /// Roughly how the notification looks when pulled open on an Android
-/// phone: app name, title, message and the big picture.
+/// phone: app name, title, message, the link and the big picture.
 class NotificationPreview extends StatelessWidget {
   /// Title as typed; a grey placeholder shows while it's empty.
   final String title;
 
   /// Message as typed; hidden while empty.
   final String body;
+
+  /// Link as typed; hidden while empty.
+  final String link;
 
   /// A newly picked picture (shown in preference to [imageUrl]).
   final Uint8List? imageBytes;
@@ -409,6 +438,7 @@ class NotificationPreview extends StatelessWidget {
   const NotificationPreview({
     required this.title,
     required this.body,
+    this.link = "",
     this.imageBytes,
     this.imageUrl,
     super.key,
@@ -458,6 +488,27 @@ class NotificationPreview extends StatelessWidget {
                 Text(body.trim(),
                     style: const TextStyle(
                         fontSize: 13, height: 1.35, color: AppTokens.inkMuted)),
+              ],
+              if (link.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.link, size: 15, color: AppTokens.inkMuted),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        link.trim(),
+                        key: const Key('notification_preview_link'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 12.5,
+                            color: AppTokens.ink,
+                            decoration: TextDecoration.underline),
+                      ),
+                    ),
+                  ],
+                ),
               ],
               if (bytes != null || url != null) ...[
                 const SizedBox(height: AppTokens.gapSm),
