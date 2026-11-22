@@ -138,32 +138,32 @@ class Topic1ViewModel extends PagedListViewModel<Topic1Model> {
     return true;
   }
 
-  // ---- One-time copy from the old `topic1` collection ---------------------
+  // ---- One-time copy from the Topics module -------------------------------
 
-  /// Whether [copyFromTopic1] is running (its button shows a spinner).
+  /// Whether [copyFromTopics] is running (its button shows a spinner).
   bool copying = false;
 
-  /// Copies the old `topic1` documents that `topics` does not have yet into
-  /// `topics` (see [Topic1Repo.copyFromTopic1]) and reloads the list.
-  /// Returns how many were copied, or null (after an error toast) if the
-  /// copy failed or one is already running.
-  Future<int?> copyFromTopic1() async {
+  /// Copies the old topics (Topics module) that are not here yet into this
+  /// module (see [Topic1Repo.copyFromTopics]) and reloads the list. Returns
+  /// what was copied, or null (after an error toast) if the copy failed or
+  /// one is already running.
+  Future<TopicsCopyResult?> copyFromTopics() async {
     if (copying) return null;
     copying = true;
     notifyListeners();
-    final int copied;
+    final TopicsCopyResult result;
     try {
-      copied = await _repo.copyFromTopic1();
+      result = await _repo.copyFromTopics();
     } catch (e) {
       Helper.showSnackBarMessage(
-          msg: "Error while copying topics from topic1", isSuccess: false);
+          msg: "Error while copying topics from Topics", isSuccess: false);
       return null;
     } finally {
       copying = false;
       notifyListeners();
     }
-    if (copied > 0) await refresh();
-    return copied;
+    if (result.copied > 0) await refresh();
+    return result;
   }
 
   // ---- Content -------------------------------------------------------------

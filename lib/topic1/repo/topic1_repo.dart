@@ -7,6 +7,7 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/topic/model/topic_model.dart';
 import 'package:bbarna/topic/repo/topic_repo.dart';
+import 'package:bbarna/topic1/model/topic1_copy.dart';
 import 'package:bbarna/topic1/model/topic1_model.dart';
 import 'package:bbarna/units/model/unit_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,21 +17,14 @@ import 'package:firebase_storage/firebase_storage.dart';
 /// Storage path it sits at.
 typedef Topic1UploadedPdf = ({String url, String path});
 
-/// The ids in [sourceIds] (documents in `topic1`) that are not in
-/// [existingIds] (documents already in `topics`), in source order: what
-/// [Topic1Repo.copyFromTopic1] writes. A document already in `topics` is
-/// never overwritten, so running the copy again copies nothing new and
-/// keeps any edits made in `topics` since.
-List<String> topic1IdsToCopy(
-        Iterable<String> sourceIds, Set<String> existingIds) =>
-    [
-      for (final String id in sourceIds)
-        if (!existingIds.contains(id)) id,
-    ];
+/// What [Topic1Repo.copyFromTopics] did: how many old topics it copied,
+/// and how many of their PDFs and videos could not come along (see
+/// [newTopicFromOld]).
+typedef TopicsCopyResult = ({int copied, int leftOut});
 
-/// Firestore / Storage access for the `topics` collection (written by the
-/// Topic1 module; it used to be `topic1`, see [copyFromTopic1]): the topics
-/// themselves, the subject/unit lookups the form's dropdowns need, the
+/// Firestore / Storage access for the `topics` collection (the New Topics
+/// module, filled once from the Topics module by [copyFromTopics]): the
+/// topics themselves, the subject/unit lookups the form's dropdowns need, the
 /// audio/quiz codes, and the PDFs and videos stored on each topic.
 /// Firestore and Storage are injectable for tests.
 ///
@@ -187,37 +181,55 @@ class Topic1Repo {
   /// Most writes one copy batch commits (Firestore allows 500).
   static const int copyBatchSize = 450;
 
-  /// Copies every document of the old `topic1` collection that `topics`
-  /// does not have yet into `topics`, under the same document id and with
-  /// the same fields, and returns how many were copied. `topic1` itself is
-  /// left as it is.
+  /// Copies the old topics (`topic` collection, the Topics module) that
+  /// are not here yet into `topics`, each converted by [newTopicFromOld]:
+  /// its attached PDFs and videos are looked up by code and stored on the
+  /// topic. The `topic` collection is only read, never changed.
   ///
-  /// Keeping the id keeps each topic's uploaded PDFs
-  /// (`topic1_pdf/<docId>/…`) lined up with its document. Documents already
-  /// in `topics` are skipped (see [topic1IdsToCopy]). Each batch of
-  /// [copyBatchSize] lands whole or not at all; if one fails, the ones
-  /// before it stay copied and the error is rethrown, and running the copy
-  /// again picks up the rest.
-  Future<int> copyFromTopic1() async {
-    final QuerySnapshot<Map<String, dynamic>> source =
-        await _fireStore.collection(topic1).get();
-    final QuerySnapshot<Map<String, dynamic>> existing =
-        await _collection.get();
-    final Map<String, Map<String, dynamic>> dataById = {
-      for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in source.docs)
+  /// Each old topic keeps its document id, and topics already here (same
+  /// id, or same code) are skipped (see [oldTopicIdsToCopy]), so running it
+  /// again copies only what is still missing. Each batch of [copyBatchSize]
+  /// lands whole or not at all; if one fails, the ones before it stay
+  /// copied and the error is rethrown.
+  Future<TopicsCopyResult> copyFromTopics() async {
+    final List<QuerySnapshot<Map<String, dynamic>>> read = await Future.wait(
+        [_fireStore.collection(topic).get(), _collection.get()]);
+    final Map<String, Map<String, dynamic>> oldById = {
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
+          in read[0].docs)
         doc.id: doc.data(),
     };
-    final List<String> ids = topic1IdsToCopy(
-        dataById.keys, {for (final doc in existing.docs) doc.id});
+    final List<String> ids = oldTopicIdsToCopy(
+      oldById,
+      existingIds: {for (final doc in read[1].docs) doc.id},
+      existingCodes: {
+        for (final doc in read[1].docs) topicCodeKey(doc.data()["topic_code"])
+      },
+    );
+    if (ids.isEmpty) return (copied: 0, leftOut: 0);
 
+    // Only the PDFs and videos these topics attach are read.
+    Iterable<String> codesOf(String field) =>
+        ids.expand((id) => storedCodes(oldById[id]![field]));
+    final List<Map<String, Map<String, dynamic>>> content = await Future.wait([
+      contentDocsByCodeIn(
+          _fireStore, ContentKind.pdf, codesOf("pdf_code_list")),
+      contentDocsByCodeIn(
+          _fireStore, ContentKind.video, codesOf("video_code_list")),
+    ]);
+
+    int leftOut = 0;
     for (int start = 0; start < ids.length; start += copyBatchSize) {
       final WriteBatch batch = _fireStore.batch();
       for (final String id
           in ids.sublist(start, min(start + copyBatchSize, ids.length))) {
-        batch.set(_collection.doc(id), dataById[id]!);
+        final ConvertedTopic converted = newTopicFromOld(oldById[id]!,
+            pdfByCode: content[0], videoByCode: content[1]);
+        leftOut += converted.leftOut;
+        batch.set(_collection.doc(id), converted.data);
       }
       await batch.commit();
     }
-    return ids.length;
+    return (copied: ids.length, leftOut: leftOut);
   }
 }

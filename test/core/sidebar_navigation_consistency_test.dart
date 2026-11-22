@@ -69,7 +69,7 @@ void main() {
         if (!hiddenModuleIndices.contains(i)) i,
     ];
     final List<String> labels = items.map((item) => item.itemText).toList();
-    expect(labels.indexOf('Topic1'), labels.indexOf('Topics') + 1,
+    expect(labels.indexOf('New Topics'), labels.indexOf('Topics') + 1,
         reason: 'Topic1 sits right after Topics');
 
     expect(items.map((item) => item.itemText).toList(),

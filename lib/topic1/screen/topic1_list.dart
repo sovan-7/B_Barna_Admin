@@ -2,6 +2,7 @@ import 'package:bbarna/core/widgets/list_page/paged_list_screen.dart';
 import 'package:bbarna/course/viewModel/course_view_model.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/topic1/model/topic1_model.dart';
+import 'package:bbarna/topic1/repo/topic1_repo.dart';
 import 'package:bbarna/topic1/screen/add_topic1.dart';
 import 'package:bbarna/topic1/viewModel/topic1_view_model.dart';
 import 'package:bbarna/topic1/widgets/topic1_card.dart';
@@ -9,17 +10,17 @@ import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// The Topic1 list (sidebar module). All the behaviour lives in
-/// [PagedListScreen]; this only supplies the Topic1 texts and card, the
-/// one-time "copy from topic1" action, and preloads the course list the
-/// Add/Edit form needs.
+/// The New Topics list (sidebar module; `Topic1…` in code). All the
+/// behaviour lives in [PagedListScreen]; this only supplies the texts and
+/// card, the one-time "copy from Topics" action, and preloads the course
+/// list the Add/Edit form needs.
 class Topic1List extends StatelessWidget {
   const Topic1List({super.key});
 
   @override
   Widget build(BuildContext context) {
     return PagedListScreen<Topic1ViewModel, Topic1Model>(
-      title: "Topic1",
+      title: "New Topics",
       subtitle: "Newest first. PDFs are uploaded and videos are YouTube "
           "links, straight on the topic.",
       addButtonLabel: "NEW TOPIC",
@@ -54,18 +55,20 @@ class Topic1List extends StatelessWidget {
     if (courseViewModel.allCourses.isEmpty) courseViewModel.getCourseList();
   }
 
-  /// Asks before copying the old `topic1` topics into `topics`, then copies
-  /// and says how many were copied (the view model reports a failure).
+  /// Asks before copying the Topics module's topics in, then copies and
+  /// says how many were copied (the view model reports a failure).
   static Future<void> _confirmCopy(
       BuildContext context, Topic1ViewModel viewModel) async {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text("Copy topics from topic1?"),
+        title: const Text("Copy topics from Topics?"),
         content: const Text(
-            "Every topic in the old topic1 collection that isn't here yet is "
-            "copied in, with its PDFs, videos, audio and quizzes. Topics "
-            "already here are left as they are, and topic1 itself is not "
+            "Every topic in the Topics module that isn't here yet is copied "
+            "in. Its PDFs and YouTube videos are stored on the topic; audio "
+            "and quizzes stay attached by code. Missing or locked PDFs and "
+            "videos that aren't on YouTube are left out. Topics whose code "
+            "is already here are skipped, and the Topics module is not "
             "changed."),
         actions: [
           TextButton(
@@ -82,17 +85,28 @@ class Topic1List extends StatelessWidget {
     );
     if (confirmed != true) return;
 
-    final int? copied = await viewModel.copyFromTopic1();
-    if (copied == null) return;
-    Helper.showInfoMessage(
-      msg: copied == 0
-          ? "Nothing to copy: every topic1 topic is already here"
-          : "Copied $copied ${copied == 1 ? "topic" : "topics"} from topic1",
-    );
+    final TopicsCopyResult? result = await viewModel.copyFromTopics();
+    if (result == null) return;
+    Helper.showInfoMessage(msg: copyResultMessage(result));
+  }
+
+  /// The toast after a copy: how many topics came over and, if any, how
+  /// many PDFs/videos were left out.
+  @visibleForTesting
+  static String copyResultMessage(TopicsCopyResult result) {
+    if (result.copied == 0) {
+      return "Nothing to copy: every topic is already here";
+    }
+    final String copied = "Copied ${result.copied} "
+        "${result.copied == 1 ? "topic" : "topics"} from Topics";
+    if (result.leftOut == 0) return copied;
+    return "$copied · ${result.leftOut} "
+        "${result.leftOut == 1 ? "PDF/video" : "PDFs/videos"} left out "
+        "(missing, locked or not YouTube)";
   }
 }
 
-/// "COPY FROM TOPIC1" beside "NEW TOPIC"; just the icon on narrow windows,
+/// "COPY FROM TOPICS" beside "NEW TOPIC"; just the icon on narrow windows,
 /// where both labels do not fit next to the title. Disabled, with a
 /// spinner, while a copy runs.
 class _CopyButton extends StatelessWidget {
@@ -121,7 +135,7 @@ class _CopyButton extends StatelessWidget {
     final VoidCallback? action = copying ? null : onPressed;
 
     return Tooltip(
-      message: "Copy the topics from the old topic1 collection",
+      message: "Copy the topics from the Topics module",
       child: narrow
           ? OutlinedButton(
               key: const Key('topic1_copy_button'),
@@ -134,7 +148,7 @@ class _CopyButton extends StatelessWidget {
               onPressed: action,
               style: style,
               icon: icon,
-              label: Text(copying ? "COPYING…" : "COPY FROM TOPIC1",
+              label: Text(copying ? "COPYING…" : "COPY FROM TOPICS",
                   style: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600)),
             ),

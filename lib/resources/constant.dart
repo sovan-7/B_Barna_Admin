@@ -53,15 +53,12 @@ const String unit = "unit";
 /// `topic` collection.
 const String topic = "topic";
 
-/// `topics` collection, written by the Topic1 module: topics whose PDFs are
-/// uploaded and whose videos are YouTube links, both stored on the topic
-/// itself rather than attached by code (see `Topic1Model`).
+/// `topics` collection, written by the New Topics module (`Topic1…` in
+/// code): topics whose PDFs are uploaded and whose videos are YouTube links,
+/// both stored on the topic itself rather than attached by code (see
+/// `Topic1Model`). The module's one-time copy fills it from [topic]
+/// (`Topic1Repo.copyFromTopics`).
 const String topics = "topics";
-
-/// `topic1` collection: where the Topic1 module kept its topics before they
-/// moved to [topics]. Kept in the database as a backup and read only by the
-/// one-time copy into [topics] (`Topic1Repo.copyFromTopic1`).
-const String topic1 = "topic1";
 
 /// `video` collection.
 const String video = "video";
@@ -202,9 +199,9 @@ const int liveClassModuleIndex = 12;
 /// Position of the Topics module within [moduleList].
 const int topicModuleIndex = 4;
 
-/// Position of the Topic1 module within [moduleList] — the value every
-/// Topic1 screen passes as `sidebarIndex`. Shown right after Topics (see
-/// [moduleNavOrder]).
+/// Position of the New Topics module (`Topic1…` in code) within
+/// [moduleList] — the value every Topic1 screen passes as `sidebarIndex`.
+/// Shown right after Topics (see [moduleNavOrder]).
 const int topic1ModuleIndex = 17;
 
 /// What the sidebar *shows*, index-aligned with [moduleList].
@@ -232,7 +229,7 @@ const List<String> moduleDisplayList = [
   "Book orders",
   "Notifications",
   "Transactions",
-  "Topic1",
+  "New Topics",
 ];
 
 /// Role with full access, including managing teachers.

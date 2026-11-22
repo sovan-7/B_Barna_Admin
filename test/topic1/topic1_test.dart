@@ -10,6 +10,7 @@ import 'package:bbarna/core/widgets/app_toast.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/topic/model/topic_model.dart';
+import 'package:bbarna/topic1/model/topic1_copy.dart';
 import 'package:bbarna/topic1/model/topic1_model.dart';
 import 'package:bbarna/topic1/repo/topic1_repo.dart';
 import 'package:bbarna/topic1/screen/add_topic1.dart';
@@ -48,6 +49,8 @@ class MockQueryDocumentSnapshot extends Mock
     implements QueryDocumentSnapshot<Map<String, dynamic>> {}
 
 class MockWriteBatch extends Mock implements WriteBatch {}
+
+class MockQuery extends Mock implements Query<Map<String, dynamic>> {}
 
 /// A query result holding a document per entry of [docs] (`id -> data`).
 MockQuerySnapshot _snapshot(Map<String, Map<String, dynamic>> docs) {
@@ -331,127 +334,305 @@ void main() {
     });
   });
 
-  group('copying from topic1', () {
-    test('only the topics not already in topics are picked, in order', () {
-      expect(topic1IdsToCopy(['a', 'b', 'c'], {'b'}), ['a', 'c']);
-      expect(topic1IdsToCopy(['a', 'b'], {}), ['a', 'b']);
-      expect(topic1IdsToCopy(['a', 'b'], {'a', 'b', 'z'}), isEmpty);
+  group('copying from Topics', () {
+    test('picks the old topics not here yet, by id and by code', () {
+      expect(
+          oldTopicIdsToCopy({
+            'a': {'topic_code': 'NEWT-01'},
+            'b': {'topic_code': ' newt-02 '}, // code already here
+            'c': {'topic_code': 'NEWT-03'}, // copied before (same id)
+            'd': {'topic_code': 'NEWT-01'}, // same code as 'a'
+            'e': {}, // no code: matched on id only
+          }, existingIds: {
+            'c'
+          }, existingCodes: {
+            'NEWT-02'
+          }),
+          ['a', 'e']);
+    });
+
+    test('attached PDFs and videos become entries on the topic', () {
+      int next = 0;
+      final ConvertedTopic converted = newTopicFromOld(
+        {
+          'topic_code': 'NEWT-01',
+          'topic_name': "Newton's First Law",
+          'timeStamp': 5,
+          'course_code': 'PHY-11',
+          'unit_code': 'MECH-01',
+          'display_priority': 2,
+          'unitCodeList': ['MECH-01', 'APP-07'],
+          'audio_code_list': ['AU-1'],
+          'quiz_code_list': ['QZ-1'],
+          'pdf_code_list': ['PDF-2', 'PDF-1', 'PDF-GONE', 'PDF-LOCKED'],
+          'video_code_list': ['VID-1', 'VID-VIMEO', 'VID-GONE'],
+        },
+        pdfByCode: {
+          'PDF-1': {
+            'pdf_code': 'PDF-1',
+            'pdf_title': 'First',
+            'pdf_description': 'not carried over',
+            'pdf_link': 'https://files/1',
+            'pdf_type': 'FREE',
+            'is_downloadable': true,
+          },
+          'PDF-2': {
+            'pdf_code': 'PDF-2',
+            'pdf_title': 'Second',
+            'pdf_link': 'https://files/2',
+            'pdf_type': 'PAID',
+            'is_downloadable': false,
+          },
+          'PDF-LOCKED': {
+            'pdf_code': 'PDF-LOCKED',
+            'pdf_title': 'Locked',
+            'pdf_link': 'https://files/3',
+            'pdf_type': 'PAID',
+            'is_locked': true,
+          },
+        },
+        videoByCode: {
+          'VID-1': {
+            'video_code': 'VID-1',
+            'video_title': 'Lecture',
+            'video_link': 'https://youtu.be/dQw4w9WgXcQ',
+            'video_type': 'FREE',
+          },
+          'VID-VIMEO': {
+            'video_code': 'VID-VIMEO',
+            'video_title': 'Elsewhere',
+            'video_link': 'https://vimeo.com/1',
+            'video_type': 'FREE',
+          },
+        },
+        newId: () => 'id${next++}',
+      );
+
+      expect(converted.leftOut, 4,
+          reason: 'missing PDF, locked PDF, non-YouTube and missing video');
+      final Map<String, dynamic> data = converted.data;
+      expect(data['pdf_list'], [
+        {
+          'id': 'id0',
+          'pdf_title': 'Second',
+          'pdf_name': 'PDF-2',
+          'pdf_link': 'https://files/2',
+          'pdf_path': '',
+          'pdf_type': 'PAID',
+          'is_downloadable': false,
+        },
+        {
+          'id': 'id1',
+          'pdf_title': 'First',
+          'pdf_name': 'PDF-1',
+          'pdf_link': 'https://files/1',
+          'pdf_path': '',
+          'pdf_type': 'FREE',
+          'is_downloadable': true,
+        },
+      ]);
+      expect(data['video_list'], [
+        {
+          'id': 'id2',
+          'video_title': 'Lecture',
+          'video_link': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          'video_type': 'FREE',
+        },
+      ]);
+      expect(data['topic_code'], 'NEWT-01');
+      expect(data['display_priority'], 2);
+      expect(data['unitCodeList'], ['MECH-01', 'APP-07']);
+      expect(data['audio_code_list'], ['AU-1']);
+      expect(data['quiz_code_list'], ['QZ-1']);
+      expect(data.containsKey('pdf_code_list'), isFalse);
+      expect(data.containsKey('video_code_list'), isFalse);
+
+      final Topic1Model model = Topic1Model.fromMap('a', data);
+      expect(model.pdfList.map((p) => p.storagePath), ['', ''],
+          reason: 'the PDFs module still owns the files');
+      expect(model.videoList.single.title, 'Lecture');
     });
 
     group('the repo', () {
       late MockFirebaseFirestore firestore;
       late MockCollectionReference target;
+      late MockCollectionReference pdfCollection;
       late MockWriteBatch batch;
       late Topic1Repo topic1Repo;
       final Map<String, MockDocumentReference> targetDocs = {};
+
+      void stubTarget(Map<String, Map<String, dynamic>> docs) {
+        final MockQuerySnapshot targetSnapshot = _snapshot(docs);
+        when(() => target.get()).thenAnswer((_) async => targetSnapshot);
+      }
 
       setUp(() {
         registerFallbackValue(<String, dynamic>{});
         registerFallbackValue(MockDocumentReference());
         firestore = MockFirebaseFirestore();
-        final MockCollectionReference source = MockCollectionReference();
+        final MockCollectionReference old = MockCollectionReference();
         target = MockCollectionReference();
+        pdfCollection = MockCollectionReference();
+        final MockCollectionReference videoCollection =
+            MockCollectionReference();
+        final MockQuery pdfQuery = MockQuery();
+        final MockQuery videoQuery = MockQuery();
         batch = MockWriteBatch();
         targetDocs.clear();
-        when(() => firestore.collection(topic1)).thenReturn(source);
+        when(() => firestore.collection(topic)).thenReturn(old);
         when(() => firestore.collection(topics)).thenReturn(target);
+        when(() => firestore.collection(pdf)).thenReturn(pdfCollection);
+        when(() => firestore.collection(video)).thenReturn(videoCollection);
         when(() => firestore.batch()).thenReturn(batch);
         when(() => batch.commit()).thenAnswer((_) async {});
         when(() => target.doc(any())).thenAnswer((invocation) =>
             targetDocs.putIfAbsent(
                 invocation.positionalArguments.first as String,
                 MockDocumentReference.new));
-        final MockQuerySnapshot sourceSnapshot = _snapshot({
-          'a': {'topic_code': 'NEWT-01', 'pdf_list': []},
-          'b': {'topic_code': 'NEWT-02'},
-          'c': {'topic_code': 'NEWT-03', 'video_list': []},
+        final MockQuerySnapshot oldSnapshot = _snapshot({
+          'old-a': {
+            'topic_code': 'NEWT-01',
+            'pdf_code_list': ['PDF-1'],
+            'video_code_list': ['VID-1'],
+          },
+          'old-b': {
+            'topic_code': 'NEWT-02',
+            'pdf_code_list': ['PDF-9'],
+          },
         });
-        when(() => source.get()).thenAnswer((_) async => sourceSnapshot);
+        when(() => old.get()).thenAnswer((_) async => oldSnapshot);
+        when(() =>
+                pdfCollection.where('pdf_code', whereIn: any(named: 'whereIn')))
+            .thenReturn(pdfQuery);
+        when(() => videoCollection.where('video_code',
+            whereIn: any(named: 'whereIn'))).thenReturn(videoQuery);
+        final MockQuerySnapshot pdfSnapshot = _snapshot({
+          'p': {
+            'pdf_code': 'PDF-1',
+            'pdf_title': 'Notes',
+            'pdf_link': 'https://files/1',
+            'pdf_type': 'FREE',
+            'is_downloadable': true,
+          },
+        });
+        final MockQuerySnapshot videoSnapshot = _snapshot({
+          'v': {
+            'video_code': 'VID-1',
+            'video_title': 'Lecture',
+            'video_link': 'https://youtu.be/dQw4w9WgXcQ',
+            'video_type': 'PAID',
+          },
+        });
+        when(() => pdfQuery.get()).thenAnswer((_) async => pdfSnapshot);
+        when(() => videoQuery.get()).thenAnswer((_) async => videoSnapshot);
         topic1Repo = Topic1Repo(firestore: firestore);
       });
 
-      test('copies the missing topics under the same id with the same fields',
-          () async {
-        final MockQuerySnapshot targetSnapshot = _snapshot({
-          'b': {'topic_code': 'NEWT-02', 'topic_name': 'Edited in topics'},
+      test('converts the missing topics and keeps their ids', () async {
+        stubTarget({
+          'x': {'topic_code': 'newt-02'},
         });
-        when(() => target.get()).thenAnswer((_) async => targetSnapshot);
 
-        expect(await topic1Repo.copyFromTopic1(), 2);
+        expect(await topic1Repo.copyFromTopics(), (copied: 1, leftOut: 0));
 
-        verify(() => batch.set<Map<String, dynamic>>(
-                targetDocs['a']!, {'topic_code': 'NEWT-01', 'pdf_list': []}))
-            .called(1);
-        verify(() => batch.set<Map<String, dynamic>>(
-                targetDocs['c']!, {'topic_code': 'NEWT-03', 'video_list': []}))
-            .called(1);
-        expect(targetDocs.keys, isNot(contains('b')),
-            reason: 'a topic already in topics must not be overwritten');
+        final List<dynamic> asked = verify(() => pdfCollection.where('pdf_code',
+            whereIn: captureAny(named: 'whereIn'))).captured;
+        expect(
+            asked,
+            [
+              ['PDF-1']
+            ],
+            reason: 'only the content of topics being copied is read');
+        final Map<String, dynamic> written = verify(() => batch
+                .set<Map<String, dynamic>>(targetDocs['old-a']!, captureAny()))
+            .captured
+            .single;
+        expect(written['topic_code'], 'NEWT-01');
+        expect((written['pdf_list'] as List).single['pdf_path'], '');
+        expect((written['video_list'] as List).single['video_link'],
+            'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+        expect(targetDocs.keys, isNot(contains('old-b')),
+            reason: 'its code is already here');
         verify(() => batch.commit()).called(1);
       });
 
-      test('writes nothing when every topic is already there', () async {
-        final MockQuerySnapshot targetSnapshot = _snapshot({
-          'a': {},
-          'b': {},
-          'c': {},
-        });
-        when(() => target.get()).thenAnswer((_) async => targetSnapshot);
+      test('reads and writes nothing more when every topic is here', () async {
+        stubTarget({'old-a': {}, 'old-b': {}});
 
-        expect(await topic1Repo.copyFromTopic1(), 0);
+        expect(await topic1Repo.copyFromTopics(), (copied: 0, leftOut: 0));
         verifyNever(() => firestore.batch());
+        verifyNever(
+            () => pdfCollection.where(any(), whereIn: any(named: 'whereIn')));
       });
     });
 
     test('the view model reloads the list after copying', () async {
-      when(() => repo.copyFromTopic1()).thenAnswer((_) async => 2);
+      when(() => repo.copyFromTopics())
+          .thenAnswer((_) async => (copied: 2, leftOut: 1));
       final Topic1ViewModel vm = Topic1ViewModel(topic1Repo: repo);
 
-      final Future<int?> copying = vm.copyFromTopic1();
+      final Future<TopicsCopyResult?> copying = vm.copyFromTopics();
       expect(vm.copying, isTrue);
-      expect(await copying, 2);
+      expect(await copying, (copied: 2, leftOut: 1));
       expect(vm.copying, isFalse);
       verify(() => repo.getFirstTopicList(any())).called(1);
     });
 
     test('the view model skips the reload when nothing was copied', () async {
-      when(() => repo.copyFromTopic1()).thenAnswer((_) async => 0);
+      when(() => repo.copyFromTopics())
+          .thenAnswer((_) async => (copied: 0, leftOut: 0));
       final Topic1ViewModel vm = Topic1ViewModel(topic1Repo: repo);
 
-      expect(await vm.copyFromTopic1(), 0);
+      expect(await vm.copyFromTopics(), (copied: 0, leftOut: 0));
       verifyNever(() => repo.getFirstTopicList(any()));
     });
 
     testWidgets('a failed copy reports null and stops copying', (tester) async {
       await _pumpShell(tester);
-      when(() => repo.copyFromTopic1()).thenThrow(Exception('denied'));
+      when(() => repo.copyFromTopics()).thenThrow(Exception('denied'));
       final Topic1ViewModel vm = Topic1ViewModel(topic1Repo: repo);
 
-      expect(await vm.copyFromTopic1(), isNull);
+      expect(await vm.copyFromTopics(), isNull);
       expect(vm.copying, isFalse);
       expect(AppToast.messages,
-          contains('Error while copying topics from topic1'));
+          contains('Error while copying topics from Topics'));
       AppToast.dismissAll();
+    });
+
+    test('the result toast counts topics and left-out items', () {
+      expect(Topic1List.copyResultMessage((copied: 0, leftOut: 0)),
+          'Nothing to copy: every topic is already here');
+      expect(Topic1List.copyResultMessage((copied: 1, leftOut: 0)),
+          'Copied 1 topic from Topics');
+      expect(
+          Topic1List.copyResultMessage((copied: 3, leftOut: 2)),
+          'Copied 3 topics from Topics · 2 PDFs/videos left out '
+          '(missing, locked or not YouTube)');
     });
 
     testWidgets('the list button asks first, then copies and says how many',
         (tester) async {
-      when(() => repo.copyFromTopic1()).thenAnswer((_) async => 2);
+      when(() => repo.copyFromTopics())
+          .thenAnswer((_) async => (copied: 2, leftOut: 1));
       final vm = Topic1ViewModel(topic1Repo: repo);
       await _pump(tester, const Size(1440, 900),
           const Scaffold(body: Topic1List()), vm);
 
+      expect(find.text('COPY FROM TOPICS'), findsOneWidget);
       await tester.tap(find.byKey(const Key('topic1_copy_button')));
       await tester.pumpAndSettle();
-      expect(find.text('Copy topics from topic1?'), findsOneWidget);
-      verifyNever(() => repo.copyFromTopic1());
+      expect(find.text('Copy topics from Topics?'), findsOneWidget);
+      verifyNever(() => repo.copyFromTopics());
 
       await tester.tap(find.byKey(const Key('topic1_copy_confirm')));
       await tester.pump();
       await tester.pump();
 
-      verify(() => repo.copyFromTopic1()).called(1);
-      expect(AppToast.messages, contains('Copied 2 topics from topic1'));
+      verify(() => repo.copyFromTopics()).called(1);
+      expect(
+          AppToast.messages,
+          contains('Copied 2 topics from Topics · 1 PDF/video left out '
+              '(missing, locked or not YouTube)'));
       AppToast.dismissAll();
     });
 
@@ -465,7 +646,7 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
-      verifyNever(() => repo.copyFromTopic1());
+      verifyNever(() => repo.copyFromTopics());
     });
   });
 
@@ -634,7 +815,7 @@ void main() {
         await _pump(tester, size, const Scaffold(body: Topic1List()), vm);
 
         expect(tester.takeException(), isNull);
-        expect(find.text('Topic1'), findsOneWidget);
+        expect(find.text('New Topics'), findsOneWidget);
         expect(find.byType(Topic1Card), findsNWidgets(3));
       });
 
