@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:bbarna/core/repo/firestore_pager.dart';
@@ -7,7 +6,6 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/topic/model/topic_model.dart';
 import 'package:bbarna/topic/repo/topic_repo.dart';
-import 'package:bbarna/topic1/model/topic1_copy.dart';
 import 'package:bbarna/topic1/model/topic1_model.dart';
 import 'package:bbarna/units/model/unit_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,15 +15,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 /// Storage path it sits at.
 typedef Topic1UploadedPdf = ({String url, String path});
 
-/// What [Topic1Repo.copyFromTopics] did: how many old topics it copied,
-/// and how many of their PDFs and videos could not come along (see
-/// [newTopicFromOld]).
-typedef TopicsCopyResult = ({int copied, int leftOut});
-
 /// Firestore / Storage access for the `topics` collection (the New Topics
-/// module, filled once from the Topics module by [copyFromTopics]): the
-/// topics themselves, the subject/unit lookups the form's dropdowns need, the
-/// audio/quiz codes, and the PDFs and videos stored on each topic.
+/// module): the topics themselves, the subject/unit lookups the form's
+/// dropdowns need, the audio/quiz codes, and the PDFs and videos stored on
+/// each topic.
 /// Firestore and Storage are injectable for tests.
 ///
 /// Every method throws on failure (except the deliberately quiet
@@ -177,59 +170,4 @@ class Topic1Repo {
   /// Topic1 documents whose `topic_code` starts with [searchText].
   Future<List<Topic1Model>> searchTopic(String searchText) async =>
       _toModels(await prefixSearch(_collection, "topic_code", searchText));
-
-  /// Most writes one copy batch commits (Firestore allows 500).
-  static const int copyBatchSize = 450;
-
-  /// Copies the old topics (`topic` collection, the Topics module) that
-  /// are not here yet into `topics`, each converted by [newTopicFromOld]:
-  /// its attached PDFs and videos are looked up by code and stored on the
-  /// topic. The `topic` collection is only read, never changed.
-  ///
-  /// Each old topic keeps its document id, and topics already here (same
-  /// id, or same code) are skipped (see [oldTopicIdsToCopy]), so running it
-  /// again copies only what is still missing. Each batch of [copyBatchSize]
-  /// lands whole or not at all; if one fails, the ones before it stay
-  /// copied and the error is rethrown.
-  Future<TopicsCopyResult> copyFromTopics() async {
-    final List<QuerySnapshot<Map<String, dynamic>>> read = await Future.wait(
-        [_fireStore.collection(topic).get(), _collection.get()]);
-    final Map<String, Map<String, dynamic>> oldById = {
-      for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
-          in read[0].docs)
-        doc.id: doc.data(),
-    };
-    final List<String> ids = oldTopicIdsToCopy(
-      oldById,
-      existingIds: {for (final doc in read[1].docs) doc.id},
-      existingCodes: {
-        for (final doc in read[1].docs) topicCodeKey(doc.data()["topic_code"])
-      },
-    );
-    if (ids.isEmpty) return (copied: 0, leftOut: 0);
-
-    // Only the PDFs and videos these topics attach are read.
-    Iterable<String> codesOf(String field) =>
-        ids.expand((id) => storedCodes(oldById[id]![field]));
-    final List<Map<String, Map<String, dynamic>>> content = await Future.wait([
-      contentDocsByCodeIn(
-          _fireStore, ContentKind.pdf, codesOf("pdf_code_list")),
-      contentDocsByCodeIn(
-          _fireStore, ContentKind.video, codesOf("video_code_list")),
-    ]);
-
-    int leftOut = 0;
-    for (int start = 0; start < ids.length; start += copyBatchSize) {
-      final WriteBatch batch = _fireStore.batch();
-      for (final String id
-          in ids.sublist(start, min(start + copyBatchSize, ids.length))) {
-        final ConvertedTopic converted = newTopicFromOld(oldById[id]!,
-            pdfByCode: content[0], videoByCode: content[1]);
-        leftOut += converted.leftOut;
-        batch.set(_collection.doc(id), converted.data);
-      }
-      await batch.commit();
-    }
-    return (copied: ids.length, leftOut: leftOut);
-  }
 }

@@ -97,31 +97,14 @@ class TopicRepo {
 /// A code with no document simply does not come back, so the caller can
 /// tell attached-and-real from attached-and-a-typo. Shared by the Topic and
 /// Topic1 repos.
-Future<Map<String, String>> resolveContentTitlesIn(
-    FirebaseFirestore fireStore, ContentKind kind, List<String> codes) async {
-  final Map<String, Map<String, dynamic>> docs =
-      await contentDocsByCodeIn(fireStore, kind, codes);
-  return {
-    for (final MapEntry<String, Map<String, dynamic>> entry in docs.entries)
-      entry.key: switch (entry.value[kind.titleField]) {
-        final String title => title,
-        _ => "",
-      },
-  };
-}
-
-/// Looks [codes] up in [kind]'s own collection and returns `code ->` the
-/// document's data. A code with no document simply does not come back.
 ///
 /// `whereIn` takes at most 30 values per query, so this goes in chunks of
-/// 30, all at once. Blank and duplicate codes are ignored.
-Future<Map<String, Map<String, dynamic>>> contentDocsByCodeIn(
-    FirebaseFirestore fireStore,
-    ContentKind kind,
-    Iterable<String> codes) async {
+/// 30. Blank and duplicate codes are ignored.
+Future<Map<String, String>> resolveContentTitlesIn(
+    FirebaseFirestore fireStore, ContentKind kind, List<String> codes) async {
   final List<String> unique =
       codes.map((c) => c.trim()).where((c) => c.isNotEmpty).toSet().toList();
-  if (unique.isEmpty) return <String, Map<String, dynamic>>{};
+  if (unique.isEmpty) return <String, String>{};
 
   // Chunks are independent, so query them all at once.
   final List<QuerySnapshot<Map<String, dynamic>>> snapshots =
@@ -134,14 +117,14 @@ Future<Map<String, Map<String, dynamic>>> contentDocsByCodeIn(
                   i, i + 30 > unique.length ? unique.length : i + 30))
           .get(),
   ]);
-  final Map<String, Map<String, dynamic>> docs = {};
+  final Map<String, String> titles = <String, String>{};
   for (final QuerySnapshot<Map<String, dynamic>> snapshot in snapshots) {
     for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
         in snapshot.docs) {
-      final Map<String, dynamic> data = doc.data();
-      final Object? code = data[kind.codeField];
-      if (code is String) docs[code] = data;
+      final Object? code = doc.data()[kind.codeField];
+      final Object? title = doc.data()[kind.titleField];
+      if (code is String) titles[code] = title is String ? title : "";
     }
   }
-  return docs;
+  return titles;
 }

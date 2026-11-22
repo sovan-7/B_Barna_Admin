@@ -56,8 +56,7 @@ const String topic = "topic";
 /// `topics` collection, written by the New Topics module (`Topic1…` in
 /// code): topics whose PDFs are uploaded and whose videos are YouTube links,
 /// both stored on the topic itself rather than attached by code (see
-/// `Topic1Model`). The module's one-time copy fills it from [topic]
-/// (`Topic1Repo.copyFromTopics`).
+/// `Topic1Model`).
 const String topics = "topics";
 
 /// `video` collection.

@@ -138,34 +138,6 @@ class Topic1ViewModel extends PagedListViewModel<Topic1Model> {
     return true;
   }
 
-  // ---- One-time copy from the Topics module -------------------------------
-
-  /// Whether [copyFromTopics] is running (its button shows a spinner).
-  bool copying = false;
-
-  /// Copies the old topics (Topics module) that are not here yet into this
-  /// module (see [Topic1Repo.copyFromTopics]) and reloads the list. Returns
-  /// what was copied, or null (after an error toast) if the copy failed or
-  /// one is already running.
-  Future<TopicsCopyResult?> copyFromTopics() async {
-    if (copying) return null;
-    copying = true;
-    notifyListeners();
-    final TopicsCopyResult result;
-    try {
-      result = await _repo.copyFromTopics();
-    } catch (e) {
-      Helper.showSnackBarMessage(
-          msg: "Error while copying topics from Topics", isSuccess: false);
-      return null;
-    } finally {
-      copying = false;
-      notifyListeners();
-    }
-    if (result.copied > 0) await refresh();
-    return result;
-  }
-
   // ---- Content -------------------------------------------------------------
 
   /// Saves the PDF list from the editor's [drafts], in order.
