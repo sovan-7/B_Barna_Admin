@@ -134,8 +134,10 @@ void main() {
     final DateTime now = DateTime.now();
     final LiveClassModel past =
         _class('past', 'Algebra recap', now.subtract(const Duration(days: 2)));
+    // 10:00 tomorrow, not "now + 1 day": run after 23:00 that one-hour class
+    // would end past midnight, and the form refuses to save it.
     final LiveClassModel upcoming = _class(
-        'up', 'Optics drill', now.add(const Duration(days: 1)),
+        'up', 'Optics drill', DateTime(now.year, now.month, now.day + 1, 10),
         classType: LiveClassModel.liveClassFree);
 
     setUp(() async {
