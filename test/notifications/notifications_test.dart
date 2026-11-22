@@ -36,12 +36,14 @@ final Uint8List _pngBytes = Uint8List.fromList([0x89, 0x50, 0x4E, 0x47]);
 NotificationModel _sent(String id, String title,
         {NotificationStatus status = NotificationStatus.sent,
         String? imageUrl,
+        String? url,
         String? error}) =>
     NotificationModel(
       docId: id,
       title: title,
       body: "Body of $title",
       imageUrl: imageUrl,
+      url: url,
       status: status,
       error: error,
       createdAt: DateTime(2026, 10, 30, 16, 5),
@@ -70,6 +72,7 @@ void main() {
           _sent('a', 'Holiday notice'),
           _sent('b', 'New batch', status: NotificationStatus.pending),
           _sent('c', 'Broken', status: NotificationStatus.failed, error: 'x'),
+          _sent('d', 'Live class', url: 'https://meet.google.com/abc-defg-hij'),
         ]);
     when(() => repo.send(any())).thenAnswer((_) async => 'new-id');
     when(() => repo.uploadImage(any()))
@@ -142,6 +145,78 @@ void main() {
       const model = NotificationModel(title: 'Holiday', body: '');
       expect(model.copyText, 'Holiday');
     });
+
+    test('stores and reads the link as url', () {
+      const model = NotificationModel(
+          title: 'Live class',
+          body: '',
+          url: ' https://meet.google.com/abc-defg-hij ');
+      expect(model.hasLink, isTrue);
+      expect(model.toMap()['url'], 'https://meet.google.com/abc-defg-hij');
+
+      final read = NotificationModel.fromDocumentSnapshot(_FakeSnapshot('id', {
+        'title': 'Live class',
+        'url': 'https://youtu.be/dQw4w9WgXcQ',
+      }));
+      expect(read.url, 'https://youtu.be/dQw4w9WgXcQ');
+      expect(read.hasLink, isTrue);
+    });
+
+    test('no link stores null', () {
+      const blank = NotificationModel(title: 'T', body: '', url: '  ');
+      expect(blank.hasLink, isFalse);
+      expect(blank.toMap()['url'], isNull);
+      expect(blank.toMap().containsKey('url'), isTrue);
+
+      final read = NotificationModel.fromDocumentSnapshot(
+          _FakeSnapshot('id', {'title': 'Old one'}));
+      expect(read.url, isNull);
+      expect(read.hasLink, isFalse);
+    });
+
+    test('copies the link after the title and text', () {
+      const model = NotificationModel(
+          title: 'Live class',
+          body: 'Join at 7 pm.',
+          url: 'https://zoom.us/j/123456789');
+      expect(model.copyText,
+          'Live class\nJoin at 7 pm.\nhttps://zoom.us/j/123456789');
+      const noBody = NotificationModel(
+          title: 'Live class', body: '', url: 'https://zoom.us/j/1');
+      expect(noBody.copyText, 'Live class\nhttps://zoom.us/j/1');
+    });
+  });
+
+  group('linkProblem', () {
+    for (final String ok in [
+      '',
+      '   ',
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      'https://youtu.be/dQw4w9WgXcQ',
+      'https://meet.google.com/abc-defg-hij',
+      'https://us02web.zoom.us/j/123456789?pwd=abc',
+      'http://example.com/page',
+      ' HTTPS://Example.com ',
+    ]) {
+      test('accepts "$ok"', () {
+        expect(NotificationModel.linkProblem(ok), isNull);
+      });
+    }
+
+    for (final String bad in [
+      'meet.google.com/abc-defg-hij',
+      'www.youtube.com/watch?v=dQw4w9WgXcQ',
+      'ftp://example.com/file',
+      'https://',
+      'https://localhost',
+      'not a link',
+      'https://meet.google.com/abc defg',
+    ]) {
+      test('rejects "$bad"', () {
+        expect(NotificationModel.linkProblem(bad),
+            'Paste the full link, starting with https://');
+      });
+    }
   });
 
   group('sendNotification', () {
@@ -182,6 +257,25 @@ void main() {
       expect(sent.imageUrl, 'https://example.com/banner.png');
     });
 
+    test('the link is sent trimmed', () async {
+      final vm = NotificationsViewModel(notificationsRepo: repo);
+      await vm.sendNotification(
+          title: 'Hi', body: '', url: ' https://meet.google.com/abc ');
+
+      final NotificationModel sent =
+          verify(() => repo.send(captureAny())).captured.single;
+      expect(sent.url, 'https://meet.google.com/abc');
+    });
+
+    test('a blank link is sent as none', () async {
+      final vm = NotificationsViewModel(notificationsRepo: repo);
+      await vm.sendNotification(title: 'Hi', body: '', url: '   ');
+
+      final NotificationModel sent =
+          verify(() => repo.send(captureAny())).captured.single;
+      expect(sent.url, isNull);
+    });
+
     testWidgets('a failed upload sends nothing', (tester) async {
       when(() => repo.uploadImage(any())).thenThrow(Exception('storage down'));
       final vm = await pump(tester, const Scaffold(body: SizedBox()));
@@ -200,12 +294,24 @@ void main() {
             size: size);
 
         expect(tester.takeException(), isNull);
-        expect(find.byType(NotificationCard), findsNWidgets(3));
-        expect(find.text('Sent'), findsOneWidget);
+        expect(find.byType(NotificationCard), findsNWidgets(4));
+        expect(find.text('Sent'), findsNWidgets(2));
         expect(find.text('Sending'), findsOneWidget);
         expect(find.text('Failed'), findsOneWidget);
       });
     }
+
+    testWidgets('only a notification with a link shows it and Open link',
+        (tester) async {
+      await pump(tester, const Scaffold(body: NotificationList()));
+
+      expect(find.byKey(const Key('notification_open_link')), findsOneWidget);
+      final SelectableText link = tester.widget(find.descendant(
+          of: find.byKey(const Key('notification_link')),
+          matching: find.byType(SelectableText)));
+      expect(link.data, 'meet.google.com/abc-defg-hij');
+      expect(find.byKey(const Key('notification_link')), findsOneWidget);
+    });
 
     testWidgets('nothing sent yet offers to send one', (tester) async {
       when(() => repo.getNotifications()).thenAnswer((_) async => []);
@@ -242,7 +348,7 @@ void main() {
           .setMockMethodCallHandler(SystemChannels.platform, null));
 
       await pump(tester, const Scaffold(body: NotificationList()));
-      expect(find.byKey(const Key('notification_copy')), findsNWidgets(3));
+      expect(find.byKey(const Key('notification_copy')), findsNWidgets(4));
 
       await tester.tap(find.byKey(const Key('notification_copy')).first);
       await tester.pump();
@@ -290,11 +396,69 @@ void main() {
       expect(preview.data, 'Exam on Friday');
     });
 
+    testWidgets('the preview shows the link once one is typed', (tester) async {
+      await pump(tester, const SendNotification());
+      expect(find.byKey(const Key('notification_preview_link')), findsNothing);
+
+      await tester.enterText(find.byKey(const Key('notification_link_field')),
+          'https://meet.google.com/abc-defg-hij');
+      await tester.pump();
+
+      final Text preview =
+          tester.widget(find.byKey(const Key('notification_preview_link')));
+      expect(preview.data, 'https://meet.google.com/abc-defg-hij');
+    });
+
+    testWidgets('a link without https:// is refused and nothing is sent',
+        (tester) async {
+      await pump(tester, const SendNotification());
+
+      await tester.enterText(
+          find.byKey(const Key('notification_title_field')), 'Live class');
+      await tester.enterText(find.byKey(const Key('notification_link_field')),
+          'meet.google.com/abc-defg-hij');
+      await tester.tap(find.byKey(const Key('notification_send_button')));
+      await tester.pump();
+
+      expect(find.text('Paste the full link, starting with https://'),
+          findsOneWidget);
+      verifyNever(() => repo.send(any()));
+
+      // Typing again clears the error.
+      await tester.enterText(find.byKey(const Key('notification_link_field')),
+          'https://meet.google.com/abc-defg-hij');
+      await tester.pump();
+      expect(find.text('Paste the full link, starting with https://'),
+          findsNothing);
+    });
+
+    testWidgets('a link goes out with the notification', (tester) async {
+      await pump(tester, const SendNotification());
+
+      await tester.enterText(
+          find.byKey(const Key('notification_title_field')), 'Live class');
+      await tester.enterText(find.byKey(const Key('notification_link_field')),
+          'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      await tester.tap(find.byKey(const Key('notification_send_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Send'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final NotificationModel sent =
+          verify(() => repo.send(captureAny())).captured.single;
+      expect(sent.url, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    });
+
     testWidgets('"Use a banner" needs a banner to be chosen', (tester) async {
       await pump(tester, const SendNotification());
 
       await tester.enterText(
           find.byKey(const Key('notification_title_field')), 'Offer');
+      // The picture choices sit below the message and link fields.
+      await tester
+          .ensureVisible(find.byKey(const Key('notification_source_banner')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('notification_source_banner')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -321,6 +485,7 @@ void main() {
           verify(() => repo.send(captureAny())).captured.single;
       expect(sent.title, 'Hello');
       expect(sent.imageUrl, isNull);
+      expect(sent.url, isNull);
     });
   });
 }
