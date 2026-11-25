@@ -51,15 +51,11 @@ class _Question1HtmlEditorState extends State<Question1HtmlEditor> {
   }
 
   Future<void> _handlePerformDrop(PerformDropEvent event) async {
-    // ignore: avoid_print
-    print('[Q1 DnD] Flutter DropRegion.onPerformDrop fired (heading="${widget.heading}")');
     final items = event.session.items;
     if (items.isNotEmpty) {
       final reader = items.first.dataReader;
       reader?.getValue(Formats.plainText, (value) {
         if (value != null && value.isNotEmpty) {
-          // ignore: avoid_print
-          print('[Q1 DnD] Flutter calling controller.insertText: "$value"');
           widget.controller.insertText(value);
         }
       });

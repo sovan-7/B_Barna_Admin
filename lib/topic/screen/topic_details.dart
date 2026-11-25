@@ -1,17 +1,18 @@
-import 'package:bbarna/core/widgets/loader_dialog.dart';
+import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
+import 'package:bbarna/core/widgets/form/form_page_body.dart';
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/topic/model/topic_model.dart';
 import 'package:bbarna/topic/viewModel/topic_view_model.dart';
+import 'package:bbarna/topic/widgets/topic_content_section.dart';
 import 'package:bbarna/utils/helper.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:bbarna/core/widgets/app_header.dart';
-import 'package:bbarna/core/widgets/sidebar.dart';
-import 'package:bbarna/resources/app_colors.dart';
-import 'package:bbarna/topic/widgets/topic_table.dart';
 import 'package:provider/provider.dart';
 
+/// Everything attached to one topic: its videos, audio, PDFs and quizzes,
+/// one editable section per kind (see [TopicContentSection]).
 class TopicDetails extends StatefulWidget {
+  /// The topic whose content is managed.
   final TopicModel topicData;
   const TopicDetails({required this.topicData, super.key});
 
@@ -20,290 +21,153 @@ class TopicDetails extends StatefulWidget {
 }
 
 class _TopicDetailsState extends State<TopicDetails> {
-  final GlobalKey<ScaffoldState> key = GlobalKey();
-  List<TextEditingController> audioControllerList = [];
-  List<TextEditingController> videoControllerList = [];
-  List<TextEditingController> pdfControllerList = [];
-  List<TextEditingController> quizControllerList = [];
+  /// `code -> title` per kind, so each row can say what it points at.
+  /// Absent means "still loading".
+  final Map<ContentKind, Map<String, String>> _titles = {};
+
+  /// Kinds whose lookup failed: their rows say the code couldn't be
+  /// checked, rather than that it points at nothing.
+  final Set<ContentKind> _checkFailed = {};
 
   @override
   void initState() {
-    setState(() {
-      audioControllerList = List.generate(
-          widget.topicData.audioCodeList.length,
-          (index) => TextEditingController(
-              text: widget.topicData.audioCodeList[index]));
-      videoControllerList = List.generate(
-          widget.topicData.videoCodeList.length,
-          (index) => TextEditingController(
-              text: widget.topicData.videoCodeList[index]));
-      pdfControllerList = List.generate(
-          widget.topicData.pdfCodeList.length,
-          (index) =>
-              TextEditingController(text: widget.topicData.pdfCodeList[index]));
-      quizControllerList = List.generate(
-          widget.topicData.quizCodeList.length,
-          (index) => TextEditingController(
-              text: widget.topicData.quizCodeList[index]));
-    });
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _resolveAll());
+  }
+
+  /// Looks up titles for every kind's codes (all kinds at once).
+  Future<void> _resolveAll() async {
+    await Future.wait([
+      for (final ContentKind kind in ContentKind.values)
+        _resolve(kind, widget.topicData.contentCodes(kind)),
+    ]);
+  }
+
+  /// Looks up which of [codes] exist and stores their titles.
+  Future<void> _resolve(ContentKind kind, List<String> codes) async {
+    if (!mounted) return;
+    final TopicViewModel topicViewModel =
+        Provider.of<TopicViewModel>(context, listen: false);
+    setState(() => _checkFailed.remove(kind));
+    final Map<String, String>? resolved =
+        await topicViewModel.resolveContentTitles(kind, codes);
+    if (!mounted) return;
+    setState(() {
+      if (resolved == null) {
+        _titles.remove(kind);
+        _checkFailed.add(kind);
+      } else {
+        _titles[kind] = resolved;
+      }
+    });
+  }
+
+  /// Saves one kind's codes, then re-checks what they point at.
+  Future<bool> _save(TopicViewModel topicViewModel, ContentKind kind,
+      List<String> codes) async {
+    final bool ok =
+        await topicViewModel.saveContentCodes(widget.topicData, kind, codes);
+    if (!ok) return false;
+
+    Helper.showSnackBarMessage(
+        msg: "${kind.label} codes saved", isSuccess: true);
+    // Re-check what the newly saved codes point at (the rows stay on screen).
+    await _resolve(kind, codes);
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
-    double width = MediaQuery.of(context).size.width;
-    return Scaffold(
-        key: key,
-        body: PopScope(
-          onPopInvoked: (bool val) {},
-          canPop: true,
+    return AdminFormScaffold(
+      headerTitle: "Topics",
+      sidebarIndex: 4,
+      body: (context, width) => Consumer<TopicViewModel>(
+        builder: (context, topicViewModel, child) =>
+            _page(topicViewModel, width),
+      ),
+    );
+  }
+
+  /// Header, then one [TopicContentSection] per kind of content.
+  Widget _page(TopicViewModel topicViewModel, double width) {
+    return FormPageBody(
+      width: width,
+      children: [
+        _pageHeader(),
+        const SizedBox(height: AppTokens.gapLg),
+        for (final ContentKind kind in ContentKind.values)
+          TopicContentSection(
+            // Keyed by kind so each section keeps its own rows.
+            key: ValueKey(kind),
+            kind: kind,
+            initialCodes: widget.topicData.contentCodes(kind),
+            titles: _titles[kind],
+            checkFailed: _checkFailed.contains(kind),
+            onRecheck: (codes) => _resolve(kind, codes),
+            onSave: (codes) => _save(topicViewModel, kind, codes),
+          ),
+        const SizedBox(height: AppTokens.gapLg),
+      ],
+    );
+  }
+
+  /// Back button, title and subtitle at the top of the page.
+  Widget _pageHeader() {
+    final TopicModel data = widget.topicData;
+    String or(String value, String fallback) =>
+        value.isEmpty || value == stringDefault ? fallback : value;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FormBackButton(onTap: () => Navigator.pop(context)),
+        const SizedBox(width: AppTokens.gapMd),
+        Expanded(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AppHeader(
-                onTapIcon: () {
-                  key.currentState?.openDrawer();
-                },
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(or(data.name, "Topic"),
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTokens.pageTitle),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTokens.surface,
+                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                      border: Border.all(color: AppTokens.hairline),
+                    ),
+                    child: Text(data.code,
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
+                            color: AppTokens.inkMuted)),
+                  ),
+                ],
               ),
-              Expanded(
-                child: Row(
-                  children: [
-                    if (width > 900)
-                      const Expanded(
-                          child: ExtraSideBar(
-                        sidebarIndex: 4,
-                      )),
-                    Expanded(
-                        flex: 5,
-                        child: SingleChildScrollView(
-                          child: Container(
-                            padding: const EdgeInsets.only(
-                              top: 25,
-                              bottom: 25,
-                              left: 15,
-                              right: 15,
-                            ),
-                            child: Consumer<TopicViewModel>(
-                              builder: (context, topicDataProvider, child) {
-                                return Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      "Topic Details",
-                                      style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1.0,
-                                          color: AppColorsInApp.colorBlack1),
-                                    ),
-                                    TopicTable(
-                                      topicText: "Video",
-                                      topicName: widget.topicData.name,
-                                      onChanged: (value) {},
-                                      onAdd: () {
-                                        setState(() {
-                                          videoControllerList
-                                              .add(TextEditingController());
-                                        });
-                                      },
-                                      onRemove: (index) {
-                                        setState(() {
-                                          videoControllerList.removeAt(index);
-                                        });
-                                      },
-                                      onSave: () {
-                                        List<String> videoCodeList = [];
-                                        for (int i = 0;
-                                            i < videoControllerList.length;
-                                            i++) {
-                                          if (videoControllerList[i]
-                                              .text
-                                              .isNotEmpty) {
-                                            videoCodeList.add(
-                                                videoControllerList[i].text);
-                                          }
-                                        }
-                                        LoaderDialogs.showLoadingDialog();
-
-                                        FirebaseFirestore.instance
-                                            .collection(topic)
-                                            .doc(widget.topicData.docId)
-                                            .update({
-                                          'video_code_list': videoCodeList,
-                                        }).then((value) {
-                                          Navigator.pop(context);
-                                          Helper.showSnackBarMessage(
-                                              msg:
-                                                  "Video code added successfully",
-                                              isSuccess: true);
-                                          setState(() {
-                                            videoControllerList.clear();
-                                          });
-                                          Navigator.pop(context);
-                                        });
-                                      },
-                                      controllerList: videoControllerList,
-                                    ),
-                                    TopicTable(
-                                      topicText: "Audio",
-                                      topicName: widget.topicData.name,
-                                      onChanged: (value) {},
-                                      onAdd: () {
-                                        setState(() {
-                                          audioControllerList
-                                              .add(TextEditingController());
-                                        });
-                                      },
-                                      onRemove: (index) {
-                                        setState(() {
-                                          audioControllerList.removeAt(index);
-                                        });
-                                      },
-                                      onSave: () {
-                                        List<String> audioCodeList = [];
-                                        for (int i = 0;
-                                            i < audioControllerList.length;
-                                            i++) {
-                                          if (audioControllerList[i]
-                                              .text
-                                              .isNotEmpty) {
-                                            audioCodeList.add(
-                                                audioControllerList[i].text);
-                                          }
-                                        }
-                                        LoaderDialogs.showLoadingDialog();
-
-                                        FirebaseFirestore.instance
-                                            .collection(topic)
-                                            .doc(widget.topicData.docId)
-                                            .update({
-                                          'audio_code_list': audioCodeList,
-                                        }).then((value) {
-                                          Navigator.pop(context);
-                                          Helper.showSnackBarMessage(
-                                              msg:
-                                                  "Audio code added successfully",
-                                              isSuccess: true);
-                                          setState(() {
-                                            audioControllerList.clear();
-                                          });
-                                          Navigator.pop(context);
-                                        });
-                                      },
-                                      controllerList: audioControllerList,
-                                    ),
-                                    TopicTable(
-                                      topicText: "PDF",
-                                      topicName: widget.topicData.name,
-                                      onChanged: (value) {},
-                                      onAdd: () {
-                                        setState(() {
-                                          pdfControllerList
-                                              .add(TextEditingController());
-                                        });
-                                      },
-                                      onRemove: (index) {
-                                        setState(() {
-                                          pdfControllerList.removeAt(index);
-                                        });
-                                      },
-                                      onSave: () {
-                                        List<String> pdfCodeList = [];
-                                        for (int i = 0;
-                                            i < pdfControllerList.length;
-                                            i++) {
-                                          if (pdfControllerList[i]
-                                              .text
-                                              .isNotEmpty) {
-                                            pdfCodeList
-                                                .add(pdfControllerList[i].text);
-                                          }
-                                        }
-                                        LoaderDialogs.showLoadingDialog();
-
-                                        FirebaseFirestore.instance
-                                            .collection(topic)
-                                            .doc(widget.topicData.docId)
-                                            .update({
-                                          'pdf_code_list': pdfCodeList,
-                                        }).then((value) {
-                                          Navigator.pop(context);
-                                          Helper.showSnackBarMessage(
-                                              msg:
-                                                  "Pdf code added successfully",
-                                              isSuccess: true);
-                                          setState(() {
-                                            pdfControllerList.clear();
-                                          });
-                                          Navigator.pop(context);
-                                        });
-                                      },
-                                      controllerList: pdfControllerList,
-                                    ),
-                                    TopicTable(
-                                      topicText: "Quiz",
-                                      topicName: widget.topicData.name,
-                                      onChanged: (value) {},
-                                      onAdd: () {
-                                        setState(() {
-                                          quizControllerList
-                                              .add(TextEditingController());
-                                        });
-                                      },
-                                      onRemove: (index) {
-                                        setState(() {
-                                          quizControllerList.removeAt(index);
-                                        });
-                                      },
-                                      onSave: () {
-                                        List<String> quizCodeList = [];
-                                        for (int i = 0;
-                                            i < quizControllerList.length;
-                                            i++) {
-                                          if (quizControllerList[i]
-                                              .text
-                                              .isNotEmpty) {
-                                            quizCodeList.add(
-                                                quizControllerList[i].text);
-                                          }
-                                        }
-                                        LoaderDialogs.showLoadingDialog();
-
-                                        FirebaseFirestore.instance
-                                            .collection(topic)
-                                            .doc(widget.topicData.docId)
-                                            .update({
-                                          'quiz_code_list': quizCodeList,
-                                        }).then((value) {
-                                          Navigator.pop(context);
-                                          Helper.showSnackBarMessage(
-                                              msg:
-                                                  "Quiz code added successfully",
-                                              isSuccess: true);
-                                          setState(() {
-                                            quizControllerList.clear();
-                                          });
-                                          Navigator.pop(context);
-                                        });
-                                      },
-                                      controllerList: quizControllerList,
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                        )),
-                  ],
-                ),
+              const SizedBox(height: 3),
+              // The topic's own name as the page heading.
+              Text(
+                "${or(data.courseName, 'No course')}  ›  "
+                "${or(data.subjectName, 'No subject')}  ›  "
+                "${or(data.unitName, 'No unit')}",
+                overflow: TextOverflow.ellipsis,
+                style: AppTokens.pageSubtitle,
               ),
+              const SizedBox(height: 3),
+              const Text(
+                  "Attach content by its code. Each list saves on its own.",
+                  style: TextStyle(fontSize: 12, color: AppTokens.inkFaint)),
             ],
           ),
         ),
-        drawer: width < 900
-            ? const Drawer(
-                child: ExtraSideBar(sidebarIndex: 4),
-              )
-            : null);
+      ],
+    );
   }
 }

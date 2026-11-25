@@ -1,218 +1,268 @@
-import 'dart:async';
-
-import 'package:bbarna/core/widgets/loader_dialog.dart';
+import 'package:bbarna/core/viewModel/paged_list_view_model.dart';
 import 'package:bbarna/question/model/question.dart';
 import 'package:bbarna/quiz/model/quiz_model.dart';
 import 'package:bbarna/quiz/repo/quiz_repo.dart';
-import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/helper.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 
-class QuizViewModel with ChangeNotifier {
-  final QuizRepo _quizRepo = QuizRepo();
-  List<QuizModel> quizList = [];
-  List<QuizModel> copyQuizList = [];
+/// State and actions for the Quiz module.
+///
+/// Two independent parts:
+/// 1. The paged/searchable quiz list (inherited from [PagedListViewModel])
+///    plus add, update and delete.
+/// 2. The question picker used on the Add/Edit Quiz form: which questions
+///    are on the quiz ([quizQuestionList]) and which search results can
+///    still be added ([questionList]).
+class QuizViewModel extends PagedListViewModel<QuizModel> {
+  /// Data source. Injectable so tests can pass a mock instead of Firebase.
+  final QuizRepo _quizRepo;
+
+  QuizViewModel({QuizRepo? quizRepo}) : _quizRepo = quizRepo ?? QuizRepo();
+
+  // ---- Paging hooks (see PagedListViewModel) -----------------------------
+
+  @override
+  String get itemsLabel => "quizzes";
+
+  @override
+  Future<List<QuizModel>> fetchFirstPage(int limit) =>
+      _quizRepo.getFirstQuizList(limit);
+
+  @override
+  Future<List<QuizModel>> fetchNextPage(int limit) =>
+      _quizRepo.getNextQuizList(limit);
+
+  @override
+  Future<int> fetchTotalCount() => _quizRepo.getQuizListLength();
+
+  @override
+  Future<List<QuizModel>> fetchSearchResults(String query) =>
+      _quizRepo.searchQuiz(query);
+
+  // ---- Module-specific names used by screens and tests -------------------
+
+  /// Quizzes currently on screen (a page, or search results).
+  List<QuizModel> get quizList => items;
+
+  /// Total quizzes in the collection.
+  int get quizLength => totalCount;
+
+  /// Loads the first page of quizzes.
+  Future<void> getFirstQuizList() => loadFirstPage();
+
+  /// Appends the next page of quizzes.
+  Future<void> getNextQuizList() => loadNextPage();
+
+  /// Debounced prefix search on the quiz code.
+  Future<void> searchQuiz({required String searchText}) => search(searchText);
+
+  // ---- Create / update / delete ------------------------------------------
+
+  /// Adds a new quiz document. Returns `false` (and shows a toast) on
+  /// failure.
+  Future<bool> addQuiz(QuizModel quizModel) async {
+    try {
+      await _quizRepo.addQuiz(quizModel);
+      return true;
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while adding the quiz", isSuccess: false);
+      return false;
+    }
+  }
+
+  /// Whether a quiz other than [exceptDocId] already uses [code]. Null when
+  /// the lookup failed (a toast says so), so the caller should not save.
+  Future<bool?> isCodeTaken(String code, {String? exceptDocId}) async {
+    try {
+      final List<String> ids = await _quizRepo.quizIdsWithCode(code);
+      return ids.any((id) => id != exceptDocId);
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Couldn't check whether the code is free — try again",
+          isSuccess: false);
+      return null;
+    }
+  }
+
+  /// Saves the edited quiz. Returns `false` (and shows a toast) on failure.
+  Future<bool> updateQuiz(QuizModel quizModel, String docId) async {
+    try {
+      await _quizRepo.updateQuiz(quizModel, docId);
+      return true;
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while updating the quiz", isSuccess: false);
+      return false;
+    }
+  }
+
+  /// Deletes the quiz document. Returns `false` (and shows a toast) on
+  /// failure.
+  Future<bool> deleteQuiz(String docId) async {
+    try {
+      await _quizRepo.deleteQuiz(docId);
+      removeLocally((item) => item.docId == docId);
+      return true;
+    } catch (e) {
+      Helper.showSnackBarMessage(
+          msg: "Error while deleting the quiz", isSuccess: false);
+      return false;
+    }
+  }
+
+  // ---- Question picker state ---------------------------------------------
+
+  /// Questions found by the picker's search, minus anything already on the
+  /// quiz.
   List<Question> questionList = [];
+
+  /// The questions currently on the quiz, in the order they were added.
   List<Question> quizQuestionList = [];
-  List<String> selectedQuestionCodeList = [];
 
-  Timer? _debounce;
-  int limit = 50;
-  int quizLength = 0;
-  List<QueryDocumentSnapshot> docList = [];
-  late DocumentSnapshot<Map<String, dynamic>> lastDoc;
-  Future<DocumentReference<Map<String, dynamic>>> addQuiz(
-      QuizModel quizModel) async {
-    return await _quizRepo.addQuiz(quizModel);
-  }
+  /// True while the questions already on the quiz are loading (Edit).
+  bool isLoadingAttached = false;
 
-  Future updateQuiz(QuizModel quizModel, String docId) async {
-    LoaderDialogs.showLoadingDialog();
-    await _quizRepo.updateQuiz(quizModel, docId).whenComplete(() {
-      Navigator.pop(navigatorKey.currentContext!);
-    });
-  }
+  /// Why the questions already on the quiz could not be loaded, or null.
+  /// While set, saving is blocked: the quiz would otherwise be saved with
+  /// no questions.
+  String? attachedError;
 
-  Future deleteQuiz(String docId) async {
-    await _quizRepo.deleteQuiz(docId).whenComplete(() {
-      getQuizListLength();
-      Helper.showSnackBarMessage(
-          msg: "Quiz deleted successfully", isSuccess: false);
-    });
-  }
+  /// True while a question search is running.
+  bool isSearchingQuestions = false;
 
-  Future getFirstQuizList() async {
-    LoaderDialogs.showLoadingDialog();
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _quizRepo.getFirstQuizList(limit);
-    quizList.clear();
-    for (int i = 0; i < snapshot.docs.length; i++) {
-      DocumentSnapshot<Map<String, dynamic>> docData =
-          snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      if (i == snapshot.docs.length - 1) {
-        lastDoc = snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      }
-      quizList.add(QuizModel.fromDocumentSnapshot(docData));
-    }
-    copyQuizList = quizList;
-    docList.addAll(snapshot.docs);
-    Navigator.pop(navigatorKey.currentContext!);
-    notifyListeners();
-  }
+  /// Why the last question search failed, or null.
+  String? questionSearchError;
 
-  Future getNextQuizList() async {
-    LoaderDialogs.showLoadingDialog();
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _quizRepo.getNextQuizList(limit, lastDoc);
-    for (int i = 0; i < snapshot.docs.length; i++) {
-      DocumentSnapshot<Map<String, dynamic>> docData =
-          snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      if (i == snapshot.docs.length - 1) {
-        lastDoc = snapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-      }
-      quizList.add(QuizModel.fromDocumentSnapshot(docData));
-    }
-    Navigator.pop(navigatorKey.currentContext!);
-    copyQuizList = quizList;
-    docList.addAll(snapshot.docs);
-    notifyListeners();
-  }
+  /// The codes last passed to [loadQuizQuestions], for [retryAttached].
+  List<String> _attachedCodes = const [];
 
-  Future<void> fetchQuestionListById(String questionCode) async {
-    try {
-      LoaderDialogs.showLoadingDialog();
-      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-          .collection(question)
-          .where("question_code", isGreaterThanOrEqualTo: questionCode)
-          .where("question_code", isLessThan: '${questionCode}z')
-          .get();
-      questionList.clear();
-      for (int i = 0; i < querySnapshot.docs.length; i++) {
-        DocumentSnapshot<Map<String, dynamic>> docData =
-            querySnapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-        Question question = Question.fromDocumentSnapshot(docData);
-        if (!selectedQuestionCodeList
-            .contains(question.questionCode.trim())) {
-          questionList.add(Question.fromDocumentSnapshot(docData));
-        } 
-      }
-      
+  /// Counts searches, so only the newest one updates the results.
+  int _questionSearchSeq = 0;
+
+  /// True while either question query (load or search) is in flight.
+  bool get isLoadingQuestions => isLoadingAttached || isSearchingQuestions;
+
+  /// Whether the quiz's own question list is known, so it can be saved.
+  bool get attachedQuestionsReady =>
+      !isLoadingAttached && attachedError == null;
+
+  /// The question codes the quiz will be saved with (trimmed).
+  List<String> get selectedQuestionCodeList => [
+        for (final Question question in quizQuestionList)
+          question.questionCode.trim(),
+      ];
+
+  // ---- Question picker actions -------------------------------------------
+
+  /// Loads the questions an existing quiz already holds (Edit Quiz). Also
+  /// clears any leftover search results.
+  Future<void> loadQuizQuestions(List<String> questionCodeList) async {
+    _attachedCodes = questionCodeList;
+    quizQuestionList = [];
+    questionList = [];
+    attachedError = null;
+    if (questionCodeList.isEmpty) {
       notifyListeners();
-      Navigator.pop(navigatorKey.currentContext!);
-    } catch (e) {
-      Navigator.pop(navigatorKey.currentContext!);
-      Helper.showSnackBarMessage(
-          msg: "Error while fetching data", isSuccess: false);
+      return;
     }
-  }
 
-  Future<void> fetchQuizQuestionList(List<String> questionCodeList) async {
+    isLoadingAttached = true;
+    notifyListeners();
     try {
-      quizQuestionList.clear();
-
-      LoaderDialogs.showLoadingDialog();
-      selectedQuestionCodeList.clear();
-
-      for (int j = 0; j < questionCodeList.length; j += 25) {
-        List<String> dummyQuestionCodeList = questionCodeList.sublist(
-          j,
-          j + 25 > questionCodeList.length ? questionCodeList.length : j + 25,
-        );
-        QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-            .collection(question)
-            .where("question_code", whereIn: dummyQuestionCodeList)
-            .get();
-        for (int i = 0; i < querySnapshot.docs.length; i++) {
-          DocumentSnapshot<Map<String, dynamic>> docData =
-              querySnapshot.docs[i] as DocumentSnapshot<Map<String, dynamic>>;
-          quizQuestionList.add(Question.fromDocumentSnapshot(docData));
-        }
-        for (var element in quizQuestionList) {
-          element.isSelected = true;
-          selectedQuestionCodeList.add(element.questionCode.trim());
-        }
-        Future.delayed(const Duration(milliseconds: 100));
-      }
-      notifyListeners();
-      Navigator.pop(navigatorKey.currentContext!);
+      quizQuestionList = await _quizRepo.getQuestionsByCodes(questionCodeList);
     } catch (e) {
-      Navigator.pop(navigatorKey.currentContext!);
+      attachedError = "Couldn't load this quiz's questions";
       Helper.showSnackBarMessage(
-          msg: "Error while fetching data", isSuccess: false);
+          msg: "Error while fetching the quiz's questions", isSuccess: false);
+    } finally {
+      isLoadingAttached = false;
+      notifyListeners();
     }
   }
 
-  void clearData() {
-    questionList.clear();
-    quizQuestionList.clear();
-  }
+  /// Loads the quiz's own questions again after a failure.
+  Future<void> retryAttached() => loadQuizQuestions(_attachedCodes);
 
-  void addNewQuestion(int index) {
-    questionList[index].isSelected = !questionList[index].isSelected;
+  /// Searches questions by code prefix, hiding any already on the quiz.
+  /// An empty [questionCode] just clears the results.
+  Future<void> searchQuestions(String questionCode) async {
+    final int seq = ++_questionSearchSeq;
+    questionSearchError = null;
+    if (questionCode.trim().isEmpty) {
+      questionList = [];
+      isSearchingQuestions = false;
+      notifyListeners();
+      return;
+    }
+
+    isSearchingQuestions = true;
     notifyListeners();
-  }
-
-  void updateOldQuestion(int index) {
-    quizQuestionList[index].isSelected = !quizQuestionList[index].isSelected;
-    notifyListeners();
-  }
-
-  Future<void> searchQuiz({required String searchText}) async {
-    if (_debounce?.isActive ?? false) _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () async {
-      if (searchText.isEmpty) {
-        quizList = copyQuizList;
+    try {
+      final List<Question> found =
+          await _quizRepo.searchQuestions(questionCode.trim().toUpperCase());
+      // A newer search has taken over meanwhile.
+      if (seq != _questionSearchSeq) return;
+      // Filter out questions that are already on the quiz.
+      final Set<String> already = selectedQuestionCodeList.toSet();
+      questionList = found
+          .where((question) => !already.contains(question.questionCode.trim()))
+          .toList();
+    } catch (e) {
+      if (seq != _questionSearchSeq) return;
+      questionList = [];
+      questionSearchError = "Couldn't search questions";
+      Helper.showSnackBarMessage(
+          msg: "Error while searching questions", isSuccess: false);
+    } finally {
+      if (seq == _questionSearchSeq) {
+        isSearchingQuestions = false;
         notifyListeners();
-      } else {
-        try {
-          //  LoaderDialogs.showLoadingDialog();
-          quizList = await _quizRepo.searchQuiz(searchText);
-          notifyListeners();
-          //Navigator.pop(navigatorKey.currentContext!);
-        } catch (e) {
-          Navigator.pop(navigatorKey.currentContext!);
-          Helper.showSnackBarMessage(
-              msg: "Error while fetching data", isSuccess: false);
-        }
-      }
-    });
-  }
-
-  void removeQuizFromLast() {
-    int exesData = docList.length % limit;
-    if (exesData > 0) {
-      docList.removeRange((docList.length - exesData), docList.length);
-      quizList.removeRange((docList.length - exesData), docList.length);
-      lastDoc = docList.last as DocumentSnapshot<Map<String, dynamic>>;
-      copyQuizList = quizList;
-    } else {
-      if ((docList.length - limit) >= limit) {
-        docList.removeRange(docList.length - limit, docList.length);
-        quizList.removeRange(quizList.length - limit, quizList.length);
-        lastDoc = docList.last as DocumentSnapshot<Map<String, dynamic>>;
-        copyQuizList = quizList;
       }
     }
+  }
 
+  /// Moves one found question onto the quiz (and out of the results).
+  /// Ignored if the question is already on the quiz.
+  void addQuestion(Question question) {
+    if (selectedQuestionCodeList.contains(question.questionCode.trim())) return;
+    quizQuestionList = [...quizQuestionList, question];
+    questionList = questionList
+        .where((candidate) => candidate.questionCode != question.questionCode)
+        .toList();
     notifyListeners();
   }
 
-  Future<void> getQuizListLength() async {
-    quizLength = await _quizRepo.getQuizListLength();
+  /// Takes a question off the quiz.
+  void removeQuestion(Question question) {
+    quizQuestionList = quizQuestionList
+        .where((candidate) => candidate.questionCode != question.questionCode)
+        .toList();
     notifyListeners();
   }
 
-  void selectAllQuestion(bool isSelect) {
-    if (isSelect) {
-      for (int i = 0; i < questionList.length; i++) {
-        questionList[i].isSelected = true;
-      }
-    } else {
-      for (int i = 0; i < questionList.length; i++) {
-        questionList[i].isSelected = false;
-      }
-    }
+  /// Adds every current search result to the quiz.
+  void addAllFoundQuestions() {
+    // One pass and one notify, rather than addQuestion per result.
+    final Set<String> already = selectedQuestionCodeList.toSet();
+    final List<Question> toAdd = [
+      for (final Question question in questionList)
+        if (already.add(question.questionCode.trim())) question,
+    ];
+    if (toAdd.isEmpty) return;
+    quizQuestionList = [...quizQuestionList, ...toAdd];
+    final Set<String> added = {for (final q in toAdd) q.questionCode};
+    questionList = questionList
+        .where((candidate) => !added.contains(candidate.questionCode))
+        .toList();
     notifyListeners();
+  }
+
+  /// Resets the picker when the form closes (no notify — nobody is
+  /// listening by then).
+  void clearQuestionPicker() {
+    questionList = [];
+    quizQuestionList = [];
+    attachedError = null;
+    questionSearchError = null;
   }
 }

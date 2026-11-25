@@ -99,7 +99,8 @@ void main() {
       final aggregateQuery = MockAggregateQuery();
       final aggregateSnapshot = MockAggregateQuerySnapshot();
       when(() => collection.count()).thenReturn(aggregateQuery);
-      when(() => aggregateQuery.get()).thenAnswer((_) async => aggregateSnapshot);
+      when(() => aggregateQuery.get())
+          .thenAnswer((_) async => aggregateSnapshot);
       when(() => aggregateSnapshot.count).thenReturn(7);
 
       final result = await repo.getQuestionCount();
@@ -109,7 +110,8 @@ void main() {
   });
 
   group('getPage', () {
-    test('first page orders by timeStamp desc and does not call startAfterDocument',
+    test(
+        'first page orders by timeStamp desc and does not call startAfterDocument',
         () async {
       final querySnapshot = MockQuerySnapshot();
       final doc = MockQueryDocumentSnapshot();
@@ -152,10 +154,11 @@ void main() {
       final querySnapshot = MockQuerySnapshot();
       final doc = MockQueryDocumentSnapshot();
       when(() => doc.id).thenReturn('doc-1');
-      when(() => doc.data()).thenReturn(_sampleQuestion(questionCode: 'ABC').toMap());
+      when(() => doc.data())
+          .thenReturn(_sampleQuestion(questionCode: 'ABC').toMap());
       when(() => querySnapshot.docs).thenReturn([doc]);
-      when(() => collection.where('question_code',
-              isGreaterThanOrEqualTo: 'ABC'))
+      when(() =>
+              collection.where('question_code', isGreaterThanOrEqualTo: 'ABC'))
           .thenReturn(collection);
       when(() => collection.where('question_code', isLessThan: 'ABCz'))
           .thenReturn(collection);

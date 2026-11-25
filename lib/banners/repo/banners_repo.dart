@@ -1,48 +1,57 @@
 import 'dart:typed_data';
+
 import 'package:bbarna/banners/model/banners_model.dart';
+import 'package:bbarna/core/repo/storage_upload.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:bbarna/utils/helper.dart';
+import 'package:bbarna/utils/image_sizes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+/// Firestore / Storage access for the `banners` collection (the images on
+/// the student app's home carousel).
+///
+/// Every method throws on failure; [BannersViewModel] catches and reports.
 class BannersRepo {
+  /// Firestore client.
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  /// Root of Firebase Storage; uploads go under it.
   final Reference storageReference = FirebaseStorage.instance.ref();
 
-  Future<DocumentReference<Map<String, dynamic>>> addBanner(
-      BannersModel bannersModel) async {
-    return await _firestore.collection(banners).add(bannersModel.toMap());
+  /// The `banners` collection.
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _firestore.collection(banners);
+
+  /// Adds a banner and returns the new document's id.
+  Future<String> addBanner(BannersModel bannersModel) async {
+    final DocumentReference<Map<String, dynamic>> doc =
+        await _collection.add(bannersModel.toMap());
+    return doc.id;
   }
 
+  /// Every banner.
   Future<List<BannersModel>> getBannersList() async {
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _firestore.collection(banners).get();
+    final QuerySnapshot<Map<String, dynamic>> snapshot =
+        await _collection.get();
     return snapshot.docs
         .map((docSnapshot) => BannersModel.fromDocumentSnapshot(docSnapshot))
         .toList();
   }
 
-  Future uploadBannerImage(Uint8List image, String bannerId) async {
-    Reference referenceDirImages = storageReference.child("images");
-    int timeStamp = DateTime.now().millisecondsSinceEpoch;
-
-    Reference referenceImageToUpload =
-        referenceDirImages.child("$timeStamp""_img");
-    try {
-      final metadata = SettableMetadata(contentType: "image/jpeg");
-      await referenceImageToUpload.putData(image, metadata);
-      final imageUrl = await referenceImageToUpload.getDownloadURL();
-      await _firestore
-          .collection(banners)
-          .doc(bannerId)
-          .update({"banner_image": imageUrl});
-    } catch (e) {
-      Helper.showSnackBarMessage(
-          msg: "Error while banner uploading", isSuccess: false);
-    }
+  /// Shrinks and uploads [image] to `images/<timestamp>_img` and stores its download
+  /// URL as `banner_image` on document [bannerId].
+  Future<void> uploadBannerImage(Uint8List image, String bannerId) async {
+    final int timeStamp = DateTime.now().millisecondsSinceEpoch;
+    final String url = await uploadImageToStorage(
+      storageReference.child("images").child("${timeStamp}_img"),
+      image,
+      maxSide: ImageSizes.banner,
+    );
+    await _collection.doc(bannerId).update({"banner_image": url});
   }
 
-  Future deleteBanner(String bannerId) async {
-    await _firestore.collection(banners).doc(bannerId).delete();
+  /// Deletes the banner document.
+  Future<void> deleteBanner(String bannerId) async {
+    await _collection.doc(bannerId).delete();
   }
 }

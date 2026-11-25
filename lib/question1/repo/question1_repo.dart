@@ -52,8 +52,9 @@ class Question1Repo {
     }
     final snapshot = await query.get();
     return Question1Page(
-      items:
-          snapshot.docs.map((doc) => Question1.fromDocumentSnapshot(doc)).toList(),
+      items: snapshot.docs
+          .map((doc) => Question1.fromDocumentSnapshot(doc))
+          .toList(),
       docs: snapshot.docs,
     );
   }
@@ -63,6 +64,8 @@ class Question1Repo {
         .where("question_code", isGreaterThanOrEqualTo: prefix)
         .where("question_code", isLessThan: '${prefix}z')
         .get();
-    return snapshot.docs.map((doc) => Question1.fromDocumentSnapshot(doc)).toList();
+    return snapshot.docs
+        .map((doc) => Question1.fromDocumentSnapshot(doc))
+        .toList();
   }
 }

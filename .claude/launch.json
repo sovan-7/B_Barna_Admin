@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "admin-panel",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "web-server", "--web-port", "8790"],
+      "port": 8790
+    },
+    {
+      "name": "subject-preview",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd ../b_barna_app && exec flutter run -d web-server --web-port 8781 -t tool/subject_preview.dart"
+      ],
+      "port": 8781
+    }
+  ]
+}

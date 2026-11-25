@@ -1,5 +1,6 @@
 import 'package:bbarna/core/widgets/app_header.dart';
-import 'package:bbarna/core/widgets/custom_text_field.dart';
+import 'package:bbarna/core/widgets/form/form_fields.dart';
+import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/core/widgets/save_button.dart';
 import 'package:bbarna/core/widgets/sidebar.dart';
 import 'package:bbarna/question1/model/question1.dart';
@@ -85,7 +86,8 @@ class _EditQuestion1BodyState extends State<_EditQuestion1Body> {
             child: Row(children: [
               Visibility(
                 visible: width > 900,
-                child: const Expanded(child: ExtraSideBar(sidebarIndex: 12)),
+                child: const Expanded(
+                    child: ExtraSideBar(sidebarIndex: question1ModuleIndex)),
               ),
               Expanded(
                 flex: 5,
@@ -93,7 +95,8 @@ class _EditQuestion1BodyState extends State<_EditQuestion1Body> {
                   controller: scrollController,
                   child: Container(
                     margin: width > 900
-                        ? const EdgeInsets.symmetric(horizontal: 30, vertical: 30)
+                        ? const EdgeInsets.symmetric(
+                            horizontal: 30, vertical: 30)
                         : const EdgeInsets.symmetric(
                             horizontal: 20, vertical: 20),
                     padding: EdgeInsets.all(width > 900 ? 30 : 20),
@@ -109,12 +112,10 @@ class _EditQuestion1BodyState extends State<_EditQuestion1Body> {
                           Padding(
                             padding:
                                 const EdgeInsets.only(bottom: 8.0, left: 10),
-                            child: CustomTextField(
-                              labelText: "Question Code",
-                              title: "Question Code",
-                              isBorderRadius: true,
-                              textEditingController:
-                                  viewModel.questionCodeController,
+                            child: FormTextField(
+                              label: "Question Code",
+                              hint: "e.g. Q1001",
+                              controller: viewModel.questionCodeController,
                             ),
                           ),
                           Question1HtmlEditor(
@@ -205,7 +206,8 @@ class _EditQuestion1BodyState extends State<_EditQuestion1Body> {
         ]),
       ),
       drawer: width < 900
-          ? const Drawer(child: ExtraSideBar(sidebarIndex: 12))
+          ? const Drawer(
+              child: ExtraSideBar(sidebarIndex: question1ModuleIndex))
           : null,
     );
   }

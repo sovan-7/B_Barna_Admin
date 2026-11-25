@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:bbarna/core/widgets/loader_dialog.dart';
 import 'package:bbarna/question1/model/question1.dart';
 import 'package:bbarna/question1/repo/question1_repo.dart';
 import 'package:bbarna/resources/constant.dart';
@@ -187,7 +186,8 @@ class Question1ViewModel extends ChangeNotifier {
           msg: "Question added successfully", isSuccess: true);
       return true;
     } catch (e) {
-      Helper.showSnackBarMessage(msg: "Error adding data: $e", isSuccess: false);
+      Helper.showSnackBarMessage(
+          msg: "Error adding data: $e", isSuccess: false);
       return false;
     }
   }
@@ -227,18 +227,27 @@ class Question1ViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// True while a page of questions is loading; the list shows a progress
+  /// bar meanwhile.
+  bool loading = false;
+
+  void _setLoading(bool value) {
+    loading = value;
+    notifyListeners();
+  }
+
   Future<void> fetchFirstPage() async {
     try {
-      LoaderDialogs.showLoadingDialog();
+      _setLoading(true);
       final page = await _repo.getPage(limit: limit);
       questionList = page.items;
       _docList = page.docs;
       _cursorStack.clear();
       _currentCursor = null;
       notifyListeners();
-      Navigator.pop(navigatorKey.currentContext!);
+      _setLoading(false);
     } catch (e) {
-      Navigator.pop(navigatorKey.currentContext!);
+      _setLoading(false);
       Helper.showSnackBarMessage(
           msg: "Error while fetching data", isSuccess: false);
     }
@@ -247,11 +256,11 @@ class Question1ViewModel extends ChangeNotifier {
   Future<void> fetchNextPage() async {
     if (_docList.isEmpty) return;
     try {
-      LoaderDialogs.showLoadingDialog();
+      _setLoading(true);
       final nextCursor = _docList.last;
       final page = await _repo.getPage(limit: limit, startAfter: nextCursor);
       if (page.items.isEmpty) {
-        Navigator.pop(navigatorKey.currentContext!);
+        _setLoading(false);
         Helper.showSnackBarMessage(
             msg: "You are already in last page", isSuccess: false);
         return;
@@ -261,9 +270,9 @@ class Question1ViewModel extends ChangeNotifier {
       questionList = page.items;
       _docList = page.docs;
       notifyListeners();
-      Navigator.pop(navigatorKey.currentContext!);
+      _setLoading(false);
     } catch (e) {
-      Navigator.pop(navigatorKey.currentContext!);
+      _setLoading(false);
       Helper.showSnackBarMessage(
           msg: "Error while fetching data", isSuccess: false);
     }
@@ -276,22 +285,23 @@ class Question1ViewModel extends ChangeNotifier {
       return;
     }
     try {
-      LoaderDialogs.showLoadingDialog();
+      _setLoading(true);
       final prevCursor = _cursorStack.removeLast();
       final page = await _repo.getPage(limit: limit, startAfter: prevCursor);
       _currentCursor = prevCursor;
       questionList = page.items;
       _docList = page.docs;
       notifyListeners();
-      Navigator.pop(navigatorKey.currentContext!);
+      _setLoading(false);
     } catch (e) {
-      Navigator.pop(navigatorKey.currentContext!);
+      _setLoading(false);
       Helper.showSnackBarMessage(
           msg: "Error while fetching data", isSuccess: false);
     }
   }
 
-  Future<bool> deleteQuestion({required String docId, required int index}) async {
+  Future<bool> deleteQuestion(
+      {required String docId, required int index}) async {
     try {
       await _repo.deleteQuestion(docId);
       questionList.removeAt(index);

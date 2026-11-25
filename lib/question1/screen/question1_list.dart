@@ -1,13 +1,11 @@
 import 'package:bbarna/core/widgets/add_widget.dart';
 import 'package:bbarna/core/widgets/custom_searchbar.dart';
-import 'package:bbarna/core/widgets/loader_dialog.dart';
 import 'package:bbarna/core/widgets/remove_alert.dart';
 import 'package:bbarna/question1/question1_viewmodel/question1_viewmodel.dart';
 import 'package:bbarna/question1/screen/add_question1.dart';
 import 'package:bbarna/question1/widgets/question1_list_widget.dart';
 import 'package:bbarna/resources/app_colors.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:bbarna/utils/size_config.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -54,14 +52,10 @@ class _Question1ListBodyState extends State<_Question1ListBody> {
       title: "${index + 1}",
       description: "Are you sure want to delete ?",
       onPressYes: () async {
-        // Close the confirm dialog first, then the loader — each pop is
-        // tied to the dialog it's meant to close instead of guessing a
-        // fixed pop count.
+        // Close the confirm dialog, then delete.
         Navigator.pop(navigatorKey.currentContext!);
-        LoaderDialogs.showLoadingDialog();
         await viewModel.deleteQuestion(
             docId: viewModel.questionList[index].docId, index: index);
-        Navigator.pop(navigatorKey.currentContext!);
       },
     );
   }
@@ -89,12 +83,14 @@ class _Question1ListBodyState extends State<_Question1ListBody> {
 
   @override
   Widget build(BuildContext context) {
-    final double width = SizeConfig.screenWidth!;
+    final double width = MediaQuery.sizeOf(context).width;
     return Consumer<Question1ViewModel>(builder: (context, viewModel, child) {
       return Container(
-        padding: const EdgeInsets.only(left: 10, right: 10, top: 10, bottom: 20),
+        padding:
+            const EdgeInsets.only(left: 10, right: 10, top: 10, bottom: 20),
         child: Column(
           children: [
+            if (viewModel.loading) const LinearProgressIndicator(minHeight: 2),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -126,9 +122,9 @@ class _Question1ListBodyState extends State<_Question1ListBody> {
                     AddWidget(
                       addCall: () {
                         Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const AddQuestion1()))
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => const AddQuestion1()))
                             .whenComplete(() {
                           if (searchController.text.isEmpty) {
                             viewModel.fetchFirstPage();
@@ -184,8 +180,7 @@ class _Question1ListBodyState extends State<_Question1ListBody> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _pageButton(
-                      "Previous", () => viewModel.fetchPreviousPage()),
+                  _pageButton("Previous", () => viewModel.fetchPreviousPage()),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
                     child: Text(

@@ -1,52 +1,67 @@
 import 'dart:typed_data';
 
+import 'package:bbarna/core/repo/storage_upload.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/resources/constant.dart';
-import 'package:bbarna/utils/helper.dart';
+import 'package:bbarna/utils/image_sizes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+/// Firestore / Storage access for the `course` collection. Courses are few,
+/// so the whole collection is loaded at once (no paging).
+///
+/// Every method throws on failure; [CourseViewModel] catches and reports.
 class CourseRepo {
+  /// Firestore client.
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
+
+  /// Root of Firebase Storage; uploads go under it.
   final Reference storageReference = FirebaseStorage.instance.ref();
 
-  Future<DocumentReference<Map<String, dynamic>>> addCourse(
-      CourseModel courseModel) async {
-    return await _fireStore.collection(course).add(courseModel.toMap());
+  /// The `course` collection.
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _fireStore.collection(course);
+
+  /// Adds a course and returns the new document's id.
+  Future<String> addCourse(CourseModel courseModel) async {
+    final DocumentReference<Map<String, dynamic>> doc =
+        await _collection.add(courseModel.toMap());
+    return doc.id;
   }
 
+  /// Every course, in Firestore's default order (the view model sorts).
   Future<List<CourseModel>> getCourseList() async {
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await _fireStore.collection(course).get();
+    final QuerySnapshot<Map<String, dynamic>> snapshot =
+        await _collection.get();
     return snapshot.docs
         .map((docSnapshot) => CourseModel.fromDocumentSnapshot(docSnapshot))
         .toList();
   }
 
-  Future uploadCourseImage(
-      Uint8List image, String courseCode, String courseId) async {
-    Reference referenceDirImages = storageReference.child("images");
-    Reference referenceImageToUpload =
-        referenceDirImages.child("img_$courseCode");
-    try {
-      final metadata = SettableMetadata(contentType: "image/jpeg");
-      await referenceImageToUpload.putData(image, metadata);
-      final imageUrl = await referenceImageToUpload.getDownloadURL();
-      await _fireStore
-          .collection(course)
-          .doc(courseId)
-          .update({"course_image": imageUrl});
-    } catch (e) {
-      Helper.showSnackBarMessage(
-          msg: "Error while uploading course", isSuccess: false);
-    }
+  /// Shrinks and uploads [image] to `images/img_<courseId>` and stores its download URL
+  /// as `course_image`. Keyed by document id because course codes are not
+  /// unique.
+  Future<void> uploadCourseImage(Uint8List image, String courseId) async {
+    final String url = await uploadImageToStorage(
+      storageReference.child("images").child("img_$courseId"),
+      image,
+      maxSide: ImageSizes.thumbnail,
+    );
+    await _collection.doc(courseId).update({"course_image": url});
   }
 
-  Future updateCourse(CourseModel courseModel, String docId) async {
-    await _fireStore.collection(course).doc(docId).update(courseModel.toMap());
+  /// Overwrites the course's fields.
+  Future<void> updateCourse(CourseModel courseModel, String docId) async {
+    await _collection.doc(docId).update(courseModel.toMap());
   }
 
-  Future deleteCourse(String docId) async {
-    await _fireStore.collection(course).doc(docId).delete();
+  /// Sets only the `isLocked` flag.
+  Future<void> setCourseLocked(String docId, bool isLocked) async {
+    await _collection.doc(docId).update({"isLocked": isLocked});
+  }
+
+  /// Deletes the course document.
+  Future<void> deleteCourse(String docId) async {
+    await _collection.doc(docId).delete();
   }
 }

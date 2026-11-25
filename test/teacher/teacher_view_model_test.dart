@@ -26,6 +26,8 @@ void main() {
   setUp(() {
     repo = MockTeacherRepo();
     viewModel = TeacherViewModel(teacherRepo: repo);
+    when(() => repo.syncLiveClassTeacherPhone(any(), any()))
+        .thenAnswer((_) async => 0);
   });
 
   // addTeacher's success path never touches Helper.showSnackBarMessage or
@@ -44,6 +46,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: rawPassword,
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -68,6 +71,7 @@ void main() {
         name: 'Jane Doe',
         username: 'Jane_Doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -91,6 +95,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -113,6 +118,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -136,6 +142,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES', 'SUBJECT'],
         role: roleSubadmin,
@@ -157,6 +164,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleAdmin,
@@ -188,6 +196,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -214,6 +223,7 @@ void main() {
         name: 'Jane Doe',
         username: 'jane_doe',
         password: 'password123',
+        phoneNumber: '9876543210',
         image: Uint8List.fromList([1, 2, 3]),
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -230,6 +240,7 @@ void main() {
       imageUrl: 'https://example.com/original.jpg',
       username: 'jane_doe',
       password: 'original-hash',
+      phoneNumber: '9876543210',
       timeStamp: 1700000000000,
       moduleAccess: const ['COURSES'],
       role: roleSubadmin,
@@ -242,6 +253,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
       );
@@ -259,6 +271,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         newPassword: '',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -277,6 +290,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         newPassword: rawPassword,
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
@@ -296,6 +310,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
       );
@@ -317,6 +332,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
         newImage: Uint8List.fromList([1, 2, 3]),
@@ -335,6 +351,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe Renamed',
+        phoneNumber: '9876543210',
         moduleAccess: const ['SUBJECT'],
         role: roleAdmin,
       );
@@ -353,6 +370,7 @@ void main() {
       await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe Renamed',
+        phoneNumber: '9876543210',
         moduleAccess: const ['SUBJECT', 'TOPIC'],
         role: roleAdmin,
       );
@@ -371,11 +389,44 @@ void main() {
       final result = await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
       );
 
       expect(result, isTrue);
+    });
+
+    test('copies the saved phone number onto the teacher\'s live classes',
+        () async {
+      when(() => repo.updateTeacher(any())).thenAnswer((_) async {});
+
+      await viewModel.updateTeacher(
+        original: original,
+        name: 'Jane Doe',
+        phoneNumber: '9123456780',
+        moduleAccess: const ['COURSES'],
+        role: roleSubadmin,
+      );
+
+      verify(() => repo.syncLiveClassTeacherPhone('jane_doe', '9123456780'))
+          .called(1);
+    });
+
+    test('syncs classes even when the number is unchanged (repairs old ones)',
+        () async {
+      when(() => repo.updateTeacher(any())).thenAnswer((_) async {});
+
+      await viewModel.updateTeacher(
+        original: original,
+        name: 'Jane Doe',
+        phoneNumber: '9876543210',
+        moduleAccess: const ['COURSES'],
+        role: roleSubadmin,
+      );
+
+      verify(() => repo.syncLiveClassTeacherPhone('jane_doe', '9876543210'))
+          .called(1);
     });
   });
 
@@ -388,6 +439,7 @@ void main() {
       imageUrl: 'https://example.com/original.jpg',
       username: 'jane_doe',
       password: 'original-hash',
+      phoneNumber: '9876543210',
       timeStamp: 1700000000000,
       moduleAccess: const ['COURSES'],
       role: roleSubadmin,
@@ -408,6 +460,7 @@ void main() {
       final result = await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
         newImage: Uint8List.fromList([1, 2, 3]),
@@ -429,11 +482,35 @@ void main() {
       final result = await viewModel.updateTeacher(
         original: original,
         name: 'Jane Doe',
+        phoneNumber: '9876543210',
         moduleAccess: const ['COURSES'],
         role: roleSubadmin,
       );
 
       expect(result, isFalse);
+    });
+
+    testWidgets('still returns true when only the class sync fails',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        navigatorKey: navigatorKey,
+        home: const Scaffold(body: SizedBox()),
+      ));
+
+      when(() => repo.updateTeacher(any())).thenAnswer((_) async {});
+      when(() => repo.syncLiveClassTeacherPhone(any(), any()))
+          .thenThrow(Exception('firestore failure'));
+
+      final result = await viewModel.updateTeacher(
+        original: original,
+        name: 'Jane Doe',
+        phoneNumber: '9123456780',
+        moduleAccess: const ['COURSES'],
+        role: roleSubadmin,
+      );
+
+      expect(result, isTrue);
+      verify(() => repo.updateTeacher(any())).called(1);
     });
   });
 
@@ -446,6 +523,7 @@ void main() {
           imageUrl: 'x',
           username: 'jane_doe',
           password: 'x',
+          phoneNumber: '9876543210',
           timeStamp: 1,
           moduleAccess: const ['COURSES'],
           role: roleSubadmin,
@@ -456,6 +534,7 @@ void main() {
           imageUrl: 'x',
           username: 'john_smith',
           password: 'x',
+          phoneNumber: '9876543210',
           timeStamp: 2,
           moduleAccess: const ['SUBJECT'],
           role: roleAdmin,

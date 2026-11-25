@@ -6,7 +6,8 @@ import 'package:bbarna/resources/app_colors.dart';
 class ChooseImage extends StatelessWidget {
   Function onSelectImage;
   final String title;
-  ChooseImage({required this.onSelectImage,this.title="Choose Image", super.key});
+  ChooseImage(
+      {required this.onSelectImage, this.title = "Choose Image", super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -22,8 +23,8 @@ class ChooseImage extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               color: AppColorsInApp.colorGrey.withValues(alpha: .2),
             ),
-            child:  Text(title,
-                style:const TextStyle(
+            child: Text(title,
+                style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.normal,
                     color: AppColorsInApp.colorBlack1)),

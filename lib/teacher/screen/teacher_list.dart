@@ -1,12 +1,23 @@
 import 'package:bbarna/core/widgets/add_widget.dart';
-import 'package:bbarna/core/widgets/custom_searchbar.dart';
-import 'package:bbarna/resources/app_colors.dart';
+import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
+import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
+import 'package:bbarna/core/widgets/list_page/list_page_frame.dart';
+import 'package:bbarna/core/widgets/list_page/list_page_header.dart';
+import 'package:bbarna/core/widgets/list_page/list_search_field.dart';
+import 'package:bbarna/core/widgets/list_page/list_skeleton.dart';
+import 'package:bbarna/resources/app_tokens.dart';
+import 'package:bbarna/teacher/model/teacher_model.dart';
 import 'package:bbarna/teacher/screen/add_teacher.dart';
 import 'package:bbarna/teacher/viewModel/teacher_view_model.dart';
 import 'package:bbarna/teacher/widgets/teacher_card.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+/// The teacher list (sidebar module).
+///
+/// Every teacher is loaded at once and the search filters them locally by
+/// name or username (no paging, so no footer).
 class TeacherList extends StatefulWidget {
   const TeacherList({super.key});
 
@@ -15,129 +26,113 @@ class TeacherList extends StatefulWidget {
 }
 
 class _TeacherListState extends State<TeacherList> {
-  TeacherViewModel _teacherViewModel = TeacherViewModel();
-  TextEditingController searchController = TextEditingController();
+  /// Text in the search box.
+  final TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
-    _teacherViewModel = Provider.of(context, listen: false);
-    getTeacherList();
     super.initState();
+    // Put back what was being searched when this list was last left; the
+    // view model keeps it across Add/Edit and module switches.
+    searchController.text =
+        Provider.of<TeacherViewModel>(context, listen: false).searchText;
+    // Deferred to after the first frame: this screen is mounted from
+    // Sidebar's `screenList[selectedIndex]` *during* a build, and loading
+    // notifies listeners.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Provider.of<TeacherViewModel>(context, listen: false).getTeacherList();
+    });
   }
 
-  void getTeacherList() async {
-    await _teacherViewModel.getTeacherList();
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<TeacherViewModel>(builder: (context, teacherVM, child) {
-      return Container(
-        padding: const EdgeInsets.only(
-          left: 10,
-          right: 10,
-          top: 10,
-          bottom: 20,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "TEACHER LIST",
-                      style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.normal,
-                          letterSpacing: 1.0,
-                          color: AppColorsInApp.colorBlack1),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      "${teacherVM.teacherList.length} teacher${teacherVM.teacherList.length == 1 ? '' : 's'} · role and module access at a glance",
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: AppColorsInApp.colorGrey.withValues(alpha: .9)),
-                    ),
-                  ],
-                ),
-                AddWidget(
-                  addCall: () {
-                    Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const AddTeacher()))
-                        .whenComplete(() {
-                      if (searchController.text.isEmpty) {
-                        Provider.of<TeacherViewModel>(context, listen: false)
-                            .getTeacherList();
-                      }
-                    });
-                  },
-                )
-              ],
+    return Consumer<TeacherViewModel>(
+        builder: (context, teacherViewModel, child) {
+      return ListPageFrame(
+        children: [
+          ListPageHeader(
+            title: "Teachers",
+            count: teacherViewModel.teacherList.length,
+            subtitle: "Role and module access at a glance.",
+            trailing: AddWidget(
+              title: "NEW TEACHER",
+              addCall: () => _openAdd(teacherViewModel),
             ),
-            CustomSearchBar(
-              textEditingController: searchController,
-              onChange: () {
-                teacherVM.searchTeacher(searchText: searchController.text);
-              },
-              onClear: () {
-                searchController.clear();
-                teacherVM.searchTeacher(searchText: searchController.text);
-              },
-            ),
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.only(
-                  top: 10,
-                  bottom: 10,
-                ),
-                padding: const EdgeInsets.only(
-                  top: 10,
-                  bottom: 10,
-                ),
-                decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: Colors.grey.withOpacity(0.2)),
-                child: teacherVM.teacherList.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.people_alt_outlined,
-                              size: 60,
-                              color: AppColorsInApp.colorGrey,
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              "No teachers added yet",
-                              style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.normal,
-                                  color: AppColorsInApp.colorGrey),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: teacherVM.teacherList.length,
-                        itemBuilder: (context, index) {
-                          return TeacherCard(
-                            teacherData: teacherVM.teacherList[index],
-                          );
-                        }),
-              ),
-            )
-          ],
-        ),
+          ),
+          const SizedBox(height: AppTokens.gapMd),
+          ListSearchField(
+            controller: searchController,
+            hintText: "Search by name or username",
+            onChanged: (text) => _search(teacherViewModel, text),
+            onCleared: () => _search(teacherViewModel, ""),
+          ),
+          const SizedBox(height: AppTokens.gapMd),
+          Expanded(child: _body(teacherViewModel)),
+        ],
       );
     });
+  }
+
+  /// Filters the list (the view model rebuilds the page).
+  void _search(TeacherViewModel teacherViewModel, String text) {
+    // The view model notifies straight away, which rebuilds this page
+    // (clear button and empty-state wording included) — no setState needed.
+    teacherViewModel.searchTeacher(searchText: text);
+  }
+
+  /// Opens Add Teacher and reloads the list if something was
+  /// saved.
+  void _openAdd(TeacherViewModel teacherViewModel) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddTeacher()),
+    ).ifSaved(() {
+      teacherViewModel.getTeacherList();
+    });
+  }
+
+  /// Skeleton while loading, empty state when there are no rows, otherwise
+  /// the teacher cards.
+  Widget _body(TeacherViewModel teacherViewModel) {
+    if (teacherViewModel.isLoading) {
+      return const ListSkeleton(rowHeight: 96);
+    }
+
+    final List<TeacherModel> teachers = teacherViewModel.teacherList;
+    // A failed load: say so, with Retry, rather than "No … yet".
+    final String? loadError = teacherViewModel.loadError;
+    if (teachers.isEmpty && loadError != null) {
+      return ListErrorState(
+          title: loadError, onRetry: teacherViewModel.getTeacherList);
+    }
+    if (teachers.isEmpty) {
+      return ListEmptyState(
+        isFiltered: searchController.text.trim().isNotEmpty,
+        icon: Icons.people_alt_outlined,
+        title: "No teachers yet",
+        message:
+            "Teachers sign in to this panel with the modules you grant them.",
+        filteredMessage: "No teacher matches that name or username.",
+        addLabel: "Add a teacher",
+        onAdd: () => _openAdd(teacherViewModel),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
+      itemCount: teachers.length,
+      itemBuilder: (context, index) => TeacherCard(
+        key: ValueKey(teachers[index].username),
+        teacherData: teachers[index],
+        onChanged: teacherViewModel.getTeacherList,
+      ),
+    );
   }
 }

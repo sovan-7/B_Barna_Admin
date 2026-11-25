@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase CLI deploy cache
+.firebase/
+
+# Claude Code worktrees (local checkouts, never committed)
+.claude/worktrees/

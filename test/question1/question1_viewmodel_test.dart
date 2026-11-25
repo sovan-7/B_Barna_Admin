@@ -115,8 +115,7 @@ void main() {
   });
 
   group('editor readiness', () {
-    test('allEditorsReady flips true only after all 8 editors report init',
-        () {
+    test('allEditorsReady flips true only after all 8 editors report init', () {
       expect(viewModel.allEditorsReady, isFalse);
       for (var i = 0; i < 7; i++) {
         viewModel.onEditorInit();
@@ -133,8 +132,7 @@ void main() {
   // unavoidable without mounting a real platform WebView, which the VM test
   // runner can't do. Same reason the old module had zero tests at all.
   group('loadForEdit', () {
-    test('populates the text cache and matches the selected option',
-        () {
+    test('populates the text cache and matches the selected option', () {
       final question = _sampleQuestion();
       viewModel.loadForEdit(question);
 
@@ -195,8 +193,7 @@ void main() {
     });
   });
 
-  group('updateQuestion (needs a live navigator context for the snackbar)',
-      () {
+  group('updateQuestion (needs a live navigator context for the snackbar)', () {
     testWidgets('reuses the given timeStamp rather than the current time',
         (tester) async {
       await tester.pumpWidget(MaterialApp(
@@ -217,8 +214,7 @@ void main() {
     });
   });
 
-  group('deleteQuestion (needs a live navigator context for the snackbar)',
-      () {
+  group('deleteQuestion (needs a live navigator context for the snackbar)', () {
     testWidgets('removes the item locally and refreshes the count on success',
         (tester) async {
       await tester.pumpWidget(MaterialApp(
@@ -236,7 +232,8 @@ void main() {
       expect(viewModel.questionListLength, 0);
     });
 
-    testWidgets('returns false and leaves the list untouched when the repo throws',
+    testWidgets(
+        'returns false and leaves the list untouched when the repo throws',
         (tester) async {
       await tester.pumpWidget(MaterialApp(
         navigatorKey: navigatorKey,

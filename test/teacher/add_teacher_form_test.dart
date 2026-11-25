@@ -10,6 +10,7 @@ import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/teacher/model/teacher_model.dart';
 import 'package:bbarna/teacher/repo/teacher_repo.dart';
 import 'package:bbarna/teacher/screen/add_teacher.dart';
+import 'package:bbarna/teacher/widgets/teacher_form.dart';
 import 'package:bbarna/teacher/viewModel/teacher_view_model.dart';
 
 class MockTeacherRepo extends Mock implements TeacherRepo {}
@@ -47,7 +48,7 @@ final Uint8List _validPngBytes = base64Decode(
 
 void selectFakeImage(WidgetTester tester,
     {String name = 'photo.png', int size = 1024}) {
-  final state = tester.state<AddTeacherTestHooks>(find.byType(AddTeacher));
+  final state = tester.state<TeacherFormTestHooks>(find.byType(TeacherForm));
   state.setSelectedImageForTest(
     PlatformFile(name: name, size: size, bytes: _validPngBytes),
   );
@@ -88,6 +89,7 @@ void main() {
     selectFakeImage(tester);
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
     await tester.pumpAndSettle();
@@ -102,6 +104,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jd');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
     await tester.pumpAndSettle();
@@ -116,6 +119,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane doe!');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
     await tester.pumpAndSettle();
@@ -130,6 +134,22 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'short1');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
+    await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
+    await tester.tap(find.byKey(const Key('teacher_save_button')));
+    await tester.pumpAndSettle();
+
+    verifyNever(() => repo.addTeacher(any()));
+  });
+
+  testWidgets('blocks submission when phone number is not exactly 10 digits',
+      (tester) async {
+    await pumpAddTeacher(tester, viewModel);
+    selectFakeImage(tester);
+    await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
+    await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
+    await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '12345');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
     await tester.pumpAndSettle();
@@ -145,6 +165,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'abcdefgh');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await checkModule(tester, 'COURSES');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
@@ -161,6 +182,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), '12345678');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await checkModule(tester, 'COURSES');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
@@ -174,6 +196,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
     await tester.pumpAndSettle();
@@ -188,6 +211,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
     await tester.pumpAndSettle();
@@ -202,6 +226,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
     await tester.pumpAndSettle();
@@ -215,6 +240,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
     await tester.pumpAndSettle();
@@ -228,6 +254,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await checkModule(tester, 'COURSES');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
@@ -243,6 +270,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await checkModule(tester, 'TOPIC');
     await checkModule(tester, 'COURSES');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
@@ -262,6 +290,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await checkModule(tester, 'COURSES');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
@@ -279,6 +308,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_name_field')), 'Jane Doe');
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
+    await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
     await selectRole(tester, roleAdmin);
     await checkModule(tester, 'COURSES');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));

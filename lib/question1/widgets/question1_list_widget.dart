@@ -2,7 +2,7 @@ import 'package:bbarna/question1/model/question1.dart';
 import 'package:bbarna/question1/screen/edit_question1.dart';
 import 'package:bbarna/resources/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:html/parser.dart' as html_parser;
 
 class Question1ListWidget extends StatelessWidget {
   const Question1ListWidget({
@@ -46,10 +46,7 @@ class Question1ListWidget extends StatelessWidget {
                           color: AppColorsInApp.colorBlack1),
                     ),
                     Expanded(
-                      child: HtmlWidget(
-                        question.question,
-                        textStyle: const TextStyle(overflow: TextOverflow.visible),
-                      ),
+                      child: Text(_plainText(question.question)),
                     ),
                   ],
                 ),
@@ -85,9 +82,9 @@ class Question1ListWidget extends StatelessWidget {
                       ),
                       SizedBox(
                         width: 300,
-                        child: HtmlWidget(
-                          question.answer,
-                          textStyle: TextStyle(
+                        child: Text(
+                          _plainText(question.answer),
+                          style: TextStyle(
                               color: Colors.green[700],
                               fontSize: 15,
                               fontWeight: FontWeight.w700),
@@ -106,10 +103,10 @@ class Question1ListWidget extends StatelessWidget {
                 InkWell(
                   onTap: () {
                     Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) =>
-                                EditQuestion1(question: question)))
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    EditQuestion1(question: question)))
                         .whenComplete(onEdit);
                   },
                   child: Icon(Icons.edit, color: AppColorsInApp.colorYellow),
@@ -129,4 +126,8 @@ class Question1ListWidget extends StatelessWidget {
       ),
     );
   }
+
+  /// The text of a stored rich-text (HTML) value, tags dropped.
+  static String _plainText(String html) =>
+      html_parser.parse(html).body?.text.trim() ?? html.trim();
 }

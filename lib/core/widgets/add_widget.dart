@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:bbarna/resources/app_colors.dart';
 
+/// The black "+ NEW …" button at the top-right of every list screen.
 // ignore: must_be_immutable
 class AddWidget extends StatelessWidget {
+  /// Opens the Add screen.
   final Function addCall;
+
+  /// Button text, e.g. "NEW PDF".
   String title;
+
+  /// Leading icon.
   IconData icon;
   AddWidget(
       {required this.addCall,
