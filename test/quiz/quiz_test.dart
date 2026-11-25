@@ -180,7 +180,7 @@ void main() {
 
       // None of this was on the old row.
       expect(find.text('1h 30m'), findsNWidgets(2));
-      expect(find.text('100 marks'), findsNWidgets(2));
+      expect(find.text('100 marks per question'), findsNWidgets(2));
       expect(find.text('-1 per wrong answer'), findsOneWidget);
       expect(find.text('No time limit'), findsOneWidget);
       expect(find.text('No marks set'), findsOneWidget);
@@ -432,7 +432,7 @@ void main() {
       expect(find.text('Choose a status'), findsOneWidget);
       expect(find.text('Choose whether it is free or paid'), findsOneWidget);
       expect(find.text('Set how long the quiz runs'), findsOneWidget);
-      expect(find.text('Set the total marks'), findsOneWidget);
+      expect(find.text('Set the marks per question'), findsOneWidget);
       verifyNever(() => repo.addQuiz(any()));
     });
 
