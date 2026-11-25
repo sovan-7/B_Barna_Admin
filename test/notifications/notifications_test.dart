@@ -396,8 +396,16 @@ void main() {
       expect(preview.data, 'Exam on Friday');
     });
 
-    testWidgets('the preview shows the link once one is typed', (tester) async {
+    testWidgets('the link field is hidden by default', (tester) async {
       await pump(tester, const SendNotification());
+
+      expect(find.byKey(const Key('notification_link_field')), findsNothing);
+      expect(find.text('Link (optional)'), findsNothing);
+      expect(find.byKey(const Key('notification_preview_link')), findsNothing);
+    });
+
+    testWidgets('the preview shows the link once one is typed', (tester) async {
+      await pump(tester, const SendNotification(showLinkField: true));
       expect(find.byKey(const Key('notification_preview_link')), findsNothing);
 
       await tester.enterText(find.byKey(const Key('notification_link_field')),
@@ -411,7 +419,7 @@ void main() {
 
     testWidgets('a link without https:// is refused and nothing is sent',
         (tester) async {
-      await pump(tester, const SendNotification());
+      await pump(tester, const SendNotification(showLinkField: true));
 
       await tester.enterText(
           find.byKey(const Key('notification_title_field')), 'Live class');
@@ -433,7 +441,7 @@ void main() {
     });
 
     testWidgets('a link goes out with the notification', (tester) async {
-      await pump(tester, const SendNotification());
+      await pump(tester, const SendNotification(showLinkField: true));
 
       await tester.enterText(
           find.byKey(const Key('notification_title_field')), 'Live class');
@@ -455,7 +463,7 @@ void main() {
 
       await tester.enterText(
           find.byKey(const Key('notification_title_field')), 'Offer');
-      // The picture choices sit below the message and link fields.
+      // The picture choices sit below the message fields.
       await tester
           .ensureVisible(find.byKey(const Key('notification_source_banner')));
       await tester.pumpAndSettle();
