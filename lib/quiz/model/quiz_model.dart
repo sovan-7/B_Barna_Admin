@@ -27,7 +27,8 @@ class QuizModel {
   /// Time limit in minutes (`total_time`).
   int totalTime = intDefault;
 
-  /// Maximum marks (`total_marks`).
+  /// Marks for each question (`total_marks` — the stored name predates this
+  /// meaning; the student app reads that key, so it stays).
   int totalMarks = intDefault;
 
   /// Marks deducted per wrong answer (`number_deduction`).

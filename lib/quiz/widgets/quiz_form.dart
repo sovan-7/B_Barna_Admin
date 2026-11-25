@@ -63,7 +63,7 @@ class _QuizFormState extends State<QuizForm> {
   /// Text of the minutes part of the time limit field.
   final TextEditingController minutesController = TextEditingController();
 
-  /// Text of the total marks field.
+  /// Text of the per question marks field.
   final TextEditingController marksController = TextEditingController();
 
   /// Text of the negative marking field.
@@ -208,9 +208,9 @@ class _QuizFormState extends State<QuizForm> {
     }
     final String marks = marksController.text.trim();
     if (marks.isEmpty) {
-      errors[_Field.marks] = "Set the total marks";
+      errors[_Field.marks] = "Set the marks per question";
     } else if ((int.tryParse(marks) ?? 0) <= 0) {
-      errors[_Field.marks] = "Total marks must be more than zero";
+      errors[_Field.marks] = "Marks per question must be more than zero";
     }
     return errors;
   }
@@ -391,8 +391,8 @@ class _QuizFormState extends State<QuizForm> {
           FormTwoUp(
               width: width,
               left: _textField(
-                label: "Total marks",
-                hint: "e.g. 100",
+                label: "Per question marks",
+                hint: "e.g. 2",
                 controller: marksController,
                 error: _errors[_Field.marks],
                 onChanged: _revalidate,

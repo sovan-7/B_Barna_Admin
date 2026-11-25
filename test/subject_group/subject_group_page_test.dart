@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:bbarna/core/widgets/app_toast.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/subject/repo/subject_repo.dart';
@@ -123,10 +124,14 @@ void main() {
         findsOneWidget);
     // Newest at the bottom.
     expect(
-        tester.getTopLeft(find.textContaining('Class at 7 pm',
-                findRichText: true)).dy,
-        greaterThan(tester.getTopLeft(
-            find.textContaining('Holiday notice', findRichText: true)).dy));
+        tester
+            .getTopLeft(
+                find.textContaining('Class at 7 pm', findRichText: true))
+            .dy,
+        greaterThan(tester
+            .getTopLeft(
+                find.textContaining('Holiday notice', findRichText: true))
+            .dy));
   });
 
   testWidgets('a few messages start at the top of the panel', (tester) async {
@@ -139,9 +144,9 @@ void main() {
     ]);
 
     final double subtitleBottom = tester
-        .getBottomLeft(find.text(
-            'Students who bought this subject see these messages in the '
-            'app, in its Group tab.'))
+        .getBottomLeft(find
+            .text('Students who bought this subject see these messages in the '
+                'app, in its Group tab.'))
         .dy;
     final double dateTop = tester.getTopLeft(find.text('Today')).dy;
     expect(dateTop - subtitleBottom, lessThan(80));
@@ -167,9 +172,9 @@ void main() {
     await tester.tap(find.byKey(const Key('group_send')));
     await tester.pumpAndSettle();
 
-    final GroupMessage sent =
-        verify(() => repo.send('SSCGD27', captureAny())).captured.single
-            as GroupMessage;
+    final GroupMessage sent = verify(() => repo.send('SSCGD27', captureAny()))
+        .captured
+        .single as GroupMessage;
     expect(sent.text, 'Mock test on Sunday');
     expect(
         tester
@@ -228,9 +233,9 @@ void main() {
     await tester.pumpAndSettle();
 
     verify(() => repo.uploadImage('SSCGD27', _png)).called(1);
-    final GroupMessage sent =
-        verify(() => repo.send(any(), captureAny())).captured.single
-            as GroupMessage;
+    final GroupMessage sent = verify(() => repo.send(any(), captureAny()))
+        .captured
+        .single as GroupMessage;
     expect(sent.imageUrl, 'https://img/up.jpg');
     expect(find.byKey(const Key('group_remove_picture')), findsNothing);
   });
@@ -249,6 +254,60 @@ void main() {
     await tester.pumpAndSettle();
     verify(() => repo.delete('SSCGD27', any())).called(1);
     expect(find.text('Delete this message?'), findsNothing);
+  });
+
+  testWidgets('copy puts the whole message text on the clipboard',
+      (tester) async {
+    // A toast left over from an earlier test still points at that test's
+    // overlay; clear it so this one shows in this test's window.
+    AppToast.dismissAll();
+    addTearDown(AppToast.dismissAll);
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (MethodCall call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+
+    // Narrow window: the buttons show without hovering.
+    await pumpPage(tester, size: const Size(380, 820));
+    await show(
+        tester, [_msg(1, text: 'Exam on Monday\nhttps://example.com/notes')]);
+
+    await tester.tap(find.byKey(const Key('group_copy_m1')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(copied, 'Exam on Monday\nhttps://example.com/notes');
+    expect(find.text('Copied to clipboard'), findsOneWidget);
+    // Let the toast run out so no timer is left pending.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('a picture-only message has no copy button', (tester) async {
+    await pumpPage(tester, size: const Size(380, 820));
+    await show(tester, [
+      GroupMessage(
+        docId: 'p1',
+        text: '',
+        imageUrl: 'https://img/p1.jpg',
+        senderId: 't1',
+        senderName: 'Riya Sen',
+        senderRole: roleAdmin,
+        subjectCode: 'SSCGD27',
+        createdAt: DateTime.now(),
+      ),
+    ]);
+
+    expect(find.byKey(const Key('group_delete_p1')), findsOneWidget);
+    expect(find.byKey(const Key('group_copy_p1')), findsNothing);
   });
 
   testWidgets('Delete all messages: only with messages, and asks first',

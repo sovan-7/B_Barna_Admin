@@ -116,9 +116,10 @@ class _QuizCardState extends State<QuizCard> {
     return "$attached question${attached == 1 ? '' : 's'}";
   }
 
-  /// Marks, plus the negative marking if any, e.g. "100 marks · −1".
-  String _marksLabel() =>
-      _data.totalMarks > 0 ? "${_data.totalMarks} marks" : "No marks set";
+  /// Marks for each question, e.g. "2 marks per question".
+  String _marksLabel() => _data.totalMarks > 0
+      ? "${_data.totalMarks} marks per question"
+      : "No marks set";
 
   /// When an upcoming quiz opens to students — or opened, once the time
   /// has passed and it shows as LIVE.
