@@ -28,12 +28,16 @@ enum NotificationImageSource {
 }
 
 /// Compose a push notification for every app user: a title, an optional
-/// message, an optional link (opened when it's tapped in the app), an
-/// optional picture (uploaded, or one of the banners), and a preview of how
-/// it shows on a phone. Sending asks for confirmation first,
+/// message, an optional picture (uploaded, or one of the banners), and a
+/// preview of how it shows on a phone. Sending asks for confirmation first,
 /// since it can't be taken back.
 class SendNotification extends StatefulWidget {
-  const SendNotification({super.key});
+  const SendNotification({this.showLinkField = false, super.key});
+
+  /// Whether the "Link (optional)" field (opened when the notification is
+  /// tapped in the app) is shown. Hidden for now; the link still works end
+  /// to end if it's turned back on.
+  final bool showLinkField;
 
   /// Longest title that still fits on one line of most phones.
   static const int titleMaxLength = 65;
@@ -225,7 +229,7 @@ class _SendNotificationState extends State<SendNotification> {
     );
   }
 
-  /// Title, message and link.
+  /// Title, message and (when [SendNotification.showLinkField]) link.
   Widget _messageSection() {
     return FormSection(
       title: "MESSAGE",
@@ -259,20 +263,22 @@ class _SendNotificationState extends State<SendNotification> {
           ],
           onChanged: () => setState(() {}),
         ),
-        const SizedBox(height: AppTokens.gapMd),
-        FormTextField(
-          fieldKey: const Key('notification_link_field'),
-          label: "Link (optional)",
-          hint: "e.g. https://meet.google.com/abc-defg-hij",
-          controller: _linkController,
-          enabled: !_isSending,
-          keyboardType: TextInputType.url,
-          prefixIcon: Icons.link,
-          error: _linkError,
-          note: "A YouTube, Google Meet or Zoom link, or any website. "
-              "It opens when the notification is tapped in the app.",
-          onChanged: () => setState(() => _linkError = null),
-        ),
+        if (widget.showLinkField) ...[
+          const SizedBox(height: AppTokens.gapMd),
+          FormTextField(
+            fieldKey: const Key('notification_link_field'),
+            label: "Link (optional)",
+            hint: "e.g. https://meet.google.com/abc-defg-hij",
+            controller: _linkController,
+            enabled: !_isSending,
+            keyboardType: TextInputType.url,
+            prefixIcon: Icons.link,
+            error: _linkError,
+            note: "A YouTube, Google Meet or Zoom link, or any website. "
+                "It opens when the notification is tapped in the app.",
+            onChanged: () => setState(() => _linkError = null),
+          ),
+        ],
       ],
     );
   }
