@@ -5,8 +5,10 @@ import 'package:bbarna/core/widgets/card/card_helpers.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/subject_group/group_links.dart';
 import 'package:bbarna/subject_group/model/group_message.dart';
+import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 /// The student app's look for a group message (its default colour), so the
@@ -33,13 +35,14 @@ class GroupLook {
 /// One message in a group's history:
 ///
 /// ```
-/// Riya Sen · Admin ✓                             [bin]
+/// Riya Sen · Admin ✓                      [copy] [bin]
 /// [picture]
 /// Text, with links
 ///                                              9:05AM
 /// ```
 ///
-/// The bin shows on hover, and always on narrow windows (no hover on touch).
+/// The copy button (only when there is text) and the bin show on hover, and
+/// always on narrow windows (no hover on touch).
 class GroupMessageTile extends StatefulWidget {
   final GroupMessage message;
 
@@ -68,7 +71,7 @@ class _GroupMessageTileState extends State<GroupMessageTile> {
   @override
   Widget build(BuildContext context) {
     final bool narrow = MediaQuery.sizeOf(context).width < 900;
-    final bool showDelete = _hovered || narrow || widget.deleting;
+    final bool showActions = _hovered || narrow || widget.deleting;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -93,7 +96,7 @@ class _GroupMessageTileState extends State<GroupMessageTile> {
               children: [
                 Expanded(child: _sender()),
                 CardActions(
-                  visible: showDelete,
+                  visible: showActions,
                   buttons: [
                     if (widget.deleting)
                       const Padding(
@@ -105,12 +108,21 @@ class _GroupMessageTileState extends State<GroupMessageTile> {
                               strokeWidth: 2, color: AppTokens.danger),
                         ),
                       )
-                    else
+                    else ...[
+                      if (_message.hasText)
+                        CardIconButton(
+                          buttonKey: Key('group_copy_${_message.docId}'),
+                          icon: Icons.content_copy_outlined,
+                          tooltip: "Copy message",
+                          color: AppTokens.inkMuted,
+                          onTap: _copy,
+                        ),
                       CardDeleteButton(
                         buttonKey: Key('group_delete_${_message.docId}'),
                         tooltip: "Delete message",
                         onTap: widget.onDelete,
                       ),
+                    ],
                   ],
                 ),
               ],
@@ -142,6 +154,13 @@ class _GroupMessageTileState extends State<GroupMessageTile> {
         ),
       ),
     );
+  }
+
+  /// Puts the whole message text (links typed into it included) on the
+  /// clipboard; the picture isn't copied.
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: _message.text));
+    Helper.showSnackBarMessage(msg: "Copied to clipboard", isSuccess: true);
   }
 
   /// "Riya Sen · Admin ✓" (just "Admin ✓" when no name was saved).
