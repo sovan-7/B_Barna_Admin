@@ -60,13 +60,17 @@ void main() {
       "NOTIFICATIONS",
       "TRANSACTIONS",
       "TOPIC1",
+      "QUESTION1",
     ], moduleList);
   });
 
   test('Topic1 is listed right after Topics, without moving any position', () {
     expect(moduleList[topicModuleIndex], "TOPIC");
     expect(moduleList[topic1ModuleIndex], "TOPIC1");
-    expect(topic1ModuleIndex, moduleList.length - 1);
+    // Appended after it, so Topic1 keeps its stored position.
+    expect(moduleList[question1ModuleIndex], "QUESTION1");
+    expect(question1ModuleIndex, moduleList.length - 1);
+    expect(topic1ModuleIndex, question1ModuleIndex - 1);
     expect(moduleNavOrder.toSet(),
         {for (int i = 0; i < moduleList.length; i++) i});
     expect(moduleNavOrder, hasLength(moduleList.length));

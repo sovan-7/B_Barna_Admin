@@ -138,6 +138,7 @@ const List<String> moduleList = [
   "NOTIFICATIONS",
   "TRANSACTIONS",
   "TOPIC1",
+  "QUESTION1",
 ];
 
 /// Modules switched off for everyone, admins included. They stay in
@@ -204,6 +205,10 @@ const int topicModuleIndex = 4;
 /// Shown right after Topics (see [moduleNavOrder]).
 const int topic1ModuleIndex = 17;
 
+/// Position of the Question1 module within [moduleList] — the value every
+/// Question1 screen passes as `ExtraSideBar(sidebarIndex: ...)`.
+const int question1ModuleIndex = 18;
+
 /// What the sidebar *shows*, index-aligned with [moduleList].
 ///
 /// [moduleList] is the persisted identity of a module: a teacher's
@@ -230,6 +235,7 @@ const List<String> moduleDisplayList = [
   "Notifications",
   "Transactions",
   "New Topics",
+  "Question1",
 ];
 
 /// Role with full access, including managing teachers.
@@ -289,4 +295,5 @@ const List<IconData> moduleIconList = [
   Icons.campaign_outlined,
   Icons.receipt_long_outlined,
   Icons.topic,
+  Icons.library_books,
 ];

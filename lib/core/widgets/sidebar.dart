@@ -14,6 +14,7 @@ import 'package:bbarna/documents/audio/screen/audio_list.dart';
 import 'package:bbarna/documents/pdf/screen/pdf_list.dart';
 import 'package:bbarna/documents/video/screen/video_list.dart';
 import 'package:bbarna/question/screen/question_list.dart';
+import 'package:bbarna/question1/screen/question1_list.dart';
 import 'package:bbarna/quiz/screen/quiz_list.dart';
 import 'package:bbarna/student/screen/student_list.dart';
 import 'package:bbarna/subject/screen/subject_list.dart';
@@ -66,6 +67,7 @@ class _SidebarState extends State<Sidebar> {
     const NotificationList(),
     const TransactionList(),
     const Topic1List(),
+    const Question1List(),
   ];
 
   @override

@@ -56,6 +56,12 @@ void main() {
       expect(moduleDisplayList[notificationModuleIndex], 'Notifications');
       expect(moduleIconList[notificationModuleIndex], Icons.campaign_outlined);
     });
+
+    test('Question1 is where question1ModuleIndex says it is', () {
+      expect(moduleList[question1ModuleIndex], 'QUESTION1');
+      expect(moduleDisplayList[question1ModuleIndex], 'Question1');
+      expect(moduleIconList[question1ModuleIndex], Icons.library_books);
+    });
   });
 
   testWidgets('the nav renders every shown module, in moduleNavOrder',

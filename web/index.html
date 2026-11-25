@@ -66,6 +66,52 @@
 <!--  <script type="text/javascript">-->
 <!--    window.flutterWebRenderer = "html";-->
 <!--</script>-->
+
+  <script>
+    // html_editor_enhanced renders each rich-text field as a same-origin
+    // <iframe> running Summernote. Summernote's own drop handler pastes once
+    // per MIME type in the drag payload — a text drag usually carries both
+    // text/plain and text/html, so it double-pastes inside the iframe before
+    // Flutter's DropRegion (Question1 fields) ever sees it.
+    //
+    // Same-origin means we can reach into each iframe's document. A
+    // capture-phase 'drop' listener there runs before Summernote's
+    // bubble-phase handler, so stopping propagation keeps Summernote's
+    // handler from running; then we do the single plain-text insert.
+    function interceptDrop(doc) {
+      doc.addEventListener('drop', function (event) {
+        if (!event.dataTransfer) return;
+        var text = event.dataTransfer.getData('text/plain');
+        if (!text) return;
+        event.preventDefault();
+        event.stopPropagation();
+        doc.execCommand('insertText', false, text);
+      }, true);
+    }
+
+    function watchIframe(iframe) {
+      if (iframe.__dropInterceptAttached) return;
+      iframe.__dropInterceptAttached = true;
+      if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
+        interceptDrop(iframe.contentDocument);
+      } else {
+        iframe.addEventListener('load', function () {
+          if (iframe.contentDocument) interceptDrop(iframe.contentDocument);
+        });
+      }
+    }
+
+    document.querySelectorAll('iframe').forEach(watchIframe);
+    new MutationObserver(function (mutations) {
+      mutations.forEach(function (mutation) {
+        mutation.addedNodes.forEach(function (node) {
+          if (!node.querySelectorAll) return;
+          if (node.tagName === 'IFRAME') watchIframe(node);
+          node.querySelectorAll('iframe').forEach(watchIframe);
+        });
+      });
+    }).observe(document.documentElement, {childList: true, subtree: true});
+  </script>
 </head>
 <body>
   <div id="splash"><img src="logo.png" alt=""></div>
