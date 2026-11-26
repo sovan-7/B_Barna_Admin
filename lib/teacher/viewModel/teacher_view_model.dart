@@ -199,6 +199,10 @@ class TeacherViewModel extends ChangeNotifier with SafeNotifier {
   /// re-applied after every refetch instead of showing everything.
   String searchText = "";
 
+  /// The role the list is narrowed to ([roleAdmin] or [roleSubadmin]), or
+  /// null for every teacher. Kept here for the same reason as [searchText].
+  String? roleFilter;
+
   /// Filters [teacherList] by name or username (case-insensitive).
   void searchTeacher({required String searchText}) {
     this.searchText = searchText;
@@ -206,17 +210,38 @@ class TeacherViewModel extends ChangeNotifier with SafeNotifier {
     notifyListeners();
   }
 
-  /// Rebuilds [teacherList] from [copyTeacherList] using [searchText].
+  /// Narrows [teacherList] to one role; null shows every role again.
+  void setRoleFilter(String? role) {
+    roleFilter = role;
+    _applySearch();
+    notifyListeners();
+  }
+
+  /// Every teacher loaded, whatever the search or role filter.
+  int get totalCount => copyTeacherList.length;
+
+  /// How many of all the teachers are Admins.
+  int get adminCount => copyTeacherList.where(isAdminTeacher).length;
+
+  /// How many of all the teachers are Subadmins (anyone not an Admin).
+  int get subadminCount => totalCount - adminCount;
+
+  /// Rebuilds [teacherList] from [copyTeacherList] using [searchText] and
+  /// [roleFilter].
   void _applySearch() {
     final String query = searchText.toLowerCase().trim();
-    if (query.isEmpty) {
-      teacherList = List<TeacherModel>.from(copyTeacherList);
-    } else {
-      teacherList = copyTeacherList
-          .where((teacher) =>
-              teacher.name.toLowerCase().contains(query) ||
-              teacher.username.toLowerCase().contains(query))
-          .toList();
-    }
+    final String? role = roleFilter;
+    teacherList = copyTeacherList.where((teacher) {
+      if (role != null && (role == roleAdmin) != isAdminTeacher(teacher)) {
+        return false;
+      }
+      return query.isEmpty ||
+          teacher.name.toLowerCase().contains(query) ||
+          teacher.username.toLowerCase().contains(query);
+    }).toList();
   }
 }
+
+/// Whether [teacher] has the Admin role. Anything else, an empty role
+/// included, is treated as Subadmin, which is how the list shows it.
+bool isAdminTeacher(TeacherModel teacher) => teacher.role == roleAdmin;

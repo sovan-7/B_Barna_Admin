@@ -1,16 +1,12 @@
 import 'package:bbarna/core/widgets/card/admin_card_shell.dart';
 import 'package:bbarna/core/widgets/card/card_actions.dart';
-import 'package:bbarna/core/widgets/card/card_helpers.dart';
 import 'package:bbarna/core/widgets/card/image_or_initial.dart';
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/teacher/model/teacher_model.dart';
-import 'package:bbarna/teacher/screen/edit_teacher.dart';
-import 'package:bbarna/teacher/viewModel/teacher_view_model.dart';
-import 'package:bbarna/utils/navigation.dart';
+import 'package:bbarna/teacher/widgets/teacher_access.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 /// One row of the teacher list: photo, name, role, username and phone,
 /// with the modules they can access underneath (human labels, capped at
@@ -35,13 +31,6 @@ class _TeacherCardState extends State<TeacherCard> {
 
   /// Shortcut for the item shown.
   TeacherModel get _data => widget.teacherData;
-
-  /// Whether this teacher has the Admin role.
-  bool get _isAdmin => _data.role == roleAdmin;
-
-  /// Amber for Admin, blue for Subadmin.
-  Color get _roleColor =>
-      _isAdmin ? const Color(0xFFB54708) : const Color(0xFF2563EB);
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +61,7 @@ class _TeacherCardState extends State<TeacherCard> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          _roleChip(),
+                          TeacherRoleChip(role: _data.role),
                         ],
                       ),
                       const SizedBox(height: 3),
@@ -130,50 +119,12 @@ class _TeacherCardState extends State<TeacherCard> {
     );
   }
 
-  /// "Admin" / "Subadmin" pill.
-  Widget _roleChip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: _roleColor.withValues(alpha: .10),
-        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        border: Border.all(color: _roleColor.withValues(alpha: .28)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(_isAdmin ? Icons.shield_outlined : Icons.person_outline,
-              size: 12, color: _roleColor),
-          const SizedBox(width: 5),
-          Text(_isAdmin ? "Admin" : "Subadmin",
-              style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
-                  color: _roleColor)),
-        ],
-      ),
-    );
-  }
-
   /// The modules this teacher can open, as chips.
   Widget _moduleAccess() {
-    // Positions in moduleList, walked in the sidebar's order rather than
-    // whatever order the access list happens to be stored in.
-    final List<int> granted = [
-      for (final int i in moduleNavOrder)
-        if (!hiddenModuleIndices.contains(i) &&
-            _data.moduleAccess.contains(moduleList[i]))
-          i,
-    ];
+    final List<int> granted = grantedModuleIndices(_data);
 
-    if (granted.isEmpty) {
-      return _accessLine(Icons.block, "No module access", AppTokens.danger);
-    }
-    if (granted.length >= assignableModuleList.length) {
-      return _accessLine(
-          Icons.all_inclusive, "Every module", const Color(0xFF108460));
-    }
+    if (granted.isEmpty) return const TeacherAccessLine.none();
+    if (hasEveryModule(granted)) return const TeacherAccessLine.all();
 
     final List<int> shown = granted.take(_visibleModules).toList();
     final int rest = granted.length - shown.length;
@@ -183,28 +134,7 @@ class _TeacherCardState extends State<TeacherCard> {
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        for (final int index in shown)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTokens.surfaceMuted,
-              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-              border: Border.all(color: AppTokens.hairline),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(moduleIconList[index],
-                    size: 12, color: AppTokens.inkFaint),
-                const SizedBox(width: 5),
-                Text(moduleDisplayList[index],
-                    style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                        color: AppTokens.inkMuted)),
-              ],
-            ),
-          ),
+        for (final int index in shown) TeacherModuleChip(index: index),
         if (rest > 0)
           Tooltip(
             message: granted
@@ -217,19 +147,6 @@ class _TeacherCardState extends State<TeacherCard> {
                     fontWeight: FontWeight.w600,
                     color: AppTokens.inkFaint)),
           ),
-      ],
-    );
-  }
-
-  /// One icon + label line used by [_moduleAccess].
-  Widget _accessLine(IconData icon, String label, Color color) {
-    return Row(
-      children: [
-        Icon(icon, size: 13, color: color),
-        const SizedBox(width: 6),
-        Text(label,
-            style: TextStyle(
-                fontSize: 11.5, fontWeight: FontWeight.w600, color: color)),
       ],
     );
   }
@@ -255,23 +172,8 @@ class _TeacherCardState extends State<TeacherCard> {
 
   /// Opens the edit screen; the list reloads if it saved or deleted
   /// something.
-  void _openEdit() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EditTeacher(teacherData: _data)),
-    ).ifSaved(widget.onChanged);
-  }
+  void _openEdit() => openEditTeacher(context, _data, widget.onChanged);
 
   /// Asks for confirmation, then deletes this item.
-  void _confirmDelete() {
-    final TeacherViewModel teacherViewModel =
-        Provider.of<TeacherViewModel>(context, listen: false);
-    final String username = _data.username;
-
-    confirmDelete(
-      title: _data.name,
-      delete: () => teacherViewModel.deleteTeacher(username),
-      successMessage: "Teacher deleted successfully",
-    );
-  }
+  void _confirmDelete() => confirmDeleteTeacher(context, _data);
 }

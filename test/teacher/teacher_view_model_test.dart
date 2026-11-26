@@ -568,4 +568,81 @@ void main() {
       expect(notified, isTrue);
     });
   });
+
+  group('role filter and counts (plain unit tests)', () {
+    TeacherModel teacher(String username, String role) => TeacherModel(
+          docId: username,
+          name: username,
+          imageUrl: 'x',
+          username: username,
+          password: 'x',
+          phoneNumber: '9876543210',
+          timeStamp: 1,
+          moduleAccess: const ['COURSES'],
+          role: role,
+        );
+
+    List<TeacherModel> fixture() => [
+          teacher('anita_admin', roleAdmin),
+          teacher('ravi', roleSubadmin),
+          teacher('mou', roleSubadmin),
+          // Older documents can have no role; they show as Subadmin.
+          teacher('no_role', ''),
+        ];
+
+    setUp(() {
+      when(() => repo.getTeacherList()).thenAnswer((_) async => fixture());
+    });
+
+    test('Admin shows only admins, Subadmin everyone else', () async {
+      await viewModel.getTeacherList();
+
+      viewModel.setRoleFilter(roleAdmin);
+      expect(viewModel.teacherList.map((t) => t.username), ['anita_admin']);
+
+      viewModel.setRoleFilter(roleSubadmin);
+      expect(viewModel.teacherList.map((t) => t.username),
+          ['ravi', 'mou', 'no_role']);
+
+      viewModel.setRoleFilter(null);
+      expect(viewModel.teacherList, hasLength(4));
+    });
+
+    test('works together with the search', () async {
+      await viewModel.getTeacherList();
+
+      viewModel.setRoleFilter(roleSubadmin);
+      viewModel.searchTeacher(searchText: 'RAV');
+      expect(viewModel.teacherList.map((t) => t.username), ['ravi']);
+
+      viewModel.searchTeacher(searchText: 'anita');
+      expect(viewModel.teacherList, isEmpty);
+    });
+
+    test('is re-applied after a reload', () async {
+      await viewModel.getTeacherList();
+      viewModel.setRoleFilter(roleAdmin);
+
+      await viewModel.getTeacherList();
+      expect(viewModel.roleFilter, roleAdmin);
+      expect(viewModel.teacherList.map((t) => t.username), ['anita_admin']);
+    });
+
+    test('counts every teacher, whatever is filtered', () async {
+      await viewModel.getTeacherList();
+      viewModel.setRoleFilter(roleAdmin);
+      viewModel.searchTeacher(searchText: 'zzz');
+
+      expect(viewModel.totalCount, 4);
+      expect(viewModel.adminCount, 1);
+      expect(viewModel.subadminCount, 3);
+    });
+
+    test('notifies listeners when the filter changes', () {
+      var notified = false;
+      viewModel.addListener(() => notified = true);
+      viewModel.setRoleFilter(roleAdmin);
+      expect(notified, isTrue);
+    });
+  });
 }

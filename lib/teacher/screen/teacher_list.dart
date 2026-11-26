@@ -10,14 +10,18 @@ import 'package:bbarna/teacher/model/teacher_model.dart';
 import 'package:bbarna/teacher/screen/add_teacher.dart';
 import 'package:bbarna/teacher/viewModel/teacher_view_model.dart';
 import 'package:bbarna/teacher/widgets/teacher_card.dart';
+import 'package:bbarna/teacher/widgets/teacher_list_controls.dart';
+import 'package:bbarna/teacher/widgets/teacher_roster_table.dart';
 import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 /// The teacher list (sidebar module).
 ///
-/// Every teacher is loaded at once and the search filters them locally by
-/// name or username (no paging, so no footer).
+/// Every teacher is loaded at once; the search (name or username) and the
+/// role filter narrow them locally (no paging, so no footer). With room for
+/// it the teachers are a table ([TeacherRosterTable]); narrower, each is a
+/// [TeacherCard].
 class TeacherList extends StatefulWidget {
   const TeacherList({super.key});
 
@@ -26,6 +30,12 @@ class TeacherList extends StatefulWidget {
 }
 
 class _TeacherListState extends State<TeacherList> {
+  /// Narrowest content width that still gets the table rather than cards.
+  static const double _tableMinWidth = 720;
+
+  /// Narrowest content width with the role filter beside the search box.
+  static const double _filterBesideSearchMinWidth = 600;
+
   /// Text in the search box.
   final TextEditingController searchController = TextEditingController();
 
@@ -67,14 +77,50 @@ class _TeacherListState extends State<TeacherList> {
             ),
           ),
           const SizedBox(height: AppTokens.gapMd),
-          ListSearchField(
-            controller: searchController,
-            hintText: "Search by name or username",
-            onChanged: (text) => _search(teacherViewModel, text),
-            onCleared: () => _search(teacherViewModel, ""),
+          TeacherStatsStrip(
+            total: teacherViewModel.totalCount,
+            admins: teacherViewModel.adminCount,
+            subadmins: teacherViewModel.subadminCount,
           ),
           const SizedBox(height: AppTokens.gapMd),
+          _searchRow(teacherViewModel),
+          const SizedBox(height: AppTokens.gapMd),
           Expanded(child: _body(teacherViewModel)),
+        ],
+      );
+    });
+  }
+
+  /// The search box and the role filter: side by side when there is room,
+  /// otherwise the filter goes under the search box.
+  Widget _searchRow(TeacherViewModel teacherViewModel) {
+    final Widget search = ListSearchField(
+      controller: searchController,
+      hintText: "Search by name or username",
+      onChanged: (text) => _search(teacherViewModel, text),
+      onCleared: () => _search(teacherViewModel, ""),
+    );
+    final Widget filter = TeacherRoleFilter(
+      selected: teacherViewModel.roleFilter,
+      onChanged: teacherViewModel.setRoleFilter,
+    );
+
+    return LayoutBuilder(builder: (context, constraints) {
+      if (constraints.maxWidth < _filterBesideSearchMinWidth) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            search,
+            const SizedBox(height: AppTokens.gapSm),
+            filter,
+          ],
+        );
+      }
+      return Row(
+        children: [
+          Expanded(child: search),
+          const SizedBox(width: AppTokens.gapSm),
+          filter,
         ],
       );
     });
@@ -99,40 +145,51 @@ class _TeacherListState extends State<TeacherList> {
   }
 
   /// Skeleton while loading, empty state when there are no rows, otherwise
-  /// the teacher cards.
+  /// the teachers as a table (wide) or cards (narrow).
   Widget _body(TeacherViewModel teacherViewModel) {
-    if (teacherViewModel.isLoading) {
-      return const ListSkeleton(rowHeight: 96);
-    }
+    return LayoutBuilder(builder: (context, constraints) {
+      final bool asTable = constraints.maxWidth >= _tableMinWidth;
 
-    final List<TeacherModel> teachers = teacherViewModel.teacherList;
-    // A failed load: say so, with Retry, rather than "No … yet".
-    final String? loadError = teacherViewModel.loadError;
-    if (teachers.isEmpty && loadError != null) {
-      return ListErrorState(
-          title: loadError, onRetry: teacherViewModel.getTeacherList);
-    }
-    if (teachers.isEmpty) {
-      return ListEmptyState(
-        isFiltered: searchController.text.trim().isNotEmpty,
-        icon: Icons.people_alt_outlined,
-        title: "No teachers yet",
-        message:
-            "Teachers sign in to this panel with the modules you grant them.",
-        filteredMessage: "No teacher matches that name or username.",
-        addLabel: "Add a teacher",
-        onAdd: () => _openAdd(teacherViewModel),
+      if (teacherViewModel.isLoading) {
+        return ListSkeleton(rowHeight: asTable ? 52 : 96);
+      }
+
+      final List<TeacherModel> teachers = teacherViewModel.teacherList;
+      // A failed load: say so, with Retry, rather than "No … yet".
+      final String? loadError = teacherViewModel.loadError;
+      if (teachers.isEmpty && loadError != null) {
+        return ListErrorState(
+            title: loadError, onRetry: teacherViewModel.getTeacherList);
+      }
+      if (teachers.isEmpty) {
+        return ListEmptyState(
+          isFiltered: searchController.text.trim().isNotEmpty ||
+              teacherViewModel.roleFilter != null,
+          icon: Icons.people_alt_outlined,
+          title: "No teachers yet",
+          message:
+              "Teachers sign in to this panel with the modules you grant them.",
+          filteredMessage: "No teacher matches that search or role.",
+          addLabel: "Add a teacher",
+          onAdd: () => _openAdd(teacherViewModel),
+        );
+      }
+
+      if (asTable) {
+        return TeacherRosterTable(
+          teachers: teachers,
+          onChanged: teacherViewModel.getTeacherList,
+        );
+      }
+      return ListView.builder(
+        padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
+        itemCount: teachers.length,
+        itemBuilder: (context, index) => TeacherCard(
+          key: ValueKey(teachers[index].username),
+          teacherData: teachers[index],
+          onChanged: teacherViewModel.getTeacherList,
+        ),
       );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
-      itemCount: teachers.length,
-      itemBuilder: (context, index) => TeacherCard(
-        key: ValueKey(teachers[index].username),
-        teacherData: teachers[index],
-        onChanged: teacherViewModel.getTeacherList,
-      ),
-    );
+    });
   }
 }
