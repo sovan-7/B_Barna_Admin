@@ -4,6 +4,7 @@ import 'package:bbarna/core/viewModel/async_list.dart';
 import 'package:bbarna/core/mixins/safe_notifier.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
 import 'package:bbarna/live_class/repo/live_class_repo.dart';
+import 'package:bbarna/live_class/widgets/live_class_agenda.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
@@ -173,6 +174,21 @@ class LiveClassViewModel extends ChangeNotifier with SafeNotifier {
         : a.startDateTime.compareTo(b.startDateTime));
     return filtered;
   }
+
+  /// Every loaded class running at [now] (the search does not hide them),
+  /// soonest-ending first. Feeds the live-now banner.
+  List<LiveClassModel> runningClasses({DateTime? now}) {
+    final DateTime at = now ?? DateTime.now();
+    return copyLiveClassList
+        .where((liveClass) => liveClass.statusAt(at) == LiveClassStatus.live)
+        .toList()
+      ..sort((a, b) => a.endDateTime.compareTo(b.endDateTime));
+  }
+
+  /// The stats strip's counts at [now], over every loaded class (the
+  /// search does not change them).
+  LiveClassStats statsAt(DateTime now) =>
+      LiveClassStats.of(copyLiveClassList, now);
 
   /// How many classes are in [status] (shown on the tab).
   int countFor(LiveClassStatus status, {DateTime? now}) {

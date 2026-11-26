@@ -4,9 +4,11 @@ import 'package:bbarna/core/widgets/list_page/shimmer.dart';
 import 'package:bbarna/live_class/model/live_class_model.dart';
 import 'package:bbarna/live_class/screen/add_live_class.dart';
 import 'package:bbarna/live_class/viewModel/live_class_view_model.dart';
-import 'package:bbarna/live_class/widgets/live_class_card.dart';
+import 'package:bbarna/live_class/widgets/live_class_agenda_view.dart';
+import 'package:bbarna/live_class/widgets/live_class_list_header.dart';
 import 'package:bbarna/live_class/widgets/live_class_theme.dart';
 import 'package:bbarna/utils/navigation.dart';
+import 'package:bbarna/utils/session.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -14,10 +16,11 @@ import 'package:provider/provider.dart';
 /// each class's start/end window at render time (see
 /// [LiveClassModel.statusAt]) — nothing status-related is stored.
 ///
-/// Laid out as a responsive card grid rather than a single column: this is
-/// an admin panel that mostly runs full-screen on a desktop, where a
-/// one-column list wastes two thirds of the window and pushes the fourth
-/// class below the fold.
+/// Laid out as an agenda: a tab's classes are grouped under a heading per
+/// day, so what falls on the same day reads at a glance (see
+/// [LiveClassAgenda]). Above it, a banner names any class running right now
+/// and a strip counts today's classes and the finished ones still needing
+/// notes or a chat clean-up.
 class LiveClassList extends StatefulWidget {
   const LiveClassList({super.key});
 
@@ -72,11 +75,20 @@ class _LiveClassListState extends State<LiveClassList> {
                 _appSyncBanner(liveClassViewModel),
                 const SizedBox(height: LiveClassTheme.gapMd),
               ],
+              ..._liveBanner(liveClassViewModel),
+              if (!liveClassViewModel.isLoading &&
+                  liveClassViewModel.copyLiveClassList.isNotEmpty) ...[
+                LiveClassStatsStrip(
+                  stats: liveClassViewModel.statsAt(DateTime.now()),
+                  showChats: Session.isAdmin,
+                ),
+                const SizedBox(height: LiveClassTheme.gapMd),
+              ],
               _toolbar(liveClassViewModel),
               const SizedBox(height: LiveClassTheme.gapMd),
               Expanded(
                 child: liveClassViewModel.isLoading
-                    ? const _SkeletonGrid()
+                    ? const _SkeletonAgenda()
                     // A failed load: an error with Retry, not "No classes".
                     : liveClassViewModel.copyLiveClassList.isEmpty &&
                             liveClassViewModel.loadError != null
@@ -91,13 +103,31 @@ class _LiveClassListState extends State<LiveClassList> {
                                     searchController.text.trim().isNotEmpty,
                                 onSchedule: () => _openAdd(liveClassViewModel),
                               )
-                            : _grid(visible, liveClassViewModel),
+                            : LiveClassAgenda(
+                                classes: visible,
+                                onChanged: liveClassViewModel.getLiveClassList,
+                              ),
               ),
             ],
           ),
         );
       }),
     );
+  }
+
+  /// The live-now banner and the gap under it, or nothing when no class is
+  /// running or the Live tab (which lists them) is already open.
+  List<Widget> _liveBanner(LiveClassViewModel liveClassViewModel) {
+    if (liveClassViewModel.selectedStatus == LiveClassStatus.live) return [];
+    final List<LiveClassModel> running = liveClassViewModel.runningClasses();
+    if (running.isEmpty) return [];
+    return [
+      LiveClassLiveBanner(
+        liveClasses: running,
+        onShowLive: () => liveClassViewModel.selectStatus(LiveClassStatus.live),
+      ),
+      const SizedBox(height: LiveClassTheme.gapMd),
+    ];
   }
 
   /// Warning strip listing how many classes the student app cannot read
@@ -423,106 +453,13 @@ class _LiveClassListState extends State<LiveClassList> {
       ),
     );
   }
-
-  // ---- Grid -----------------------------------------------------------
-
-  /// The visible classes as a responsive grid of cards.
-  Widget _grid(
-      List<LiveClassModel> visible, LiveClassViewModel liveClassViewModel) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final int columns = _columnsFor(constraints.maxWidth);
-      final double itemWidth = columns == 1
-          ? constraints.maxWidth
-          : (constraints.maxWidth - LiveClassTheme.gapMd * (columns - 1)) /
-              columns;
-
-      // Laid out a row at a time rather than as one flat Wrap. Wrap sizes
-      // every child to its own content, so a class with a description stood
-      // visibly taller than the one beside it and the row ended ragged.
-      // IntrinsicHeight + stretch gives each row one height, set by its
-      // tallest card.
-      final List<List<LiveClassModel>> rows = <List<LiveClassModel>>[];
-      for (int i = 0; i < visible.length; i += columns) {
-        final int end = i + columns;
-        rows.add(
-            visible.sublist(i, end > visible.length ? visible.length : end));
-      }
-
-      // Built lazily, a row at a time, so only visible rows are laid out;
-      // each row repaints on its own (e.g. a live badge's pulse).
-      return ListView.builder(
-        padding: const EdgeInsets.only(bottom: LiveClassTheme.gapMd),
-        itemCount: rows.length,
-        itemBuilder: (context, r) => Padding(
-          padding: EdgeInsets.only(top: r > 0 ? LiveClassTheme.gapMd : 0),
-          child: RepaintBoundary(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (int c = 0; c < rows[r].length; c++) ...[
-                      if (c > 0) const SizedBox(width: LiveClassTheme.gapMd),
-                      SizedBox(
-                        width: itemWidth,
-                        child: LiveClassCard(
-                          key: ValueKey(rows[r][c].docId),
-                          liveClassData: rows[r][c],
-                          onChanged: () =>
-                              liveClassViewModel.getLiveClassList(),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    });
-  }
-
-  /// How many card columns fit in [width].
-  static int _columnsFor(double width) =>
-      (width / LiveClassTheme.cardMinWidth).floor().clamp(1, 4);
 }
 
-/// Placeholder cards while the first fetch is in flight. They occupy the
-/// same footprint as the real cards, so the grid doesn't jump when the data
-/// lands — which a centred spinner cannot do.
-class _SkeletonGrid extends StatelessWidget {
-  const _SkeletonGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final int columns = _LiveClassListState._columnsFor(constraints.maxWidth);
-      final double itemWidth = columns == 1
-          ? constraints.maxWidth
-          : (constraints.maxWidth - LiveClassTheme.gapMd * (columns - 1)) /
-              columns;
-
-      // One shimmer over the whole grid, so the band sweeps across every
-      // card in step.
-      return Shimmer(
-        child: Wrap(
-          spacing: LiveClassTheme.gapMd,
-          runSpacing: LiveClassTheme.gapMd,
-          children: [
-            for (int i = 0; i < columns * 2; i++)
-              SizedBox(width: itemWidth, child: const _SkeletonCard()),
-          ],
-        ),
-      );
-    });
-  }
-}
-
-/// One placeholder card: grey bars where the title, time and teacher go.
-class _SkeletonCard extends StatelessWidget {
-  const _SkeletonCard();
+/// Placeholder while the first fetch is in flight: one day box with a
+/// heading and four rows, the same footprint as the real agenda, so the
+/// page doesn't jump when the data lands.
+class _SkeletonAgenda extends StatelessWidget {
+  const _SkeletonAgenda();
 
   /// A grey rounded bar of the given size.
   Widget _bar(double width, double height) => Container(
@@ -536,28 +473,46 @@ class _SkeletonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: BoxDecoration(
-        color: LiveClassTheme.surface,
-        borderRadius: BorderRadius.circular(LiveClassTheme.radiusLg),
-        border: Border.all(color: LiveClassTheme.hairline),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _bar(66, 18),
-          const SizedBox(height: 12),
-          _bar(double.infinity, 13),
-          const SizedBox(height: 8),
-          _bar(180, 13),
-          const SizedBox(height: 16),
-          Row(children: [
-            _bar(110, 22),
-            const SizedBox(width: 8),
-            _bar(64, 22)
-          ]),
-        ],
+    return Shimmer(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Container(
+          decoration: BoxDecoration(
+            color: LiveClassTheme.surface,
+            borderRadius: BorderRadius.circular(LiveClassTheme.radiusMd),
+            border: Border.all(color: LiveClassTheme.hairline),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _bar(150, 14),
+              for (int i = 0; i < 4; i++) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 48,
+                  child: Row(
+                    children: [
+                      _bar(72, 40),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _bar(double.infinity, 14),
+                            _bar(180, 20),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
