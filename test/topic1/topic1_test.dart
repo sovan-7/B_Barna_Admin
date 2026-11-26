@@ -998,6 +998,66 @@ void main() {
       verifyNever(() => repo.uploadPdfFile(any(), any()));
       verify(() => repo.deletePdfFiles(['topic1_pdf/a/p1.pdf'])).called(1);
     });
+
+    testWidgets('saved PDFs open folded and unfold on tap', (tester) async {
+      final vm = Topic1ViewModel(topic1Repo: repo);
+      await _pump(tester, const Size(1440, 1400),
+          Topic1Details(topicData: _fixture().first, pickFile: fakePick), vm);
+
+      expect(find.byKey(const Key('topic1_pdf_title_0')), findsNothing);
+      expect(find.byKey(const Key('topic1_pdf_title_1')), findsNothing);
+      expect(find.text('Free · p1.pdf · Downloadable'), findsOneWidget);
+
+      await _tap(tester, const Key('topic1_pdf_toggle_0'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('topic1_pdf_title_0')), findsOneWidget);
+      expect(find.byKey(const Key('topic1_pdf_title_1')), findsNothing);
+
+      await _tap(tester, const Key('topic1_pdf_toggle_0'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('topic1_pdf_title_0')), findsNothing);
+    });
+
+    testWidgets('a new PDF opens unfolded beside folded saved ones',
+        (tester) async {
+      final vm = Topic1ViewModel(topic1Repo: repo);
+      await _pump(tester, const Size(1440, 1400),
+          Topic1Details(topicData: _fixture().first, pickFile: fakePick), vm);
+
+      await _tap(tester, const Key('topic1_pdf_add'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('topic1_pdf_title_2')), findsOneWidget);
+      expect(find.text('Untitled PDF'), findsOneWidget);
+      expect(find.byKey(const Key('topic1_pdf_title_0')), findsNothing);
+    });
+
+    testWidgets('a folded PDF with a problem unfolds on Save', (tester) async {
+      final vm = Topic1ViewModel(topic1Repo: repo);
+      await _pump(tester, const Size(1440, 1400),
+          Topic1Details(topicData: _fixture().first, pickFile: fakePick), vm);
+
+      await _tap(tester, const Key('topic1_pdf_toggle_0'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('topic1_pdf_title_0')), '');
+      await _tap(tester, const Key('topic1_pdf_toggle_0'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('topic1_pdf_title_0')), findsNothing);
+
+      await _tap(tester, const Key('topic1_pdf_save'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('topic1_pdf_title_0')), findsOneWidget);
+      expect(find.text('Give the PDF a title'), findsOneWidget);
+      expect(find.byKey(const Key('topic1_pdf_title_1')), findsNothing);
+      verifyNever(() => repo.setPdfList(any(), any()));
+
+      // Folded again, the row says it needs fixing.
+      await _tap(tester, const Key('topic1_pdf_toggle_0'));
+      await tester.pumpAndSettle();
+      expect(find.text('Needs fixing · Free · p1.pdf · Downloadable'),
+          findsOneWidget);
+    });
   });
 
   group('the video editor', () {
@@ -1041,6 +1101,24 @@ void main() {
       expect(saved.single.link, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
       expect(saved.single.type, 'FREE');
       expect(topic.videoList.single.title, 'Lecture');
+    });
+
+    testWidgets('saved videos open folded and unfold on tap', (tester) async {
+      final vm = Topic1ViewModel(topic1Repo: repo);
+      await _pump(tester, const Size(1440, 1400),
+          Topic1Details(topicData: _fixture().first), vm);
+
+      expect(find.byKey(const Key('topic1_video_link_0')), findsNothing);
+      expect(find.text('Lecture v1'), findsOneWidget);
+      expect(find.text('Paid · YouTube · dQw4w9WgXcQ'), findsOneWidget);
+
+      await _tap(tester, const Key('topic1_video_toggle_0'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('topic1_video_link_0')), findsOneWidget);
+
+      await _tap(tester, const Key('topic1_video_toggle_0'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('topic1_video_link_0')), findsNothing);
     });
   });
 }

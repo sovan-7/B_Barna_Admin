@@ -87,7 +87,8 @@ class _PdfRow {
 
 /// The PDFs on a Topic1: one row per PDF with its title, the uploaded file
 /// (choose or replace), Free/Paid and Downloadable; "Add a PDF" and Save.
-/// Files are uploaded only when Save is pressed.
+/// Files are uploaded only when Save is pressed. Saved rows open folded to
+/// a one-line summary; tap one to edit it.
 class Topic1PdfSection extends StatefulWidget {
   /// The PDFs currently saved on the topic.
   final List<Topic1Pdf> initialPdfs;
@@ -123,6 +124,10 @@ class _Topic1PdfSectionState extends State<Topic1PdfSection> {
 
   /// True when the rows differ from what is saved.
   bool _dirty = false;
+
+  /// Ids of the rows whose fields are showing. Saved rows start folded;
+  /// added rows, and rows that fail a save, unfold.
+  final Set<String> _expanded = {};
 
   @override
   void initState() {
@@ -186,6 +191,7 @@ class _Topic1PdfSectionState extends State<Topic1PdfSection> {
         _errors
           ..clear()
           ..addAll(errors);
+        _expanded.addAll(errors.keys);
       });
       Helper.showSnackBarMessage(
           msg: "Check the highlighted PDF fields", isSuccess: false);
@@ -231,7 +237,9 @@ class _Topic1PdfSectionState extends State<Topic1PdfSection> {
       onAdd: _isSaving
           ? null
           : () {
-              _rows.add(_PdfRow.fresh());
+              final _PdfRow row = _PdfRow.fresh();
+              _rows.add(row);
+              _expanded.add(row.id);
               _changed();
             },
       saveKey: const Key('topic1_pdf_save'),
@@ -241,20 +249,49 @@ class _Topic1PdfSectionState extends State<Topic1PdfSection> {
     );
   }
 
-  /// One PDF: title and access, the file, then the Downloadable switch.
+  /// The line under a row's title: access, file, and Downloadable if on.
+  String _summary(_PdfRow row) {
+    final String savedName = (row.existing?.fileName ?? "").trim();
+    final String file;
+    if (row.newBytes != null) {
+      file = "${row.newFileName ?? "New file"} (new)";
+    } else if (row.hasFile) {
+      file = savedName.isEmpty ? "Uploaded file" : savedName;
+    } else {
+      file = "No file";
+    }
+    return [
+      topic1AccessLabel(row.type),
+      file,
+      if (row.isDownloadable) "Downloadable",
+    ].join(" · ");
+  }
+
+  /// One PDF: a header with its title and summary that folds the rest
+  /// away; unfolded, title and access, the file, then Downloadable.
   Widget _row(int index) {
     final _PdfRow row = _rows[index];
     final Map<_PdfField, String> errors = _errors[row.id] ?? const {};
+    final bool expanded = _expanded.contains(row.id);
 
     return Padding(
       key: ValueKey(row.id),
-      padding: const EdgeInsets.fromLTRB(18, 8, 12, 16),
+      padding: const EdgeInsets.fromLTRB(18, 8, 12, 8),
       child: LayoutBuilder(
         builder: (context, constraints) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Topic1RowHeader(
               index: index,
+              title: row.title.text,
+              untitledText: "Untitled PDF",
+              summary: _summary(row),
+              expanded: expanded,
+              hasError: errors.isNotEmpty,
+              toggleKey: Key('topic1_pdf_toggle_$index'),
+              onToggle: () => setState(() {
+                if (!_expanded.remove(row.id)) _expanded.add(row.id);
+              }),
               removeKey: Key('topic1_pdf_remove_$index'),
               removeTooltip: "Remove this PDF",
               onRemove: _isSaving
@@ -262,50 +299,72 @@ class _Topic1PdfSectionState extends State<Topic1PdfSection> {
                   : () {
                       _rows.removeAt(index).title.dispose();
                       _errors.remove(row.id);
+                      _expanded.remove(row.id);
                       _changed();
                     },
             ),
-            FormTwoUp(
-              width: constraints.maxWidth,
-              breakpoint: 560,
-              left: FormTextField(
-                label: "Title",
-                hint: "e.g. Kinematics — formula sheet",
-                controller: row.title,
-                fieldKey: Key('topic1_pdf_title_$index'),
-                enabled: !_isSaving,
-                error: errors[_PdfField.title],
-                onChanged: _changed,
-              ),
-              right: FormAccessTypeField(
-                types: topic1AccessTypes,
-                selected: row.type,
-                keyPrefix: "topic1_pdf_$index",
-                error: errors[_PdfField.type],
-                enabled: !_isSaving,
-                onSelect: (type) {
-                  row.type = type;
-                  _changed();
-                },
-              ),
-            ),
-            const SizedBox(height: AppTokens.gapMd),
-            _fileField(row, index, errors[_PdfField.file]),
-            const SizedBox(height: AppTokens.gapMd),
-            FormToggleRow(
-              key: Key('topic1_pdf_downloadable_$index'),
-              title: "Downloadable",
-              subtitle: "Students can save a copy.",
-              value: row.isDownloadable,
-              onChanged: _isSaving
-                  ? null
-                  : (value) {
-                      row.isDownloadable = value;
-                      _changed();
-                    },
+            AnimatedSize(
+              duration: topic1FoldDuration,
+              curve: Curves.easeOut,
+              alignment: Alignment.topCenter,
+              child: expanded
+                  ? _fields(row, index, errors, constraints.maxWidth)
+                  : const SizedBox(width: double.infinity),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// An unfolded row's fields.
+  Widget _fields(
+      _PdfRow row, int index, Map<_PdfField, String> errors, double width) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FormTwoUp(
+            width: width,
+            breakpoint: 560,
+            left: FormTextField(
+              label: "Title",
+              hint: "e.g. Kinematics — formula sheet",
+              controller: row.title,
+              fieldKey: Key('topic1_pdf_title_$index'),
+              enabled: !_isSaving,
+              error: errors[_PdfField.title],
+              onChanged: _changed,
+            ),
+            right: FormAccessTypeField(
+              types: topic1AccessTypes,
+              selected: row.type,
+              keyPrefix: "topic1_pdf_$index",
+              error: errors[_PdfField.type],
+              enabled: !_isSaving,
+              onSelect: (type) {
+                row.type = type;
+                _changed();
+              },
+            ),
+          ),
+          const SizedBox(height: AppTokens.gapMd),
+          _fileField(row, index, errors[_PdfField.file]),
+          const SizedBox(height: AppTokens.gapMd),
+          FormToggleRow(
+            key: Key('topic1_pdf_downloadable_$index'),
+            title: "Downloadable",
+            subtitle: "Students can save a copy.",
+            value: row.isDownloadable,
+            onChanged: _isSaving
+                ? null
+                : (value) {
+                    row.isDownloadable = value;
+                    _changed();
+                  },
+          ),
+        ],
       ),
     );
   }

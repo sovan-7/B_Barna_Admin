@@ -45,7 +45,8 @@ class _VideoRow {
 /// The YouTube videos on a Topic1: one row per video with its title, link
 /// and Free/Paid; "Add a video" and Save. A link is accepted only if it is
 /// a YouTube video, and is saved in the one form the student app's player
-/// understands (`SubjectVideoLink.normalize`).
+/// understands (`SubjectVideoLink.normalize`). Saved rows open folded to a
+/// one-line summary; tap one to edit it.
 class Topic1VideoSection extends StatefulWidget {
   /// The videos currently saved on the topic.
   final List<Topic1Video> initialVideos;
@@ -76,6 +77,10 @@ class _Topic1VideoSectionState extends State<Topic1VideoSection> {
 
   /// True when the rows differ from what is saved.
   bool _dirty = false;
+
+  /// Ids of the rows whose fields are showing. Saved rows start folded;
+  /// added rows, and rows that fail a save, unfold.
+  final Set<String> _expanded = {};
 
   @override
   void initState() {
@@ -133,6 +138,7 @@ class _Topic1VideoSectionState extends State<Topic1VideoSection> {
         _errors
           ..clear()
           ..addAll(errors);
+        _expanded.addAll(errors.keys);
       });
       Helper.showSnackBarMessage(
           msg: "Check the highlighted video fields", isSuccess: false);
@@ -180,7 +186,9 @@ class _Topic1VideoSectionState extends State<Topic1VideoSection> {
       onAdd: _isSaving
           ? null
           : () {
-              _rows.add(_VideoRow.fresh());
+              final _VideoRow row = _VideoRow.fresh();
+              _rows.add(row);
+              _expanded.add(row.id);
               _changed();
             },
       saveKey: const Key('topic1_video_save'),
@@ -190,21 +198,45 @@ class _Topic1VideoSectionState extends State<Topic1VideoSection> {
     );
   }
 
-  /// One video: title and access, then the link.
+  /// The line under a row's title: access, then the YouTube video ID.
+  String _summary(_VideoRow row, String? videoId) {
+    final String link;
+    if (videoId != null) {
+      link = "YouTube · $videoId";
+    } else if (row.link.text.trim().isEmpty) {
+      link = "No link";
+    } else {
+      link = "Not a YouTube link";
+    }
+    return "${topic1AccessLabel(row.type)} · $link";
+  }
+
+  /// One video: a header with its title and summary that folds the rest
+  /// away; unfolded, title and access, then the link.
   Widget _row(int index) {
     final _VideoRow row = _rows[index];
     final Map<_VideoField, String> errors = _errors[row.id] ?? const {};
     final String? videoId = SubjectVideoLink.idOf(row.link.text);
+    final bool expanded = _expanded.contains(row.id);
 
     return Padding(
       key: ValueKey(row.id),
-      padding: const EdgeInsets.fromLTRB(18, 8, 12, 16),
+      padding: const EdgeInsets.fromLTRB(18, 8, 12, 8),
       child: LayoutBuilder(
         builder: (context, constraints) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Topic1RowHeader(
               index: index,
+              title: row.title.text,
+              untitledText: "Untitled video",
+              summary: _summary(row, videoId),
+              expanded: expanded,
+              hasError: errors.isNotEmpty,
+              toggleKey: Key('topic1_video_toggle_$index'),
+              onToggle: () => setState(() {
+                if (!_expanded.remove(row.id)) _expanded.add(row.id);
+              }),
               removeKey: Key('topic1_video_remove_$index'),
               removeTooltip: "Remove this video",
               onRemove: _isSaving
@@ -212,47 +244,69 @@ class _Topic1VideoSectionState extends State<Topic1VideoSection> {
                   : () {
                       _rows.removeAt(index).dispose();
                       _errors.remove(row.id);
+                      _expanded.remove(row.id);
                       _changed();
                     },
             ),
-            FormTwoUp(
-              width: constraints.maxWidth,
-              breakpoint: 560,
-              left: FormTextField(
-                label: "Title",
-                hint: "e.g. Newton's first law — explained",
-                controller: row.title,
-                fieldKey: Key('topic1_video_title_$index'),
-                enabled: !_isSaving,
-                error: errors[_VideoField.title],
-                onChanged: _changed,
-              ),
-              right: FormAccessTypeField(
-                types: topic1AccessTypes,
-                selected: row.type,
-                keyPrefix: "topic1_video_$index",
-                error: errors[_VideoField.type],
-                enabled: !_isSaving,
-                onSelect: (type) {
-                  row.type = type;
-                  _changed();
-                },
-              ),
-            ),
-            const SizedBox(height: AppTokens.gapMd),
-            FormTextField(
-              label: "YouTube link",
-              hint: "https://www.youtube.com/watch?v=…",
-              controller: row.link,
-              fieldKey: Key('topic1_video_link_$index'),
-              enabled: !_isSaving,
-              prefixIcon: Icons.link,
-              error: errors[_VideoField.link],
-              note: videoId == null ? null : "YouTube video · $videoId",
-              onChanged: _changed,
+            AnimatedSize(
+              duration: topic1FoldDuration,
+              curve: Curves.easeOut,
+              alignment: Alignment.topCenter,
+              child: expanded
+                  ? _fields(row, index, errors, videoId, constraints.maxWidth)
+                  : const SizedBox(width: double.infinity),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// An unfolded row's fields.
+  Widget _fields(_VideoRow row, int index, Map<_VideoField, String> errors,
+      String? videoId, double width) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FormTwoUp(
+            width: width,
+            breakpoint: 560,
+            left: FormTextField(
+              label: "Title",
+              hint: "e.g. Newton's first law — explained",
+              controller: row.title,
+              fieldKey: Key('topic1_video_title_$index'),
+              enabled: !_isSaving,
+              error: errors[_VideoField.title],
+              onChanged: _changed,
+            ),
+            right: FormAccessTypeField(
+              types: topic1AccessTypes,
+              selected: row.type,
+              keyPrefix: "topic1_video_$index",
+              error: errors[_VideoField.type],
+              enabled: !_isSaving,
+              onSelect: (type) {
+                row.type = type;
+                _changed();
+              },
+            ),
+          ),
+          const SizedBox(height: AppTokens.gapMd),
+          FormTextField(
+            label: "YouTube link",
+            hint: "https://www.youtube.com/watch?v=…",
+            controller: row.link,
+            fieldKey: Key('topic1_video_link_$index'),
+            enabled: !_isSaving,
+            prefixIcon: Icons.link,
+            error: errors[_VideoField.link],
+            note: videoId == null ? null : "YouTube video · $videoId",
+            onChanged: _changed,
+          ),
+        ],
       ),
     );
   }
