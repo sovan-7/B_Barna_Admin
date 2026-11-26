@@ -144,7 +144,11 @@ const List<String> moduleList = [
 /// Modules switched off for everyone, admins included. They stay in
 /// [moduleList] and its index-aligned lists so no other module's position
 /// moves; remove an index from here to bring its module back.
-const Set<int> hiddenModuleIndices = {bookModuleIndex, bookOrderModuleIndex};
+const Set<int> hiddenModuleIndices = {
+  bookModuleIndex,
+  bookOrderModuleIndex,
+  question1ModuleIndex,
+};
 
 /// The `course_type` of a subject that is a full course. Only these
 /// subjects get live classes (the student app shows its Live Class tab on
