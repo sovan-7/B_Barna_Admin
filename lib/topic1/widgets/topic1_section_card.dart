@@ -201,10 +201,45 @@ class Topic1SectionCard extends StatelessWidget {
   }
 }
 
-/// The small "1", "2", … badge and remove button that start every row.
+/// How an access type reads in a row's summary.
+String topic1AccessLabel(String? type) => switch (type) {
+      "FREE" => "Free",
+      "PAID" => "Paid",
+      _ => "No access type",
+    };
+
+/// How long a row takes to fold or unfold.
+const Duration topic1FoldDuration = Duration(milliseconds: 180);
+
+/// What starts every row: the "1", "2", … badge, the item's title with a
+/// one-line summary under it, a button that folds the row's fields away or
+/// shows them again, and the remove button. Tapping the title folds and
+/// unfolds too, so a long list can be scanned without opening every row.
 class Topic1RowHeader extends StatelessWidget {
   /// Position of the row, from 0.
   final int index;
+
+  /// The item's title as typed so far.
+  final String title;
+
+  /// Shown in place of [title] while it is empty, e.g. "Untitled PDF".
+  final String untitledText;
+
+  /// One line about the item, e.g. "Paid · notes.pdf · Downloadable".
+  final String summary;
+
+  /// Whether the row's fields are showing.
+  final bool expanded;
+
+  /// Whether the row has an inline error. While the row is folded the
+  /// summary turns red, so a folded row never hides a problem.
+  final bool hasError;
+
+  /// Key of the fold / unfold button.
+  final Key toggleKey;
+
+  /// Folds or unfolds the row.
+  final VoidCallback onToggle;
 
   /// Key of the remove button.
   final Key removeKey;
@@ -217,6 +252,13 @@ class Topic1RowHeader extends StatelessWidget {
 
   const Topic1RowHeader({
     required this.index,
+    required this.title,
+    required this.untitledText,
+    required this.summary,
+    required this.expanded,
+    required this.hasError,
+    required this.toggleKey,
+    required this.onToggle,
     required this.removeKey,
     required this.onRemove,
     required this.removeTooltip,
@@ -225,6 +267,9 @@ class Topic1RowHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String shownTitle = title.trim();
+    final bool showError = hasError && !expanded;
+
     return Row(
       children: [
         Container(
@@ -243,7 +288,63 @@ class Topic1RowHeader extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   color: AppTokens.inkMuted)),
         ),
-        const Spacer(),
+        const SizedBox(width: 6),
+        Expanded(
+          child: InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    shownTitle.isEmpty ? untitledText : shownTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: shownTitle.isEmpty
+                            ? AppTokens.inkFaint
+                            : AppTokens.ink),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      if (showError) ...[
+                        const Icon(Icons.error_outline,
+                            size: 13, color: AppTokens.danger),
+                        const SizedBox(width: 4),
+                      ],
+                      Expanded(
+                        child: Text(
+                          showError ? "Needs fixing · $summary" : summary,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              color: showError
+                                  ? AppTokens.danger
+                                  : AppTokens.inkFaint),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        IconButton(
+          key: toggleKey,
+          tooltip: expanded ? "Hide details" : "Show details",
+          onPressed: onToggle,
+          icon:
+              Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 20),
+          color: AppTokens.inkMuted,
+        ),
         IconButton(
           key: removeKey,
           tooltip: removeTooltip,

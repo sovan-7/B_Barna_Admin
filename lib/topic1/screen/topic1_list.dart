@@ -12,10 +12,15 @@ import 'package:provider/provider.dart';
 
 /// The New Topics list (sidebar module; `Topic1…` in code). All the
 /// behaviour lives in [PagedListScreen]; this only supplies the texts and
-/// card, the one-time "copy from Topics" action, and preloads the course
-/// list the Add/Edit form needs.
+/// card, the one-time "copy from Topics" action (hidden; see
+/// [showCopyButton]), and preloads the course list the Add/Edit form needs.
 class Topic1List extends StatelessWidget {
-  const Topic1List({super.key});
+  /// Whether "COPY FROM TOPICS" shows beside "NEW TOPIC". Hidden for now;
+  /// the copy action and its code are kept, so setting the default back to
+  /// true brings the button back.
+  final bool showCopyButton;
+
+  const Topic1List({this.showCopyButton = false, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -35,10 +40,12 @@ class Topic1List extends StatelessWidget {
           "No topic code starts with that. Search matches the code, not the name.",
       emptyAddLabel: "Add a topic",
       onFirstFrame: _preloadCourses,
-      extraHeaderAction: (context, viewModel) => _CopyButton(
-        copying: viewModel.copying,
-        onPressed: () => _confirmCopy(context, viewModel),
-      ),
+      extraHeaderAction: showCopyButton
+          ? (context, viewModel) => _CopyButton(
+                copying: viewModel.copying,
+                onPressed: () => _confirmCopy(context, viewModel),
+              )
+          : null,
       itemBuilder: (context, topic, onChanged) => Topic1Card(
         key: ValueKey(topic.docId),
         topicData: topic,
