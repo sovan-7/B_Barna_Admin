@@ -45,9 +45,6 @@ class LiveClassTheme {
   /// rather than stretching a card to the full width of a 27" monitor.
   static const double cardMaxWidth = 460;
 
-  /// Narrowest a card may get before the grid drops a column.
-  static const double cardMinWidth = 340;
-
   // ---- Neutral ramp ---------------------------------------------------
   /// Page background.
   static const Color canvas = Color(0xFFF5F7FA);
@@ -252,6 +249,36 @@ class LiveClassFormat {
       return "${date.format(start)} · ${time.format(start)} – ${time.format(end)}";
     }
     return "${full.format(start)} – ${full.format(end)}";
+  }
+
+  /// "Wed 26 Nov".
+  static final DateFormat dayShort = DateFormat("EEE d MMM");
+
+  /// "Wed 26 Nov 2025".
+  static final DateFormat dayWithYear = DateFormat("EEE d MMM yyyy");
+
+  /// An agenda day heading: "Today · Wed 26 Nov", "Tomorrow · Thu 27 Nov",
+  /// "Yesterday · Tue 25 Nov", otherwise "Fri 28 Nov" (with the year when it
+  /// is not this year's).
+  static String dayHeading(DateTime day, {DateTime? now}) {
+    final DateTime at = now ?? DateTime.now();
+    final DateTime today = DateTime(at.year, at.month, at.day);
+    final DateTime target = DateTime(day.year, day.month, day.day);
+    final String date = target.year == today.year
+        ? dayShort.format(target)
+        : dayWithYear.format(target);
+    // Compared by calendar date rather than by subtracting, so a daylight
+    // saving change (a 23- or 25-hour day) never shifts the label.
+    bool isOffset(int days) {
+      final DateTime other =
+          DateTime(today.year, today.month, today.day + days);
+      return target == other;
+    }
+
+    if (target == today) return "Today · $date";
+    if (isOffset(1)) return "Tomorrow · $date";
+    if (isOffset(-1)) return "Yesterday · $date";
+    return date;
   }
 
   /// "1h 30m" — shown next to the schedule so the length of a class is
