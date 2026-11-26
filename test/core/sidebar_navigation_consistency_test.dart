@@ -77,6 +77,8 @@ void main() {
     final List<String> labels = items.map((item) => item.itemText).toList();
     expect(labels.indexOf('New Topics'), labels.indexOf('Topics') + 1,
         reason: 'Topic1 sits right after Topics');
+    expect(labels, isNot(contains('Question1')),
+        reason: 'Question1 is hidden from the sidebar');
 
     expect(items.map((item) => item.itemText).toList(),
         [for (final int i in shown) moduleDisplayList[i]]);

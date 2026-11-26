@@ -102,6 +102,8 @@ void main() {
       expect(Helper.allowedModuleIndices(), isNot(contains(bookModuleIndex)));
       expect(
           Helper.allowedModuleIndices(), isNot(contains(bookOrderModuleIndex)));
+      expect(
+          Helper.allowedModuleIndices(), isNot(contains(question1ModuleIndex)));
     });
 
     test('sees Topic1 right after Topics', () async {
