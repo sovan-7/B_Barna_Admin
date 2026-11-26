@@ -616,7 +616,7 @@ void main() {
           .thenAnswer((_) async => (copied: 2, leftOut: 1));
       final vm = Topic1ViewModel(topic1Repo: repo);
       await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: Topic1List()), vm);
+          const Scaffold(body: Topic1List(showCopyButton: true)), vm);
 
       expect(find.text('COPY FROM TOPICS'), findsOneWidget);
       await tester.tap(find.byKey(const Key('topic1_copy_button')));
@@ -638,8 +638,8 @@ void main() {
 
     testWidgets('cancelling the dialog copies nothing', (tester) async {
       final vm = Topic1ViewModel(topic1Repo: repo);
-      await _pump(
-          tester, const Size(380, 820), const Scaffold(body: Topic1List()), vm);
+      await _pump(tester, const Size(380, 820),
+          const Scaffold(body: Topic1List(showCopyButton: true)), vm);
 
       await tester.tap(find.byKey(const Key('topic1_copy_button')));
       await tester.pumpAndSettle();
@@ -647,6 +647,16 @@ void main() {
       await tester.pumpAndSettle();
 
       verifyNever(() => repo.copyFromTopics());
+    });
+
+    testWidgets('the copy button is hidden by default', (tester) async {
+      final vm = Topic1ViewModel(topic1Repo: repo);
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: Topic1List()), vm);
+
+      expect(find.byKey(const Key('topic1_copy_button')), findsNothing);
+      expect(find.text('COPY FROM TOPICS'), findsNothing);
+      expect(find.text('NEW TOPIC'), findsOneWidget);
     });
   });
 
