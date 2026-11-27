@@ -190,7 +190,7 @@ void openContentTopic1(
   Navigator.push(
     context,
     MaterialPageRoute(builder: (context) => Topic1Details(topicData: data)),
-  );
+  ).ifSaved(onChanged);
 }
 
 /// Opens the edit screen; the list reloads if it saved or deleted

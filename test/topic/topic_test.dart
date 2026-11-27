@@ -534,6 +534,52 @@ void main() {
       expect(find.text("Couldn't check this code"), findsNothing);
     });
 
+    testWidgets('Edit topic opens the edit page; a saved edit closes details',
+        (tester) async {
+      bool listReloaded = false;
+      final vm = TopicViewModel(topicRepo: repo);
+      await _pump(
+        tester,
+        const Size(1280, 900),
+        Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => openContentTopic(
+                  context, _fixture().first, () => listReloaded = true),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+        vm,
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TopicDetails), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('topic_header_edit')));
+      await tester.pumpAndSettle();
+      expect(find.byType(EditTopic), findsOneWidget);
+
+      // The edit page closes the way it does after a save.
+      navigatorKey.currentState!.pop(true);
+      await tester.pumpAndSettle();
+      expect(find.byType(TopicDetails), findsNothing);
+      expect(listReloaded, isTrue);
+    });
+
+    testWidgets('closing the edit page without saving keeps details open',
+        (tester) async {
+      final vm = TopicViewModel(topicRepo: repo);
+      await _pump(tester, const Size(1280, 900),
+          TopicDetails(topicData: _fixture().first), vm);
+
+      await tester.tap(find.byKey(const Key('topic_header_edit')));
+      await tester.pumpAndSettle();
+      navigatorKey.currentState!.pop();
+      await tester.pumpAndSettle();
+      expect(find.byType(TopicDetails), findsOneWidget);
+    });
+
     testWidgets('an edit marks its tab, and survives switching tabs',
         (tester) async {
       final vm = TopicViewModel(topicRepo: repo);

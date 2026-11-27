@@ -183,6 +183,9 @@ class TopicHeaderCard extends StatelessWidget {
   final String unitName;
   final String hint;
 
+  /// Opens the topic's edit page; no Edit button when null.
+  final VoidCallback? onEdit;
+
   const TopicHeaderCard({
     required this.name,
     required this.code,
@@ -190,6 +193,7 @@ class TopicHeaderCard extends StatelessWidget {
     required this.subjectName,
     required this.unitName,
     required this.hint,
+    this.onEdit,
     super.key,
   });
 
@@ -267,6 +271,23 @@ class TopicHeaderCard extends StatelessWidget {
               ],
             ),
           ),
+          if (onEdit != null) ...[
+            const SizedBox(width: AppTokens.gapMd),
+            OutlinedButton.icon(
+              key: const Key('topic_header_edit'),
+              onPressed: onEdit,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTokens.ink,
+                side: const BorderSide(color: AppTokens.hairline),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTokens.radiusSm)),
+              ),
+              icon: const Icon(Icons.edit_outlined, size: 16),
+              label: const Text("Edit topic", style: TextStyle(fontSize: 13)),
+            ),
+          ],
         ],
       ),
     );

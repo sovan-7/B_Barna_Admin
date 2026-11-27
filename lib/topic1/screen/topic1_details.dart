@@ -10,6 +10,8 @@ import 'package:bbarna/topic1/widgets/topic1_pdf_section.dart';
 import 'package:bbarna/topic1/widgets/topic1_video_section.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:bbarna/topic/widgets/content_tabs.dart';
+import 'package:bbarna/topic1/screen/edit_topic1.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -178,6 +180,14 @@ class _Topic1DetailsState extends State<Topic1Details> {
       courseName: data.courseName,
       subjectName: data.subjectName,
       unitName: data.unitName,
+      // A saved edit (or a delete) closes this page too, so it never shows
+      // the old details; the list behind it reloads.
+      onEdit: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => EditTopic1(topicData: data)),
+      ).ifSaved(() {
+        if (mounted) Navigator.pop(context, true);
+      }),
       hint: "Upload PDFs and add YouTube links; audio and quizzes attach by "
           "code. Each tab saves on its own.",
     );

@@ -6,6 +6,8 @@ import 'package:bbarna/topic/viewModel/topic_view_model.dart';
 import 'package:bbarna/topic/widgets/topic_content_section.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:bbarna/topic/widgets/content_tabs.dart';
+import 'package:bbarna/topic/screen/edit_topic.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -128,6 +130,14 @@ class _TopicDetailsState extends State<TopicDetails> {
       courseName: data.courseName,
       subjectName: data.subjectName,
       unitName: data.unitName,
+      // A saved edit (or a delete) closes this page too, so it never shows
+      // the old details; the list behind it reloads.
+      onEdit: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => EditTopic(topicData: data)),
+      ).ifSaved(() {
+        if (mounted) Navigator.pop(context, true);
+      }),
       hint: "Attach content by its code. Each tab saves on its own.",
     );
   }

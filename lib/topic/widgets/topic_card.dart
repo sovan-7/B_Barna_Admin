@@ -182,14 +182,15 @@ Widget topicActions(BuildContext context, TopicModel data,
   );
 }
 
-/// Opens the topic details screen to manage attached content. No reload
-/// afterwards: content saves update this topic in place.
+/// Opens the topic details screen to manage attached content. Content
+/// saves update this topic in place; the list reloads only if the topic
+/// itself was edited (or deleted) from there.
 void openContentTopic(
     BuildContext context, TopicModel data, VoidCallback onChanged) {
   Navigator.push(
     context,
     MaterialPageRoute(builder: (context) => TopicDetails(topicData: data)),
-  );
+  ).ifSaved(onChanged);
 }
 
 /// Opens the edit screen; the list reloads if it saved or deleted
