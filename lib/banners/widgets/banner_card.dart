@@ -17,10 +17,19 @@ class BannerCard extends StatefulWidget {
   /// Asks to delete this banner.
   final VoidCallback onDelete;
 
+  /// Outlined in the accent: the banner the phone preview is showing.
+  final bool selected;
+
+  /// Shows this banner in the phone preview; the tile is not tappable when
+  /// null.
+  final VoidCallback? onTap;
+
   const BannerCard({
     required this.banner,
     required this.position,
     required this.onDelete,
+    this.selected = false,
+    this.onTap,
     super.key,
   });
 
@@ -46,9 +55,12 @@ class _BannerCardState extends State<BannerCard> {
           color: AppTokens.surface,
           borderRadius: BorderRadius.circular(AppTokens.radiusMd),
           border: Border.all(
-              color: _hovered
-                  ? AppTokens.inkFaint.withValues(alpha: .5)
-                  : AppTokens.hairline),
+              width: widget.selected ? 2 : 1,
+              color: widget.selected
+                  ? AppTokens.accent
+                  : _hovered
+                      ? AppTokens.inkFaint.withValues(alpha: .5)
+                      : AppTokens.hairline),
           boxShadow: AppTokens.cardShadow,
         ),
         child: ClipRRect(
@@ -58,7 +70,16 @@ class _BannerCardState extends State<BannerCard> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                _image(),
+                GestureDetector(
+                  key: Key('banner_tile_${widget.banner.docId}'),
+                  onTap: widget.onTap,
+                  child: MouseRegion(
+                    cursor: widget.onTap == null
+                        ? MouseCursor.defer
+                        : SystemMouseCursors.click,
+                    child: _image(),
+                  ),
+                ),
                 _badge(),
                 _deleteButton(showActions),
               ],
@@ -72,55 +93,7 @@ class _BannerCardState extends State<BannerCard> {
   /// `Image.network` rather than a `DecorationImage`, because only the
   /// widget form gives a loading and an error builder — and a banner whose
   /// upload failed is exactly the row most likely to be in this grid.
-  Widget _image() {
-    final String url = widget.banner.bannerImage;
-    if (url.trim().isEmpty) return _unavailable("No image uploaded");
-
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      loadingBuilder: (context, child, progress) {
-        if (progress == null) return child;
-        return Container(
-          color: AppTokens.surfaceMuted,
-          alignment: Alignment.center,
-          child: SizedBox(
-            height: 22,
-            width: 22,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.2,
-              color: AppTokens.inkFaint,
-              value: progress.expectedTotalBytes == null
-                  ? null
-                  : progress.cumulativeBytesLoaded /
-                      progress.expectedTotalBytes!,
-            ),
-          ),
-        );
-      },
-      errorBuilder: (context, error, stack) =>
-          _unavailable("Image unavailable"),
-    );
-  }
-
-  /// Grey placeholder shown instead of a missing / broken image.
-  Widget _unavailable(String message) {
-    return Container(
-      color: AppTokens.surfaceMuted,
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.broken_image_outlined,
-              size: 26, color: AppTokens.inkFaint),
-          const SizedBox(height: 6),
-          Text(message,
-              style:
-                  const TextStyle(fontSize: 11.5, color: AppTokens.inkFaint)),
-        ],
-      ),
-    );
-  }
+  Widget _image() => bannerImage(widget.banner.bannerImage);
 
   /// The banner's position number in the carousel.
   Widget _badge() {
@@ -174,4 +147,52 @@ class _BannerCardState extends State<BannerCard> {
       ),
     );
   }
+}
+
+/// A banner picture, cropped to fill its box the way the app's carousel
+/// shows it; a note in its place when there is none or it fails to load.
+Widget bannerImage(String url) {
+  if (url.trim().isEmpty) return _unavailable("No image uploaded");
+
+  return Image.network(
+    url,
+    fit: BoxFit.cover,
+    loadingBuilder: (context, child, progress) {
+      if (progress == null) return child;
+      return Container(
+        color: AppTokens.surfaceMuted,
+        alignment: Alignment.center,
+        child: SizedBox(
+          height: 22,
+          width: 22,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.2,
+            color: AppTokens.inkFaint,
+            value: progress.expectedTotalBytes == null
+                ? null
+                : progress.cumulativeBytesLoaded / progress.expectedTotalBytes!,
+          ),
+        ),
+      );
+    },
+    errorBuilder: (context, error, stack) => _unavailable("Image unavailable"),
+  );
+}
+
+/// Grey placeholder shown instead of a missing / broken image.
+Widget _unavailable(String message) {
+  return Container(
+    color: AppTokens.surfaceMuted,
+    alignment: Alignment.center,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.broken_image_outlined,
+            size: 26, color: AppTokens.inkFaint),
+        const SizedBox(height: 6),
+        Text(message,
+            style: const TextStyle(fontSize: 11.5, color: AppTokens.inkFaint)),
+      ],
+    ),
+  );
 }

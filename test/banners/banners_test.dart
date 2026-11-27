@@ -41,8 +41,8 @@ const List<Size> _sizes = [
   Size(380, 820),
 ];
 
-Future<void> _pump(WidgetTester tester, Size size, Widget home,
-    BannersViewModel vm) async {
+Future<void> _pump(
+    WidgetTester tester, Size size, Widget home, BannersViewModel vm) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
@@ -167,8 +167,7 @@ void main() {
 
     test('returns true and uploads against the new doc', () async {
       when(() => repo.addBanner(any())).thenAnswer((_) async => 'new-id');
-      when(() => repo.uploadBannerImage(any(), any()))
-          .thenAnswer((_) async {});
+      when(() => repo.uploadBannerImage(any(), any())).thenAnswer((_) async {});
 
       final vm = BannersViewModel(bannersRepo: repo);
       expect(await vm.createBanner(_pngBytes), isTrue);
@@ -221,10 +220,46 @@ void main() {
         .thenAnswer((_) async => [_banner('orphan', '')]);
 
     final vm = BannersViewModel(bannersRepo: repo);
-    await _pump(tester, const Size(1024, 768),
-        const Scaffold(body: BannerList()), vm);
+    await _pump(
+        tester, const Size(1024, 768), const Scaffold(body: BannerList()), vm);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('No image uploaded'), findsOneWidget);
+    // On the tile (the phone preview beside it shows the same note).
+    expect(
+        find.descendant(
+            of: find.byType(BannerCard),
+            matching: find.text('No image uploaded')),
+        findsOneWidget);
+  });
+
+  testWidgets('the phone preview shows the tile that was clicked',
+      (tester) async {
+    when(() => repo.getBannersList()).thenAnswer(
+        (_) async => [_banner('a', ''), _banner('b', ''), _banner('c', '')]);
+
+    final vm = BannersViewModel(bannersRepo: repo);
+    await _pump(
+        tester, const Size(1440, 900), const Scaffold(body: BannerList()), vm);
+
+    expect(find.byKey(const Key('banner_phone_preview')), findsOneWidget);
+    expect(find.text('Slide 1 of 3'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('banner_tile_b')));
+    await tester.pump();
+    expect(find.text('Slide 2 of 3'), findsOneWidget);
+    expect(find.byKey(const Key('banner_upload_tile')), findsOneWidget);
+  });
+
+  testWidgets('a narrow window drops the preview, keeps the tiles',
+      (tester) async {
+    when(() => repo.getBannersList())
+        .thenAnswer((_) async => [_banner('a', ''), _banner('b', '')]);
+
+    final vm = BannersViewModel(bannersRepo: repo);
+    await _pump(
+        tester, const Size(700, 900), const Scaffold(body: BannerList()), vm);
+
+    expect(find.byKey(const Key('banner_phone_preview')), findsNothing);
+    expect(find.byType(BannerCard), findsNWidgets(2));
   });
 }

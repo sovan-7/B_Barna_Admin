@@ -7,6 +7,18 @@ import 'package:flutter/material.dart';
 /// Which purchases to show.
 enum TransactionFilter { all, paid, free }
 
+/// Which purchases the list covers by date.
+enum TransactionRange {
+  thisMonth("This month"),
+  last30("Last 30 days"),
+  all("All");
+
+  const TransactionRange(this.label);
+
+  /// Chip text.
+  final String label;
+}
+
 /// State for the Transactions module: the loaded purchases, the search and
 /// filter over them, and their totals. Read-only.
 class TransactionViewModel extends ChangeNotifier with SafeNotifier {
@@ -48,11 +60,66 @@ class TransactionViewModel extends ChangeNotifier with SafeNotifier {
   /// How many purchases are loaded.
   int get loadedCount => _all.length;
 
-  /// Loaded purchases matching the search, before the filter.
+  /// The date range picked above the list; everything by default.
+  TransactionRange range = TransactionRange.all;
+
+  /// Picks a date range.
+  void setRange(TransactionRange value) {
+    range = value;
+    notifyListeners();
+  }
+
+  /// Where [range] starts at [now] (null for all time).
+  DateTime? rangeStart(DateTime now) => switch (range) {
+        TransactionRange.thisMonth => DateTime(now.year, now.month),
+        TransactionRange.last30 => now.subtract(const Duration(days: 30)),
+        TransactionRange.all => null,
+      };
+
+  /// Whether [t] falls on or after [start]. A purchase the server has not
+  /// stamped yet is brand new, so it is in every range.
+  static bool _since(TransactionModel t, DateTime? start) {
+    final DateTime? at = t.createdAt;
+    return start == null || at == null || !at.isBefore(start);
+  }
+
+  /// What was collected in the period just before [range] (last month, or
+  /// the 30 days before the last 30), or null when that period is not
+  /// fully loaded yet — a partial number would only mislead.
+  double? previousCollected({DateTime? now}) {
+    final DateTime at = now ?? DateTime.now();
+    final (DateTime, DateTime)? period = switch (range) {
+      TransactionRange.thisMonth => (
+          DateTime(at.year, at.month - 1),
+          DateTime(at.year, at.month)
+        ),
+      TransactionRange.last30 => (
+          at.subtract(const Duration(days: 60)),
+          at.subtract(const Duration(days: 30))
+        ),
+      TransactionRange.all => null,
+    };
+    if (period == null) return null;
+    final (DateTime from, DateTime to) = period;
+    final DateTime? oldest = _all.isEmpty ? null : _all.last.createdAt;
+    final bool covered = !hasMore || (oldest != null && oldest.isBefore(from));
+    if (!covered) return null;
+    return _all
+        .where((t) =>
+            t.createdAt != null &&
+            !t.createdAt!.isBefore(from) &&
+            t.createdAt!.isBefore(to))
+        .fold<double>(0, (sum, t) => sum + t.amountPaid);
+  }
+
+  /// Loaded purchases matching the search and [range], before the filter.
   List<TransactionModel> get _matching {
     final String query = searchText.trim().toLowerCase();
-    if (query.isEmpty) return _all;
-    return _all.where((t) {
+    final DateTime? start = rangeStart(DateTime.now());
+    final List<TransactionModel> inRange =
+        start == null ? _all : _all.where((t) => _since(t, start)).toList();
+    if (query.isEmpty) return inRange;
+    return inRange.where((t) {
       return t.studentName.toLowerCase().contains(query) ||
           t.phone.contains(query) ||
           t.subjectName.toLowerCase().contains(query) ||

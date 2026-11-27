@@ -14,6 +14,7 @@ import 'package:bbarna/student/widgets/unit_picker_dialog.dart';
 import 'package:bbarna/units/model/unit_model.dart';
 import 'package:bbarna/student/viewModel/student_view_model.dart';
 import 'package:bbarna/student/widgets/student_card.dart';
+import 'package:bbarna/core/widgets/list_page/table_cells.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
@@ -54,6 +55,13 @@ List<Student> _fixture() => [
       _student('c', 'Subramanian Venkataraghavan Iyer',
           phone: "9000000003", email: "", deviceId: "phone-c"),
     ];
+
+/// Student rows on screen: table rows on wide windows, cards on narrow.
+Finder _rows() => find.byWidgetPredicate((widget) {
+      if (widget is StudentCard) return true;
+      final Key? key = widget.key;
+      return key is ValueKey<String> && key.value.startsWith('student_row_');
+    });
 
 const List<Size> _sizes = [
   Size(1440, 900),
@@ -98,7 +106,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text('Students'), findsOneWidget);
-        expect(find.byType(StudentCard), findsNWidgets(3));
+        expect(_rows(), size.width < 900 ? findsWidgets : findsNWidgets(3));
       });
     }
   });
@@ -181,20 +189,20 @@ void main() {
 
       await tester.enterText(find.byType(TextField).first, 'anita');
       await tester.pump();
-      expect(find.byType(StudentCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
 
       await tester.enterText(find.byType(TextField).first, '9000000002');
       await tester.pump();
-      expect(find.byType(StudentCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
 
       // Email was never searched before.
       await tester.enterText(find.byType(TextField).first, 'ravi@');
       await tester.pump();
-      expect(find.byType(StudentCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
 
       await tester.enterText(find.byType(TextField).first, '');
       await tester.pump();
-      expect(find.byType(StudentCard), findsNWidgets(3));
+      expect(_rows(), findsNWidgets(3));
     });
 
     testWidgets('mounting mid-build does not throw', (tester) async {
@@ -275,8 +283,7 @@ void main() {
       await vm.fetchFirstStudentList();
 
       expect(await vm.signOutDevice('a'), isFalse);
-      expect(
-          vm.studentList.firstWhere((s) => s.studentId == 'a').isSignedIn,
+      expect(vm.studentList.firstWhere((s) => s.studentId == 'a').isSignedIn,
           isTrue);
     });
 
@@ -311,9 +318,10 @@ void main() {
     });
 
     test('days show on their own but not beside a year', () {
+      expect(EnrolmentValidity.formatRemaining(inDays(5), now: now),
+          "5 days left");
       expect(
-          EnrolmentValidity.formatRemaining(inDays(5), now: now), "5 days left");
-      expect(EnrolmentValidity.formatRemaining(inDays(1), now: now), "1 day left");
+          EnrolmentValidity.formatRemaining(inDays(1), now: now), "1 day left");
       expect(EnrolmentValidity.formatRemaining(inDays(45), now: now),
           "1 month 15 days left");
     });
@@ -321,14 +329,16 @@ void main() {
     test('a date already past says so instead of "Invalid Data"', () {
       // Every branch of the old version tested `> 0`, so an expired
       // enrolment matched none of them and fell through.
-      expect(EnrolmentValidity.formatRemaining(inDays(-30), now: now),
-          "Expired");
+      expect(
+          EnrolmentValidity.formatRemaining(inDays(-30), now: now), "Expired");
       expect(EnrolmentValidity.hasExpired(inDays(-1), now: now), isTrue);
       expect(EnrolmentValidity.hasExpired(inDays(1), now: now), isFalse);
     });
 
     test('the end date is formatted for reading', () {
-      expect(EnrolmentValidity.formatDate(DateTime(2026, 3, 14).millisecondsSinceEpoch),
+      expect(
+          EnrolmentValidity.formatDate(
+              DateTime(2026, 3, 14).millisecondsSinceEpoch),
           "14 Mar 2026");
     });
   });
@@ -345,8 +355,8 @@ void main() {
         create: (_) => StudentViewModel(studentRepo: repo),
         child: MaterialApp(
           navigatorKey: navigatorKey,
-          home: const SettingStudent(
-              studentId: 'a', studentName: 'Anita Desai'),
+          home:
+              const SettingStudent(studentId: 'a', studentName: 'Anita Desai'),
         ),
       ));
       await tester.pump();
@@ -355,8 +365,8 @@ void main() {
 
     setUp(() {
       when(() => repo.getCourseList()).thenAnswer((_) async => [
-            CourseModel('PHY-11', '', 'Physics — Class 11', '', 1, 0, true,
-                false),
+            CourseModel(
+                'PHY-11', '', 'Physics — Class 11', '', 1, 0, true, false),
           ]);
       when(() => repo.getSubjectList(any())).thenAnswer((_) async => []);
       when(() => repo.getEnrolledCourseList(any()))
@@ -432,8 +442,11 @@ void main() {
       await tester.pumpAndSettle();
 
       final DateTime today = DateUtils.dateOnly(DateTime.now());
-      final DateTime inTwoYears = DateTime(today.year + 2, today.month,
-          today.day.clamp(1, DateUtils.getDaysInMonth(today.year + 2, today.month)));
+      final DateTime inTwoYears = DateTime(
+          today.year + 2,
+          today.month,
+          today.day
+              .clamp(1, DateUtils.getDaysInMonth(today.year + 2, today.month)));
       expect(find.text(DateFormat('d MMM yyyy').format(inTwoYears)),
           findsOneWidget);
     });
@@ -441,8 +454,12 @@ void main() {
     testWidgets('an enrolment shows its units and validity', (tester) async {
       when(() => repo.getEnrolledCourseList(any()))
           .thenAnswer((_) async => _enrolment([
-                EnrolledCourseModel('MECH', 'Mechanics', '',
-                    DateTime(2027, 3, 14).millisecondsSinceEpoch, 'PAID',
+                EnrolledCourseModel(
+                    'MECH',
+                    'Mechanics',
+                    '',
+                    DateTime(2027, 3, 14).millisecondsSinceEpoch,
+                    'PAID',
                     ['U1', 'U2']),
                 // An enrolment that grants nothing.
                 EnrolledCourseModel('ORG', 'Organic Chemistry', '',
@@ -461,11 +478,19 @@ void main() {
         (tester) async {
       when(() => repo.getEnrolledCourseList(any()))
           .thenAnswer((_) async => _enrolment([
-                EnrolledCourseModel('MECH', 'Mechanics', '',
-                    DateTime(2020, 1, 1).millisecondsSinceEpoch, 'PAID',
+                EnrolledCourseModel(
+                    'MECH',
+                    'Mechanics',
+                    '',
+                    DateTime(2020, 1, 1).millisecondsSinceEpoch,
+                    'PAID',
                     ['U1']),
-                EnrolledCourseModel('ORG', 'Organic', '',
-                    DateTime(2020, 1, 1).millisecondsSinceEpoch, 'PAID',
+                EnrolledCourseModel(
+                    'ORG',
+                    'Organic',
+                    '',
+                    DateTime(2020, 1, 1).millisecondsSinceEpoch,
+                    'PAID',
                     ['U1']),
               ]));
 
@@ -485,8 +510,7 @@ void main() {
     UnitModel _unit(String code, String name) => UnitModel("PHY", "Physics",
         "MECH", "Mechanics", false, code, "", name, "", 1, 0, true, const []);
 
-    testWidgets('selection is an exact match, not a substring',
-        (tester) async {
+    testWidgets('selection is an exact match, not a substring', (tester) async {
       // Both dialogs did `selection[index].contains(unit.code)` — so a unit
       // coded U1 read as selected whenever its slot held U10.
       final List<UnitModel> units = [_unit('U1', 'One'), _unit('U10', 'Ten')];
@@ -563,29 +587,31 @@ void main() {
       expect(find.text('0 of 12 selected'), findsOneWidget);
     });
 
-  // The name and the code are what an admin pastes elsewhere -- into a
-  // search box, a spreadsheet, another module's form -- so they render as
-  // SelectableLabel rather than plain Text.
-  testWidgets('names and codes in the list are selectable', (tester) async {
-    await _pump(tester, const Size(1440, 900),
-        const Scaffold(body: StudentList()), StudentViewModel(studentRepo: repo));
+    // The name and the code are what an admin pastes elsewhere -- into a
+    // search box, a spreadsheet, another module's form -- so they render as
+    // SelectableLabel rather than plain Text.
+    testWidgets('names and codes in the list are selectable', (tester) async {
+      await _pump(
+          tester,
+          const Size(1440, 900),
+          const Scaffold(body: StudentList()),
+          StudentViewModel(studentRepo: repo));
 
-    final Iterable<SelectableLabel> labels =
-        tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
-    expect(labels, isNotEmpty);
-    for (final SelectableLabel label in labels) {
-      expect(label.data.trim(), isNotEmpty);
-    }
-    // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
-    expect(
-      find.descendant(
-        of: find.byType(SelectableLabel),
-        matching: find.byType(SelectableText),
-      ),
-      findsWidgets,
-    );
-  });
-
+      final Iterable<SelectableLabel> labels =
+          tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
+      expect(labels, isNotEmpty);
+      for (final SelectableLabel label in labels) {
+        expect(label.data.trim(), isNotEmpty);
+      }
+      // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
+      expect(
+        find.descendant(
+          of: find.byType(SelectableLabel),
+          matching: find.byType(SelectableText),
+        ),
+        findsWidgets,
+      );
+    });
   });
 
   group('enrolment', () {
@@ -624,8 +650,7 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     });
 
-    test('a failed enrolments load keeps the last ones and says so',
-        () async {
+    test('a failed enrolments load keeps the last ones and says so', () async {
       when(() => repo.getEnrolledCourseList(any()))
           .thenAnswer((_) async => null);
       final vm = StudentViewModel(studentRepo: repo);
@@ -667,18 +692,14 @@ void main() {
     });
 
     test('reads in days, then weeks, then a date', () {
-      expect(
-          StudentActivity.lastActiveLabel(DateTime(2026, 9, 6), now: now),
+      expect(StudentActivity.lastActiveLabel(DateTime(2026, 9, 6), now: now),
           'Active 3 days ago');
-      expect(
-          StudentActivity.lastActiveLabel(DateTime(2026, 9, 1), now: now),
+      expect(StudentActivity.lastActiveLabel(DateTime(2026, 9, 1), now: now),
           'Active 1 week ago');
-      expect(
-          StudentActivity.lastActiveLabel(DateTime(2026, 8, 24), now: now),
+      expect(StudentActivity.lastActiveLabel(DateTime(2026, 8, 24), now: now),
           'Active 2 weeks ago');
       // Past a month the date says more than "6 weeks ago".
-      expect(
-          StudentActivity.lastActiveLabel(DateTime(2026, 3, 12), now: now),
+      expect(StudentActivity.lastActiveLabel(DateTime(2026, 3, 12), now: now),
           'Active 12 Mar 2026');
     });
 
@@ -689,8 +710,7 @@ void main() {
     test('a stamp in the future is not reported as such', () {
       // A device clock running ahead. "In 2 days" on a *last* seen label is
       // nonsense; today is the closest true thing.
-      expect(
-          StudentActivity.lastActiveLabel(DateTime(2026, 9, 11), now: now),
+      expect(StudentActivity.lastActiveLabel(DateTime(2026, 9, 11), now: now),
           'Active today');
     });
 
@@ -699,8 +719,8 @@ void main() {
       // backfill — neither is 1 January 1970.
       expect(_student('a', 'A', loginTime: intDefault).lastLoginAt, isNull);
       expect(_student('a', 'A', loginTime: 0).lastLoginAt, isNull);
-      expect(_student('a', 'A', loginTime: 1757000000000).lastLoginAt,
-          isNotNull);
+      expect(
+          _student('a', 'A', loginTime: 1757000000000).lastLoginAt, isNotNull);
     });
 
     test('the model uses the later of the two sign-in times', () {
@@ -711,14 +731,12 @@ void main() {
       expect(_student('a', 'A', activeLoginAt: newer).lastLoginAt, newer);
       expect(
           _student('a', 'A',
-                  loginTime: older.millisecondsSinceEpoch,
-                  activeLoginAt: newer)
+                  loginTime: older.millisecondsSinceEpoch, activeLoginAt: newer)
               .lastLoginAt,
           newer);
       expect(
           _student('a', 'A',
-                  loginTime: newer.millisecondsSinceEpoch,
-                  activeLoginAt: older)
+                  loginTime: newer.millisecondsSinceEpoch, activeLoginAt: older)
               .lastLoginAt,
           newer);
     });
@@ -726,8 +744,28 @@ void main() {
 
   group('the row', () {
     testWidgets('says when the student was last active', (tester) async {
-      when(() => repo.getFirstStudentList(any(),
-              sort: any(named: 'sort')))
+      when(() => repo.getFirstStudentList(any(), sort: any(named: 'sort')))
+          .thenAnswer((_) async => [
+                _student('a', 'Anita Desai',
+                    loginTime: DateTime.now().millisecondsSinceEpoch),
+                _student('b', 'Ravi Kumar'),
+              ]);
+
+      final vm = StudentViewModel(studentRepo: repo);
+      await _pump(tester, const Size(800, 900),
+          const Scaffold(body: StudentList()), vm);
+
+      // `login_time` was parsed onto the model and shown nowhere, so an
+      // active student looked exactly like one who never came back.
+      // On the cards (a tile above also says "Active today").
+      Finder onCards(String text) => find.descendant(
+          of: find.byType(StudentCard), matching: find.text(text));
+      expect(onCards('Active today'), findsOneWidget);
+      expect(onCards('No sign-in recorded'), findsOneWidget);
+    });
+
+    testWidgets('the table shows the same activity as a pill', (tester) async {
+      when(() => repo.getFirstStudentList(any(), sort: any(named: 'sort')))
           .thenAnswer((_) async => [
                 _student('a', 'Anita Desai',
                     loginTime: DateTime.now().millisecondsSinceEpoch),
@@ -738,14 +776,13 @@ void main() {
       await _pump(tester, const Size(1440, 900),
           const Scaffold(body: StudentList()), vm);
 
-      // `login_time` was parsed onto the model and shown nowhere, so an
-      // active student looked exactly like one who never came back.
-      expect(find.text('Active today'), findsOneWidget);
-      expect(find.text('No sign-in recorded'), findsOneWidget);
+      expect(_rows(), findsNWidgets(2));
+      expect(find.widgetWithText(StatusPill, 'Active today'), findsOneWidget);
+      expect(find.widgetWithText(StatusPill, 'No sign-in recorded'),
+          findsOneWidget);
     });
 
-    testWidgets('shows a WhatsApp number only when it differs',
-        (tester) async {
+    testWidgets('shows a WhatsApp number only when it differs', (tester) async {
       when(() => repo.getFirstStudentList(any(), sort: any(named: 'sort')))
           .thenAnswer((_) async => [
                 _student('a', 'Anita Desai',
@@ -754,7 +791,7 @@ void main() {
               ]);
 
       final vm = StudentViewModel(studentRepo: repo);
-      await _pump(tester, const Size(1440, 900),
+      await _pump(tester, const Size(800, 900),
           const Scaffold(body: StudentList()), vm);
 
       // `student_wp_number` was read from the document and displayed
@@ -766,7 +803,8 @@ void main() {
   });
 
   group('sorting', () {
-    testWidgets('name is the default and last active refetches', (tester) async {
+    testWidgets('name is the default and last active refetches',
+        (tester) async {
       when(() => repo.getFirstStudentList(any(), sort: any(named: 'sort')))
           .thenAnswer((_) async => _fixture());
 
@@ -802,8 +840,8 @@ void main() {
           const Scaffold(body: StudentList()), vm);
 
       // Nothing to say while ordering by name — every student has one.
-      expect(find.byKey(const Key('student_never_signed_in_note')),
-          findsNothing);
+      expect(
+          find.byKey(const Key('student_never_signed_in_note')), findsNothing);
 
       await tester.tap(find.byKey(const Key('student_sort_lastActive')));
       await tester.pump();

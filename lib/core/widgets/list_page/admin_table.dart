@@ -56,6 +56,11 @@ class AdminTable extends StatelessWidget {
   /// Shown under the last row.
   final Widget? footer;
 
+  /// False when the table sits inside something that already scrolls (a
+  /// `CustomScrollView`): it then lays every row out at its full height
+  /// instead of scrolling its own box.
+  final bool scrollable;
+
   const AdminTable({
     required this.columns,
     required this.rowCount,
@@ -63,6 +68,7 @@ class AdminTable extends StatelessWidget {
     this.rowKey,
     this.onRowTap,
     this.footer,
+    this.scrollable = true,
     super.key,
   });
 
@@ -88,28 +94,41 @@ class AdminTable extends StatelessWidget {
             children: [
               _header(),
               const Divider(height: 1, thickness: 1, color: AppTokens.hairline),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  padding: EdgeInsets.zero,
-                  itemCount: rowCount + (footer == null ? 0 : 1),
-                  separatorBuilder: (context, index) => const Divider(
-                      height: 1, thickness: 1, color: AppTokens.hairline),
-                  itemBuilder: (context, index) {
-                    if (index == rowCount) return footer!;
-                    return _AdminTableRow(
-                      key: rowKey?.call(index),
-                      columns: columns,
-                      onTap: onRowTap == null ? null : () => onRowTap!(index),
-                      cells: (hovered) => cellsBuilder(context, index, hovered),
-                    );
-                  },
-                ),
-              ),
+              if (scrollable)
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: rowCount + (footer == null ? 0 : 1),
+                    separatorBuilder: (context, index) => const Divider(
+                        height: 1, thickness: 1, color: AppTokens.hairline),
+                    itemBuilder: (context, index) => _item(context, index),
+                  ),
+                )
+              else
+                for (int i = 0;
+                    i < rowCount + (footer == null ? 0 : 1);
+                    i++) ...[
+                  if (i > 0)
+                    const Divider(
+                        height: 1, thickness: 1, color: AppTokens.hairline),
+                  _item(context, i),
+                ],
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// Row [index], or the footer after the last row.
+  Widget _item(BuildContext context, int index) {
+    if (index == rowCount) return footer!;
+    return _AdminTableRow(
+      key: rowKey?.call(index),
+      columns: columns,
+      onTap: onRowTap == null ? null : () => onRowTap!(index),
+      cells: (hovered) => cellsBuilder(context, index, hovered),
     );
   }
 

@@ -19,6 +19,50 @@ class NotificationsViewModel extends ChangeNotifier with SafeNotifier {
   /// Past notifications, newest first.
   List<NotificationModel> notificationList = [];
 
+  /// The status chip picked above the list ("all", "sent", "sending" or
+  /// "failed"); kept here so it survives the round trip to Send.
+  String statusFilter = "all";
+
+  /// Picks a status chip.
+  void setStatusFilter(String value) {
+    statusFilter = value;
+    notifyListeners();
+  }
+
+  /// [notificationList] narrowed to [statusFilter].
+  List<NotificationModel> get filteredList => statusFilter == "all"
+      ? notificationList
+      : notificationList
+          .where((n) => switch (statusFilter) {
+                "sent" => n.status == NotificationStatus.sent,
+                "failed" => n.status == NotificationStatus.failed,
+                _ => n.status == NotificationStatus.pending,
+              })
+          .toList();
+
+  /// Sent since the 1st of this month (by when it went out, else when it
+  /// was queued).
+  int sentThisMonth({DateTime? now}) {
+    final DateTime at = now ?? DateTime.now();
+    final DateTime monthStart = DateTime(at.year, at.month);
+    return notificationList.where((n) {
+      final DateTime? when = n.sentAt ?? n.createdAt;
+      return n.status == NotificationStatus.sent &&
+          when != null &&
+          !when.isBefore(monthStart);
+    }).length;
+  }
+
+  /// Still waiting for the Cloud Function.
+  int get sendingCount => notificationList
+      .where((n) => n.status == NotificationStatus.pending)
+      .length;
+
+  /// The Cloud Function could not send them.
+  int get failedCount => notificationList
+      .where((n) => n.status == NotificationStatus.failed)
+      .length;
+
   /// True while the history is loading (drives the skeleton rows). Starts
   /// true so the first frame shows placeholders rather than "nothing sent
   /// yet".

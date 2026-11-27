@@ -35,9 +35,6 @@ class _StudentCardState extends State<StudentCard> {
   /// Shortcut for the item shown.
   Student get _data => widget.student;
 
-  /// The phone's name, or a plain "Signed in" when the app saved none.
-  String get _deviceLabel => _value(_data.activeDeviceName, "Signed in");
-
   @override
   Widget build(BuildContext context) {
     return AdminCardShell(
@@ -148,7 +145,7 @@ class _StudentCardState extends State<StudentCard> {
 
   /// [value], or [fallback] when it is blank or the "NA" placeholder.
   static String _value(String value, String fallback) =>
-      value.trim().isEmpty || value == stringDefault ? fallback : value;
+      studentValue(value, fallback);
 
   /// A small grey icon + text pair (e.g. "90 min").
   Widget _fact(IconData icon, String label) {
@@ -182,135 +179,148 @@ class _StudentCardState extends State<StudentCard> {
     );
   }
 
-  /// The phone holding the student's login (the app allows one at a time);
-  /// tapping it signs them out of it.
-  Widget _deviceChip() {
-    final bool signedIn = _data.isSignedIn;
-    final Color color = signedIn ? const Color(0xFF2563EB) : AppTokens.inkFaint;
+  /// Device chip (see [studentDeviceChip]).
+  Widget _deviceChip() => studentDeviceChip(context, _data);
 
-    return Tooltip(
-      message: signedIn
-          ? "Sign out of ${_data.activeDeviceName.trim().isEmpty ? 'this device' : _deviceLabel}"
-          : "Not signed in on any device",
-      child: Material(
-        color: Colors.transparent,
+  /// Row buttons; faded in on hover, always shown on compact screens.
+  Widget _actions(bool visible) => studentActions(context, _data, visible);
+}
+
+/// [value], or [fallback] when it is blank or a stored placeholder.
+String studentValue(String value, String fallback) =>
+    value.trim().isEmpty || value == stringDefault ? fallback : value;
+
+/// The phone's name, or a plain "Signed in" when the app saved none.
+String studentDeviceLabel(Student data) =>
+    studentValue(data.activeDeviceName, "Signed in");
+
+/// The phone holding the student's login (the app allows one at a time);
+/// tapping it signs them out of it.
+Widget studentDeviceChip(BuildContext context, Student data) {
+  final bool signedIn = data.isSignedIn;
+  final Color color = signedIn ? const Color(0xFF2563EB) : AppTokens.inkFaint;
+
+  return Tooltip(
+    message: signedIn
+        ? "Sign out of ${data.activeDeviceName.trim().isEmpty ? 'this device' : studentDeviceLabel(data)}"
+        : "Not signed in on any device",
+    child: Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+      child: InkWell(
+        key: Key('student_devices_${data.studentId}'),
         borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        child: InkWell(
-          key: Key('student_devices_${_data.studentId}'),
-          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-          onTap: signedIn ? _confirmSignOut : null,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-            decoration: BoxDecoration(
-              color: signedIn
-                  ? color.withValues(alpha: .10)
-                  : AppTokens.surfaceMuted,
-              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-              border: Border.all(
-                  color: signedIn
-                      ? color.withValues(alpha: .28)
-                      : AppTokens.hairline),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                    signedIn
-                        ? Icons.devices_outlined
-                        : Icons.phonelink_erase_outlined,
-                    size: 12,
-                    color: color),
-                const SizedBox(width: 5),
-                // Capped: device names are free text from the phone maker.
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 140),
-                  child: Text(signedIn ? _deviceLabel : "No device",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: color)),
-                ),
-              ],
-            ),
+        onTap: signedIn ? () => confirmSignOutStudent(context, data) : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          decoration: BoxDecoration(
+            color: signedIn
+                ? color.withValues(alpha: .10)
+                : AppTokens.surfaceMuted,
+            borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+            border: Border.all(
+                color: signedIn
+                    ? color.withValues(alpha: .28)
+                    : AppTokens.hairline),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                  signedIn
+                      ? Icons.devices_outlined
+                      : Icons.phonelink_erase_outlined,
+                  size: 12,
+                  color: color),
+              const SizedBox(width: 5),
+              // Capped: device names are free text from the phone maker.
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 140),
+                child: Text(signedIn ? studentDeviceLabel(data) : "No device",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: color)),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  /// Row buttons; faded in on hover, always shown on compact screens.
-  Widget _actions(bool visible) {
-    return CardActions(
-      visible: visible,
-      buttons: [
-        CardIconButton(
-          buttonKey: Key('student_courses_${_data.studentId}'),
-          icon: Icons.school_outlined,
-          tooltip: "Enrolled courses",
-          color: AppTokens.inkMuted,
-          onTap: _openSettings,
-        ),
-        CardDeleteButton(
-          buttonKey: Key('student_delete_${_data.studentId}'),
-          tooltip: "Delete student",
-          onTap: _confirmDelete,
-        ),
-      ],
-    );
-  }
-
-  /// Opens the student's enrolled-courses (settings) screen. The list is
-  /// not reloaded afterwards: enrolments do not change this row.
-  void _openSettings() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SettingStudent(
-          studentId: _data.studentId,
-          studentName: _data.studentName,
-        ),
+/// Row buttons; faded in on hover, always shown on compact screens.
+Widget studentActions(BuildContext context, Student data, bool visible) {
+  return CardActions(
+    visible: visible,
+    buttons: [
+      CardIconButton(
+        buttonKey: Key('student_courses_${data.studentId}'),
+        icon: Icons.school_outlined,
+        tooltip: "Enrolled courses",
+        color: AppTokens.inkMuted,
+        onTap: () => openStudentSettings(context, data),
       ),
-    );
-  }
+      CardDeleteButton(
+        buttonKey: Key('student_delete_${data.studentId}'),
+        tooltip: "Delete student",
+        onTap: () => confirmDeleteStudent(context, data),
+      ),
+    ],
+  );
+}
 
-  /// Asks for confirmation, then signs the student out of their device.
-  void _confirmSignOut() {
-    final StudentViewModel studentViewModel =
-        Provider.of<StudentViewModel>(context, listen: false);
-    final String studentId = _data.studentId;
+/// Opens the student's enrolled-courses (settings) screen. The list is
+/// not reloaded afterwards: enrolments do not change this row.
+void openStudentSettings(BuildContext context, Student data) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => SettingStudent(
+        studentId: data.studentId,
+        studentName: data.studentName,
+      ),
+    ),
+  );
+}
 
-    RemoveAlert.showRemoveAlert(
-      title: _value(_data.studentName, "This student"),
-      description: _data.activeDeviceName.trim().isEmpty
-          ? "Sign this student out of their device ?"
-          : "Sign this student out of $_deviceLabel ?",
-      confirmLabel: "Sign out",
-      onPressYes: () async {
-        // The dialog stays open, its button spinning, until this is done.
-        final bool success = await studentViewModel.signOutDevice(studentId);
-        Navigator.pop(navigatorKey.currentContext!);
-        if (success) {
-          Helper.showSnackBarMessage(
-              msg: "Student signed out", isSuccess: true);
-        }
-      },
-    );
-  }
+/// Asks for confirmation, then signs the student out of their device.
+void confirmSignOutStudent(BuildContext context, Student data) {
+  final StudentViewModel studentViewModel =
+      Provider.of<StudentViewModel>(context, listen: false);
+  final String studentId = data.studentId;
 
-  /// Asks for confirmation, then deletes this item.
-  void _confirmDelete() {
-    final StudentViewModel studentViewModel =
-        Provider.of<StudentViewModel>(context, listen: false);
-    // Captured up front (by id, not list position) so a search or refresh
-    // while the dialog is open cannot change which student gets deleted.
-    final String studentId = _data.studentId;
+  RemoveAlert.showRemoveAlert(
+    title: studentValue(data.studentName, "This student"),
+    description: data.activeDeviceName.trim().isEmpty
+        ? "Sign this student out of their device ?"
+        : "Sign this student out of $studentDeviceLabel(data) ?",
+    confirmLabel: "Sign out",
+    onPressYes: () async {
+      // The dialog stays open, its button spinning, until this is done.
+      final bool success = await studentViewModel.signOutDevice(studentId);
+      Navigator.pop(navigatorKey.currentContext!);
+      if (success) {
+        Helper.showSnackBarMessage(msg: "Student signed out", isSuccess: true);
+      }
+    },
+  );
+}
 
-    confirmDelete(
-      title: _value(_data.studentName, "This student"),
-      delete: () => studentViewModel.deleteStudent(studentId),
-      successMessage: "Student deleted successfully",
-    );
-  }
+/// Asks for confirmation, then deletes this item.
+void confirmDeleteStudent(BuildContext context, Student data) {
+  final StudentViewModel studentViewModel =
+      Provider.of<StudentViewModel>(context, listen: false);
+  // Captured up front (by id, not list position) so a search or refresh
+  // while the dialog is open cannot change which student gets deleted.
+  final String studentId = data.studentId;
+
+  confirmDelete(
+    title: studentValue(data.studentName, "This student"),
+    delete: () => studentViewModel.deleteStudent(studentId),
+    successMessage: "Student deleted successfully",
+  );
 }

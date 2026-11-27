@@ -13,6 +13,9 @@ import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:bbarna/utils/navigation.dart';
+import 'package:bbarna/core/widgets/list_page/filter_chips.dart';
+import 'package:bbarna/core/widgets/list_page/stats_strip.dart';
+import 'package:bbarna/notifications/widgets/notification_table.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -69,7 +72,38 @@ class _NotificationListState extends State<NotificationList> {
               ],
             ),
           ),
-          const SizedBox(height: AppTokens.gapLg),
+          const SizedBox(height: AppTokens.gapMd),
+          StatsStrip(oneLineMinWidth: 480, tiles: [
+            StatTile.count(
+                key: const Key('notification_stat_month'),
+                label: "Sent this month",
+                count: vm.sentThisMonth()),
+            StatTile.count(
+                key: const Key('notification_stat_sending'),
+                label: "Sending now",
+                count: vm.sendingCount,
+                valueColor: vm.sendingCount > 0 ? AppTokens.warningText : null),
+            StatTile.count(
+                key: const Key('notification_stat_failed'),
+                label: "Failed",
+                count: vm.failedCount,
+                valueColor: vm.failedCount > 0 ? AppTokens.dangerText : null),
+          ]),
+          const SizedBox(height: AppTokens.gapMd),
+          FilterChipBar<String>(
+            selected: vm.statusFilter,
+            onChanged: vm.setStatusFilter,
+            options: const [
+              FilterOption("all", "All", key: Key('notification_filter_all')),
+              FilterOption("sent", "Sent",
+                  key: Key('notification_filter_sent')),
+              FilterOption("sending", "Sending",
+                  key: Key('notification_filter_sending')),
+              FilterOption("failed", "Failed",
+                  key: Key('notification_filter_failed')),
+            ],
+          ),
+          const SizedBox(height: AppTokens.gapMd),
           Expanded(child: _body(vm)),
         ],
       );
@@ -98,7 +132,27 @@ class _NotificationListState extends State<NotificationList> {
       );
     }
 
-    final List<NotificationModel> list = vm.notificationList;
+    final List<NotificationModel> list = vm.filteredList;
+    if (list.isEmpty) {
+      return const ListEmptyState(
+        isFiltered: true,
+        icon: Icons.campaign_outlined,
+        title: "No notifications sent yet",
+        message: "",
+        filteredMessage: "Nothing in the history has that status.",
+      );
+    }
+    return WideOrNarrow(
+      minWidth: NotificationTable.minWidth,
+      wide: (context) => NotificationTable(
+          notifications: list,
+          onDelete: (notification) => _confirmDelete(vm, notification)),
+      narrow: (context) => _cards(vm, list),
+    );
+  }
+
+  /// The history as cards (narrow windows).
+  Widget _cards(NotificationsViewModel vm, List<NotificationModel> list) {
     return ListView.separated(
       padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
       itemCount: list.length,

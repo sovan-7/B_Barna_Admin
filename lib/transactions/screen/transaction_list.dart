@@ -17,6 +17,9 @@ import 'package:bbarna/transactions/widgets/transaction_card.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:bbarna/utils/money.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:bbarna/core/widgets/list_page/filter_chips.dart';
+import 'package:bbarna/core/widgets/list_page/stats_strip.dart';
+import 'package:bbarna/transactions/widgets/transaction_table.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -71,11 +74,16 @@ class _TransactionListState extends State<TransactionList> {
           // The top section scrolls away with the rows, so it never runs out
           // of room on a short or narrow window.
           Expanded(
-            child: CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _top(viewModel)),
-                ..._body(viewModel),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) => CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(child: _top(viewModel)),
+                  ..._body(
+                      viewModel,
+                      isWideList(context) &&
+                          constraints.maxWidth >= TransactionTable.minWidth),
+                ],
+              ),
             ),
           ),
           if (!viewModel.isLoading && viewModel.loadError == null)
@@ -196,24 +204,26 @@ class _TransactionListState extends State<TransactionList> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        LayoutBuilder(builder: (context, constraints) {
-          final int columns = constraints.maxWidth < 560 ? 2 : 4;
-          final double width =
-              (constraints.maxWidth - AppTokens.gapSm * (columns - 1)) /
-                  columns;
-          return Wrap(
-            spacing: AppTokens.gapSm,
-            runSpacing: AppTokens.gapSm,
-            children: [
-              _tile(width, "Collected", formatRupees(viewModel.totalCollected)),
-              _tile(width, "Paid",
-                  "${viewModel.shown.where((t) => !t.isFree).length}"),
-              _tile(width, "Free",
-                  "${viewModel.shown.where((t) => t.isFree).length}"),
-              _tile(width, "Discounts", formatRupees(viewModel.totalDiscounts)),
-            ],
-          );
-        }),
+        StatsStrip(tiles: [
+          StatTile(
+              key: const Key('transaction_stat_collected'),
+              label: "Collected",
+              value: formatRupees(viewModel.totalCollected),
+              caption: _changeCaption(viewModel),
+              captionColor: _changeColor(viewModel)),
+          StatTile.count(
+              key: const Key('transaction_stat_paid'),
+              label: "Paid purchases",
+              count: viewModel.shown.where((t) => !t.isFree).length),
+          StatTile.count(
+              key: const Key('transaction_stat_free'),
+              label: "Free enrolments",
+              count: viewModel.shown.where((t) => t.isFree).length),
+          StatTile(
+              key: const Key('transaction_stat_discounts'),
+              label: "Discounts given",
+              value: formatRupees(viewModel.totalDiscounts)),
+        ]),
         const SizedBox(height: 6),
         Text(
           "Totals for the $shown shown"
@@ -225,84 +235,66 @@ class _TransactionListState extends State<TransactionList> {
     );
   }
 
-  Widget _tile(double width, String label, String value) {
-    return Container(
-      width: width,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppTokens.surface,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        border: Border.all(color: AppTokens.hairline),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: const TextStyle(fontSize: 12, color: AppTokens.inkMuted)),
-          const SizedBox(height: 2),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(value,
-                style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: AppTokens.ink)),
-          ),
-        ],
-      ),
-    );
+  /// "↑ 12% vs last month" for a picked range whose previous period is
+  /// fully loaded; null otherwise.
+  String? _changeCaption(TransactionViewModel viewModel) {
+    final double? previous = viewModel.previousCollected();
+    if (previous == null || previous <= 0) return null;
+    final int change =
+        (((viewModel.totalCollected - previous) / previous) * 100).round();
+    final String period = viewModel.range == TransactionRange.thisMonth
+        ? "last month"
+        : "the 30 days before";
+    if (change == 0) return "Same as $period";
+    return "${change > 0 ? "↑" : "↓"} ${change.abs()}% vs $period";
   }
 
-  /// "All 12 · Paid 10 · Free 2".
+  /// Green for up, red for down.
+  Color? _changeColor(TransactionViewModel viewModel) {
+    final String? caption = _changeCaption(viewModel);
+    if (caption == null) return null;
+    if (caption.startsWith("↑")) return AppTokens.successText;
+    if (caption.startsWith("↓")) return AppTokens.dangerText;
+    return null;
+  }
+
+  /// The date range, then "All 12 · Paid 10 · Free 2".
   Widget _filters(TransactionViewModel viewModel) {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: AppTokens.gapMd,
+      runSpacing: AppTokens.gapSm,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        _filterChip(viewModel, TransactionFilter.all, "All"),
-        _filterChip(viewModel, TransactionFilter.paid, "Paid"),
-        _filterChip(viewModel, TransactionFilter.free, "Free"),
+        FilterChipBar<TransactionRange>(
+          selected: viewModel.range,
+          onChanged: viewModel.setRange,
+          options: [
+            for (final TransactionRange option in TransactionRange.values)
+              FilterOption(option, option.label,
+                  key: Key('transaction_range_${option.name}')),
+          ],
+        ),
+        FilterChipBar<TransactionFilter>(
+          selected: viewModel.filter,
+          onChanged: viewModel.setFilter,
+          options: [
+            for (final (TransactionFilter option, String label) in const [
+              (TransactionFilter.all, "All"),
+              (TransactionFilter.paid, "Paid"),
+              (TransactionFilter.free, "Free"),
+            ])
+              FilterOption(option, "$label  ${viewModel.countFor(option)}",
+                  key: Key('transaction_filter_${option.name}')),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _filterChip(
-      TransactionViewModel viewModel, TransactionFilter option, String label) {
-    final bool selected = viewModel.filter == option;
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-      child: InkWell(
-        key: Key('transaction_filter_${option.name}'),
-        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        onTap: () => viewModel.setFilter(option),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: selected
-                ? AppTokens.ink.withValues(alpha: .08)
-                : AppTokens.surface,
-            borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-            border: Border.all(
-                color: selected
-                    ? AppTokens.ink.withValues(alpha: .40)
-                    : AppTokens.hairline),
-          ),
-          child: Text(
-            "$label  ${viewModel.countFor(option)}",
-            style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: selected ? AppTokens.ink : AppTokens.inkMuted),
-          ),
-        ),
-      ),
-    );
-  }
-
   /// Skeleton while loading, an error or empty state, otherwise the rows.
-  List<Widget> _body(TransactionViewModel viewModel) {
+  /// [wide] picks the table over the cards (decided once, on the list's
+  /// own width).
+  List<Widget> _body(TransactionViewModel viewModel, bool wide) {
     if (viewModel.isLoading) {
       return [_state(const ListSkeleton(rowHeight: 84, rowCount: 4))];
     }
@@ -329,6 +321,15 @@ class _TransactionListState extends State<TransactionList> {
       ];
     }
 
+    if (wide) {
+      return [
+        SliverPadding(
+          padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
+          sliver:
+              SliverToBoxAdapter(child: TransactionTable(transactions: rows)),
+        ),
+      ];
+    }
     return [
       SliverPadding(
         padding: const EdgeInsets.only(bottom: AppTokens.gapMd),

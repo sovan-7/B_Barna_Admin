@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:bbarna/banners/model/banners_model.dart';
 import 'package:bbarna/banners/screen/add_banner.dart';
 import 'package:bbarna/banners/viewModel/banners_view_model.dart';
@@ -13,6 +15,8 @@ import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:bbarna/utils/navigation.dart';
+import 'package:bbarna/banners/widgets/banner_phone_preview.dart';
+import 'package:bbarna/core/widgets/list_page/filter_chips.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -30,6 +34,9 @@ class BannerList extends StatefulWidget {
 class _BannerListState extends State<BannerList> {
   /// Tiles stop growing past this; a wider window gets another column.
   static const double _tileMinWidth = 300;
+
+  /// The banner the phone preview shows (an index into the list).
+  int _selected = 0;
 
   @override
   void initState() {
@@ -99,36 +106,66 @@ class _BannerListState extends State<BannerList> {
     ).ifSaved(() => bannersViewModel.getBannerList());
   }
 
-  /// The banners as a wrap of 16:9 tiles, as many columns as fit.
+  /// The phone preview beside the tiles when there is room for both,
+  /// otherwise the tiles alone.
   Widget _grid(BannersViewModel bannersViewModel) {
     final List<BannersModel> bannersList = bannersViewModel.bannersList;
 
     return LayoutBuilder(builder: (context, constraints) {
-      final int columns = columnsFor(constraints.maxWidth, _tileMinWidth);
-      final double tileWidth = columns == 1
-          ? constraints.maxWidth
-          : (constraints.maxWidth - AppTokens.gapMd * (columns - 1)) / columns;
+      final bool withPreview = isWideList(context) &&
+          constraints.maxWidth >=
+              BannerPhonePreview.width + AppTokens.gapLg + 2 * _tileMinWidth;
+      final double tilesWidth = withPreview
+          ? constraints.maxWidth - BannerPhonePreview.width - AppTokens.gapLg
+          : constraints.maxWidth;
+      final Widget tiles = _tiles(bannersViewModel, tilesWidth);
+      if (!withPreview) return tiles;
 
-      return SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
-        child: Wrap(
-          spacing: AppTokens.gapMd,
-          runSpacing: AppTokens.gapMd,
-          children: [
-            for (int i = 0; i < bannersList.length; i++)
-              SizedBox(
-                width: tileWidth,
-                child: BannerCard(
-                  key: ValueKey(bannersList[i].docId),
-                  banner: bannersList[i],
-                  position: i + 1,
-                  onDelete: () => _confirmDelete(bannersViewModel, i),
-                ),
-              ),
-          ],
-        ),
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          BannerPhonePreview(banners: bannersList, selected: _selected),
+          const SizedBox(width: AppTokens.gapLg),
+          Expanded(child: tiles),
+        ],
       );
     });
+  }
+
+  /// The banners as a wrap of 16:9 tiles, as many columns as fit in
+  /// [width], then a dashed "Upload a banner" tile.
+  Widget _tiles(BannersViewModel bannersViewModel, double width) {
+    final List<BannersModel> bannersList = bannersViewModel.bannersList;
+    final int columns = columnsFor(width, _tileMinWidth);
+    final double tileWidth = columns == 1
+        ? width
+        : (width - AppTokens.gapMd * (columns - 1)) / columns;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
+      child: Wrap(
+        spacing: AppTokens.gapMd,
+        runSpacing: AppTokens.gapMd,
+        children: [
+          for (int i = 0; i < bannersList.length; i++)
+            SizedBox(
+              width: tileWidth,
+              child: BannerCard(
+                key: ValueKey(bannersList[i].docId),
+                banner: bannersList[i],
+                position: i + 1,
+                selected: i == _selected,
+                onTap: () => setState(() => _selected = i),
+                onDelete: () => _confirmDelete(bannersViewModel, i),
+              ),
+            ),
+          SizedBox(
+            width: tileWidth,
+            child: _UploadTile(onTap: () => _openAdd(bannersViewModel)),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Captures the doc id up front rather than reading
@@ -198,4 +235,68 @@ class _SkeletonGrid extends StatelessWidget {
       );
     });
   }
+}
+
+/// The dashed tile after the last banner that opens Add Banner.
+class _UploadTile extends StatelessWidget {
+  final VoidCallback onTap;
+  const _UploadTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Material(
+        color: AppTokens.surface,
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        child: InkWell(
+          key: const Key('banner_upload_tile'),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          child: CustomPaint(
+            painter: _DashedBorder(),
+            child: const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_photo_alternate_outlined,
+                      size: 24, color: AppTokens.inkMuted),
+                  SizedBox(height: 6),
+                  Text("Upload a banner",
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTokens.inkMuted)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A dashed rounded outline.
+class _DashedBorder extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = AppTokens.inkFaint
+      ..strokeWidth = 1.4
+      ..style = PaintingStyle.stroke;
+    final Path outline = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          Offset.zero & size, const Radius.circular(AppTokens.radiusMd)));
+    for (final PathMetric metric in outline.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        canvas.drawPath(metric.extractPath(distance, distance + 6), paint);
+        distance += 11;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
