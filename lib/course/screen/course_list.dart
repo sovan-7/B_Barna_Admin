@@ -1,4 +1,7 @@
+import 'package:bbarna/core/viewModel/catalogue_filter.dart';
 import 'package:bbarna/core/widgets/add_widget.dart';
+import 'package:bbarna/core/widgets/list_page/filter_chips.dart';
+import 'package:bbarna/core/widgets/list_page/stats_strip.dart';
 import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_frame.dart';
@@ -9,6 +12,7 @@ import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/course/screen/add_course.dart';
 import 'package:bbarna/course/viewModel/course_view_model.dart';
 import 'package:bbarna/course/widgets/course_card.dart';
+import 'package:bbarna/course/widgets/course_table.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
@@ -68,12 +72,40 @@ class _CourseListState extends State<CourseList> {
             ),
           ),
           const SizedBox(height: AppTokens.gapMd),
-          ListSearchField(
-            controller: searchController,
-            hintText: "Search by name or code",
-            maxWidth: 360,
-            onChanged: (text) => _search(courseViewModel, text),
-            onCleared: () => _search(courseViewModel, ""),
+          StatsStrip(tiles: [
+            StatTile.count(
+                key: const Key('course_stat_total'),
+                label: "Total",
+                count: courseViewModel.totalCount),
+            StatTile.count(
+                key: const Key('course_stat_visible'),
+                label: "Visible",
+                count: courseViewModel.visibleCount),
+            StatTile.count(
+                key: const Key('course_stat_hidden'),
+                label: "Hidden",
+                count: courseViewModel.hiddenCount),
+            StatTile.count(
+                key: const Key('course_stat_locked'),
+                label: "Locked",
+                count: courseViewModel.lockedCount),
+          ]),
+          const SizedBox(height: AppTokens.gapMd),
+          ListToolbar(
+            search: ListSearchField(
+              controller: searchController,
+              hintText: "Search by name or code",
+              maxWidth: 360,
+              onChanged: (text) => _search(courseViewModel, text),
+              onCleared: () => _search(courseViewModel, ""),
+            ),
+            filters: [
+              FilterChipBar<CatalogueFilter>(
+                options: CatalogueFilter.options('course'),
+                selected: courseViewModel.statusFilter,
+                onChanged: courseViewModel.setStatusFilter,
+              ),
+            ],
           ),
           const SizedBox(height: AppTokens.gapMd),
           Expanded(child: _body(courseViewModel)),
@@ -101,7 +133,7 @@ class _CourseListState extends State<CourseList> {
   }
 
   /// Skeleton while loading, empty state when there are no rows, otherwise
-  /// the course cards.
+  /// the table (wide windows) or the course cards.
   Widget _body(CourseViewModel courseViewModel) {
     if (courseViewModel.isLoading) {
       return const ListSkeleton(rowHeight: 74, rowCount: 5);
@@ -116,25 +148,31 @@ class _CourseListState extends State<CourseList> {
     }
     if (courses.isEmpty) {
       return ListEmptyState(
-        isFiltered: searchController.text.trim().isNotEmpty,
+        isFiltered: searchController.text.trim().isNotEmpty ||
+            courseViewModel.statusFilter != CatalogueFilter.all,
         icon: Icons.menu_book_outlined,
         title: "No courses yet",
         message:
             "Courses are the top level of the catalogue — subjects and units hang off them.",
-        filteredMessage: "No course matches that name or code.",
+        filteredMessage: "No course matches that search or filter.",
         messageWidth: 320,
         addLabel: "Add a course",
         onAdd: () => _openAdd(courseViewModel),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
-      itemCount: courses.length,
-      itemBuilder: (context, index) => CourseCard(
-        key: ValueKey(courses[index].docId),
-        courseData: courses[index],
-        onChanged: courseViewModel.getCourseList,
+    return WideOrNarrow(
+      minWidth: CourseTable.minWidth,
+      wide: (context) => CourseTable(
+          courses: courses, onChanged: courseViewModel.getCourseList),
+      narrow: (context) => ListView.builder(
+        padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
+        itemCount: courses.length,
+        itemBuilder: (context, index) => CourseCard(
+          key: ValueKey(courses[index].docId),
+          courseData: courses[index],
+          onChanged: courseViewModel.getCourseList,
+        ),
       ),
     );
   }
