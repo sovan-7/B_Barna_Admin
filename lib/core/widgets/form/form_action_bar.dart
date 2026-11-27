@@ -110,8 +110,8 @@ class FormActionBar extends StatelessWidget {
         key: saveKey,
         onPressed: isSaving ? null : onSave,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTokens.ink,
-          disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
+          backgroundColor: AppTokens.accent,
+          disabledBackgroundColor: AppTokens.accent.withValues(alpha: .55),
           foregroundColor: Colors.white,
           disabledForegroundColor: Colors.white,
           elevation: 0,

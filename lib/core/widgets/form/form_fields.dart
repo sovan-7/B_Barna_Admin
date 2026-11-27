@@ -1,6 +1,7 @@
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/utils/formatters.dart';
 import 'package:bbarna/utils/image_sizing.dart';
+import 'package:bbarna/core/widgets/dashed_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -210,7 +211,7 @@ class FormToggleRow extends StatelessWidget {
           value: value,
           onChanged: onChanged,
           activeThumbColor: Colors.white,
-          activeTrackColor: AppTokens.ink,
+          activeTrackColor: AppTokens.accent,
         ),
       ],
     );
@@ -273,6 +274,32 @@ class FormImagePickerField extends StatelessWidget {
     final bool hasNew = bytes != null;
     final bool hasExisting = existingUrl.trim().isNotEmpty;
 
+    // The whole field is a dashed "browse" zone; a click anywhere on it
+    // picks a file.
+    return Material(
+      color: error != null
+          ? AppTokens.dangerFill.withValues(alpha: .4)
+          : AppTokens.accentTint.withValues(alpha: .35),
+      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+      child: InkWell(
+        key: const Key('form_image_browse_zone'),
+        onTap: enabled ? onPick : null,
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        child: CustomPaint(
+          painter: DashedBorderPainter(
+              color: error != null ? AppTokens.danger : AppTokens.inkFaint),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: _content(context, error, bytes, hasNew, hasExisting),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Preview, file name / hint and the buttons.
+  Widget _content(BuildContext context, String? error, Uint8List? bytes,
+      bool hasNew, bool hasExisting) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -299,7 +326,7 @@ class FormImagePickerField extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppTokens.radiusMd - 1),
                   child: hasNew
                       ? Image(
-                          image: sizedForBox(context, MemoryImage(bytes), 108),
+                          image: sizedForBox(context, MemoryImage(bytes!), 108),
                           fit: BoxFit.cover)
                       : hasExisting
                           ? Image(
@@ -334,13 +361,17 @@ class FormImagePickerField extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 hasNew
-                    ? readableFileSize(bytes.lengthInBytes)
-                    : "Square images work best — it is shown as a thumbnail.",
+                    ? readableFileSize(bytes!.lengthInBytes)
+                    : "Click here to browse. Square images work best — it "
+                        "is shown as a thumbnail.",
                 style: const TextStyle(
                     fontSize: 11.5, height: 1.35, color: AppTokens.inkFaint),
               ),
               const SizedBox(height: 10),
-              Row(
+              // Wraps on a phone rather than overflowing the zone.
+              Wrap(
+                spacing: AppTokens.gapSm,
+                runSpacing: 4,
                 children: [
                   OutlinedButton(
                     onPressed: enabled ? onPick : null,
@@ -358,7 +389,6 @@ class FormImagePickerField extends StatelessWidget {
                         style: const TextStyle(fontSize: 12.5)),
                   ),
                   if (hasNew) ...[
-                    const SizedBox(width: AppTokens.gapSm),
                     TextButton(
                       onPressed: enabled ? onRemove : null,
                       style: TextButton.styleFrom(

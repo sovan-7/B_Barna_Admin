@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:bbarna/banners/model/banners_model.dart';
 import 'package:bbarna/banners/screen/add_banner.dart';
 import 'package:bbarna/banners/viewModel/banners_view_model.dart';
@@ -17,6 +15,7 @@ import 'package:bbarna/utils/helper.dart';
 import 'package:bbarna/utils/navigation.dart';
 import 'package:bbarna/banners/widgets/banner_phone_preview.dart';
 import 'package:bbarna/core/widgets/list_page/filter_chips.dart';
+import 'package:bbarna/core/widgets/dashed_border.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -254,7 +253,7 @@ class _UploadTile extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppTokens.radiusMd),
           child: CustomPaint(
-            painter: _DashedBorder(),
+            painter: const DashedBorderPainter(),
             child: const Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -275,28 +274,4 @@ class _UploadTile extends StatelessWidget {
       ),
     );
   }
-}
-
-/// A dashed rounded outline.
-class _DashedBorder extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()
-      ..color = AppTokens.inkFaint
-      ..strokeWidth = 1.4
-      ..style = PaintingStyle.stroke;
-    final Path outline = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Offset.zero & size, const Radius.circular(AppTokens.radiusMd)));
-    for (final PathMetric metric in outline.computeMetrics()) {
-      double distance = 0;
-      while (distance < metric.length) {
-        canvas.drawPath(metric.extractPath(distance, distance + 6), paint);
-        distance += 11;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
