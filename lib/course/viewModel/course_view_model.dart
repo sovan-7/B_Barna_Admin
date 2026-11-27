@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:bbarna/core/mixins/safe_notifier.dart';
+import 'package:bbarna/core/viewModel/catalogue_filter.dart';
 import 'package:bbarna/course/model/course_model.dart';
 import 'package:bbarna/course/repo/course_repo.dart';
 import 'package:bbarna/utils/helper.dart';
@@ -127,6 +128,29 @@ class CourseViewModel extends ChangeNotifier with SafeNotifier {
   /// re-applied after every refetch instead of showing everything.
   String searchText = "";
 
+  /// Which chip above the list is picked. Kept here so it survives the
+  /// round trip to Add/Edit, like [searchText].
+  CatalogueFilter statusFilter = CatalogueFilter.all;
+
+  /// Shows only the courses [filter] matches (on top of the search).
+  void setStatusFilter(CatalogueFilter filter) {
+    statusFilter = filter;
+    _applySearch();
+    notifyListeners();
+  }
+
+  /// Every course, unfiltered.
+  int get totalCount => copyCourseList.length;
+
+  /// Courses the app shows.
+  int get visibleCount => copyCourseList.where((c) => c.willDisplay).length;
+
+  /// Courses the app does not show.
+  int get hiddenCount => totalCount - visibleCount;
+
+  /// Courses that are visible but cannot be opened.
+  int get lockedCount => copyCourseList.where((c) => c.isLocked).length;
+
   /// Every course, whatever the Courses search is showing. The course
   /// pickers on the Subject, Topic and Unit forms read this — reading
   /// [courseList] would offer them only the courses a search matched.
@@ -139,18 +163,18 @@ class CourseViewModel extends ChangeNotifier with SafeNotifier {
     notifyListeners();
   }
 
-  /// Rebuilds [courseList] from [copyCourseList] using [searchText].
+  /// Rebuilds [courseList] from [copyCourseList] using [searchText] and
+  /// [statusFilter].
   void _applySearch() {
     final String query = searchText.toLowerCase().trim();
-    if (query.isEmpty) {
-      courseList = List<CourseModel>.from(copyCourseList);
-    } else {
-      courseList = copyCourseList
-          .where((course) =>
-              course.code.toLowerCase().contains(query) ||
-              course.name.toLowerCase().contains(query))
-          .toList();
-    }
+    courseList = copyCourseList
+        .where((course) =>
+            statusFilter.matches(
+                shown: course.willDisplay, locked: course.isLocked) &&
+            (query.isEmpty ||
+                course.code.toLowerCase().contains(query) ||
+                course.name.toLowerCase().contains(query)))
+        .toList();
   }
 
   /// Sorts [courseList] newest first.

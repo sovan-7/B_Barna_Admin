@@ -49,6 +49,14 @@ NotificationModel _sent(String id, String title,
       createdAt: DateTime(2026, 10, 30, 16, 5),
     );
 
+/// History rows on screen: table rows on wide windows, cards on narrow.
+Finder _rows() => find.byWidgetPredicate((widget) {
+      if (widget is NotificationCard) return true;
+      final Key? key = widget.key;
+      return key is ValueKey<String> &&
+          key.value.startsWith('notification_row_');
+    });
+
 const List<Size> _sizes = [
   Size(1440, 900),
   Size(1024, 768),
@@ -294,16 +302,26 @@ void main() {
             size: size);
 
         expect(tester.takeException(), isNull);
-        expect(find.byType(NotificationCard), findsNWidgets(4));
-        expect(find.text('Sent'), findsNWidgets(2));
-        expect(find.text('Sending'), findsOneWidget);
-        expect(find.text('Failed'), findsOneWidget);
+        if (size.width < 900) {
+          // Cards, scrolling once they run out of room.
+          expect(_rows(), findsWidgets);
+          return;
+        }
+        expect(_rows(), findsNWidgets(4));
+        // Counted inside the rows: the tiles and chips above say these too.
+        Finder inRows(String text) =>
+            find.descendant(of: _rows(), matching: find.text(text));
+        expect(inRows('Sent'), findsNWidgets(2));
+        expect(inRows('Sending'), findsOneWidget);
+        expect(inRows('Failed'), findsOneWidget);
       });
     }
 
     testWidgets('only a notification with a link shows it and Open link',
         (tester) async {
-      await pump(tester, const Scaffold(body: NotificationList()));
+      // The card (narrow windows) spells the link out.
+      await pump(tester, const Scaffold(body: NotificationList()),
+          size: const Size(800, 900));
 
       expect(find.byKey(const Key('notification_open_link')), findsOneWidget);
       final SelectableText link = tester.widget(find.descendant(
@@ -347,7 +365,8 @@ void main() {
       addTearDown(() => tester.binding.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, null));
 
-      await pump(tester, const Scaffold(body: NotificationList()));
+      await pump(tester, const Scaffold(body: NotificationList()),
+          size: const Size(800, 900));
       expect(find.byKey(const Key('notification_copy')), findsNWidgets(4));
 
       await tester.tap(find.byKey(const Key('notification_copy')).first);

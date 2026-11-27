@@ -10,6 +10,9 @@ import 'package:bbarna/student/model/student_model.dart';
 import 'package:bbarna/student/repo/student_repo.dart';
 import 'package:bbarna/student/viewModel/student_view_model.dart';
 import 'package:bbarna/student/widgets/student_card.dart';
+import 'package:bbarna/core/widgets/list_page/filter_chips.dart';
+import 'package:bbarna/core/widgets/list_page/stats_strip.dart';
+import 'package:bbarna/student/widgets/student_table.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -59,6 +62,26 @@ class _StudentListState extends State<StudentList> {
       return ListPageFrame(
         children: [
           _header(studentViewModel),
+          const SizedBox(height: AppTokens.gapMd),
+          StatsStrip(tiles: [
+            StatTile.count(
+                key: const Key('student_stat_total'),
+                label: "Total students",
+                count: studentViewModel.studentListLength),
+            StatTile.count(
+                key: const Key('student_stat_today'),
+                label: "Active today",
+                count: studentViewModel.stats["today"],
+                valueColor: AppTokens.successText),
+            StatTile.count(
+                key: const Key('student_stat_week'),
+                label: "Active this week",
+                count: studentViewModel.stats["week"]),
+            StatTile.count(
+                key: const Key('student_stat_signed_in'),
+                label: "Signed in on a phone",
+                count: studentViewModel.stats["signedIn"]),
+          ]),
           const SizedBox(height: AppTokens.gapMd),
           ListSearchField(
             controller: searchController,
@@ -230,13 +253,17 @@ class _StudentListState extends State<StudentList> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
-      itemCount: students.length,
-      itemBuilder: (context, index) => StudentCard(
-        key: ValueKey(students[index].studentId),
-        student: students[index],
-        onChanged: studentViewModel.fetchFirstStudentList,
+    return WideOrNarrow(
+      minWidth: StudentTable.minWidth,
+      wide: (context) => StudentTable(students: students),
+      narrow: (context) => ListView.builder(
+        padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
+        itemCount: students.length,
+        itemBuilder: (context, index) => StudentCard(
+          key: ValueKey(students[index].studentId),
+          student: students[index],
+          onChanged: studentViewModel.fetchFirstStudentList,
+        ),
       ),
     );
   }

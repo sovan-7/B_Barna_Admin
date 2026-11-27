@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:bbarna/core/mixins/safe_notifier.dart';
+import 'package:bbarna/core/viewModel/catalogue_filter.dart';
+import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/subject/repo/subject_repo.dart';
 import 'package:bbarna/utils/helper.dart';
@@ -160,6 +162,54 @@ class SubjectViewModel extends ChangeNotifier with SafeNotifier {
   /// re-applied after every refetch instead of showing everything.
   String searchText = "";
 
+  /// Which status chip is picked; kept across Add/Edit like [searchText].
+  CatalogueFilter statusFilter = CatalogueFilter.all;
+
+  /// The course the list is narrowed to (its code), or null for all.
+  String? courseFilter;
+
+  /// Shows only the subjects [filter] matches (on top of the search).
+  void setStatusFilter(CatalogueFilter filter) {
+    statusFilter = filter;
+    _applySearch();
+    notifyListeners();
+  }
+
+  /// Shows only the subjects under the course with [courseCode] (null for
+  /// every course).
+  void setCourseFilter(String? courseCode) {
+    courseFilter = courseCode;
+    _applySearch();
+    notifyListeners();
+  }
+
+  /// Every subject, unfiltered.
+  int get totalCount => copySubjectList.length;
+
+  /// Subjects the app shows.
+  int get visibleCount => copySubjectList.where((s) => s.willDisplay).length;
+
+  /// Subjects the app does not show.
+  int get hiddenCount => totalCount - visibleCount;
+
+  /// Subjects marked popular.
+  int get popularCount => copySubjectList.where((s) => s.isPopular).length;
+
+  /// The courses the loaded subjects sit under, code → name, by name —
+  /// what the course filter offers.
+  Map<String, String> get courseOptions {
+    final Map<String, String> byCode = {};
+    for (final SubjectModel subject in copySubjectList) {
+      final String code = subject.courseCode.trim();
+      if (code.isEmpty || code == stringDefault) continue;
+      final String name = subject.courseName.trim();
+      byCode[code] = name.isEmpty || name == stringDefault ? code : name;
+    }
+    final List<MapEntry<String, String>> entries = byCode.entries.toList()
+      ..sort((a, b) => a.value.toLowerCase().compareTo(b.value.toLowerCase()));
+    return Map.fromEntries(entries);
+  }
+
   /// Filters [subjectList] by code, name or course name
   /// (case-insensitive).
   void searchSubject({required String searchText}) {
@@ -171,16 +221,16 @@ class SubjectViewModel extends ChangeNotifier with SafeNotifier {
   /// Rebuilds [subjectList] from [copySubjectList] using [searchText].
   void _applySearch() {
     final String query = searchText.toLowerCase().trim();
-    if (query.isEmpty) {
-      subjectList = List<SubjectModel>.from(copySubjectList);
-    } else {
-      subjectList = copySubjectList
-          .where((subject) =>
-              subject.code.toLowerCase().contains(query) ||
-              subject.name.toLowerCase().contains(query) ||
-              subject.courseName.toLowerCase().contains(query))
-          .toList();
-    }
+    subjectList = copySubjectList
+        .where((subject) =>
+            statusFilter.matches(
+                shown: subject.willDisplay, locked: subject.isLocked) &&
+            (courseFilter == null || subject.courseCode == courseFilter) &&
+            (query.isEmpty ||
+                subject.code.toLowerCase().contains(query) ||
+                subject.name.toLowerCase().contains(query) ||
+                subject.courseName.toLowerCase().contains(query)))
+        .toList();
   }
 
   /// Sorts [subjectList] newest first.

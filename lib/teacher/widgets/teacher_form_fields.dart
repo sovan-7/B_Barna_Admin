@@ -192,8 +192,7 @@ class TeacherRoleSelector extends StatelessWidget {
   Widget _option(String role) {
     final bool selected = selectedRole == role;
     final bool isAdmin = role == roleAdmin;
-    final Color accent =
-        isAdmin ? const Color(0xFFB54708) : const Color(0xFF2563EB);
+    final Color accent = isAdmin ? AppTokens.accentInk : AppTokens.accentInk;
 
     return Material(
       color: selected ? accent.withValues(alpha: .07) : AppTokens.surface,
@@ -321,7 +320,7 @@ class ModuleAccessSection extends StatelessWidget {
   Widget _chip(int index) {
     final String module = moduleList[index];
     final bool selected = selectedModules.contains(module);
-    const Color accent = Color(0xFF2563EB);
+    const Color accent = AppTokens.accentInk;
 
     return Material(
       color: selected ? accent.withValues(alpha: .10) : AppTokens.surface,

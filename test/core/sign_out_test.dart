@@ -38,8 +38,11 @@ Future<void> _signedIn() async {
   sharedPreferences = await SharedPreferences.getInstance();
 }
 
-/// Taps the header's sign-out icon and waits for the alert to settle.
+/// Opens the header's account menu, taps Sign out, and waits for the alert
+/// to settle.
 Future<void> _openAlert(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('app_header_account')));
+  await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('app_header_sign_out')));
   await tester.pumpAndSettle();
 }

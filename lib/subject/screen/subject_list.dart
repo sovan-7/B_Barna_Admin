@@ -1,4 +1,7 @@
+import 'package:bbarna/core/viewModel/catalogue_filter.dart';
 import 'package:bbarna/core/widgets/add_widget.dart';
+import 'package:bbarna/core/widgets/list_page/filter_chips.dart';
+import 'package:bbarna/core/widgets/list_page/stats_strip.dart';
 import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_frame.dart';
@@ -11,6 +14,7 @@ import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/subject/screen/add_subject.dart';
 import 'package:bbarna/subject/viewModel/subject_view_model.dart';
 import 'package:bbarna/subject/widgets/subject_card.dart';
+import 'package:bbarna/subject/widgets/subject_table.dart';
 import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -74,11 +78,46 @@ class _SubjectListState extends State<SubjectList> {
             ),
           ),
           const SizedBox(height: AppTokens.gapMd),
-          ListSearchField(
-            controller: searchController,
-            hintText: "Search by subject, code or course",
-            onChanged: (text) => _search(subjectViewModel, text),
-            onCleared: () => _search(subjectViewModel, ""),
+          StatsStrip(tiles: [
+            StatTile.count(
+                key: const Key('subject_stat_total'),
+                label: "Total",
+                count: subjectViewModel.totalCount),
+            StatTile.count(
+                key: const Key('subject_stat_visible'),
+                label: "Visible",
+                count: subjectViewModel.visibleCount),
+            StatTile.count(
+                key: const Key('subject_stat_hidden'),
+                label: "Hidden",
+                count: subjectViewModel.hiddenCount),
+            StatTile.count(
+                key: const Key('subject_stat_popular'),
+                label: "Popular",
+                count: subjectViewModel.popularCount),
+          ]),
+          const SizedBox(height: AppTokens.gapMd),
+          ListToolbar(
+            search: ListSearchField(
+              controller: searchController,
+              hintText: "Search by subject, code or course",
+              onChanged: (text) => _search(subjectViewModel, text),
+              onCleared: () => _search(subjectViewModel, ""),
+            ),
+            filters: [
+              FilterDropdown<String>(
+                dropdownKey: const Key('subject_course_filter'),
+                allLabel: "All courses",
+                options: subjectViewModel.courseOptions,
+                selected: subjectViewModel.courseFilter,
+                onChanged: subjectViewModel.setCourseFilter,
+              ),
+              FilterChipBar<CatalogueFilter>(
+                options: CatalogueFilter.options('subject'),
+                selected: subjectViewModel.statusFilter,
+                onChanged: subjectViewModel.setStatusFilter,
+              ),
+            ],
           ),
           const SizedBox(height: AppTokens.gapMd),
           Expanded(child: _body(subjectViewModel)),
@@ -121,23 +160,30 @@ class _SubjectListState extends State<SubjectList> {
     }
     if (subjects.isEmpty) {
       return ListEmptyState(
-        isFiltered: searchController.text.trim().isNotEmpty,
+        isFiltered: searchController.text.trim().isNotEmpty ||
+            subjectViewModel.statusFilter != CatalogueFilter.all ||
+            subjectViewModel.courseFilter != null,
         icon: Icons.library_books_outlined,
         title: "No subjects yet",
         message: "Subjects sit under a course, and units hang off them.",
-        filteredMessage: "No subject matches that name, code or course.",
+        filteredMessage: "No subject matches that search or filter.",
         addLabel: "Add a subject",
         onAdd: () => _openAdd(subjectViewModel),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
-      itemCount: subjects.length,
-      itemBuilder: (context, index) => SubjectCard(
-        key: ValueKey(subjects[index].docId),
-        subjectData: subjects[index],
-        onChanged: subjectViewModel.getSubjectList,
+    return WideOrNarrow(
+      minWidth: SubjectTable.minWidth,
+      wide: (context) => SubjectTable(
+          subjects: subjects, onChanged: subjectViewModel.getSubjectList),
+      narrow: (context) => ListView.builder(
+        padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
+        itemCount: subjects.length,
+        itemBuilder: (context, index) => SubjectCard(
+          key: ValueKey(subjects[index].docId),
+          subjectData: subjects[index],
+          onChanged: subjectViewModel.getSubjectList,
+        ),
       ),
     );
   }

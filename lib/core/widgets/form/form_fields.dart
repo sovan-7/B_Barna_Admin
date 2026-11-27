@@ -1,6 +1,8 @@
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:bbarna/utils/formatters.dart';
 import 'package:bbarna/utils/image_sizing.dart';
+import 'package:bbarna/core/widgets/dashed_border.dart';
+import 'package:bbarna/core/widgets/form/form_dirty_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -124,7 +126,10 @@ class FormTextField extends StatelessWidget {
             maxLines: maxLines,
             keyboardType: keyboardType,
             inputFormatters: inputFormatters,
-            onChanged: onChanged == null ? null : (_) => onChanged(),
+            onChanged: (_) {
+              FormDirtyScope.markDirty(context);
+              onChanged?.call();
+            },
             style: const TextStyle(fontSize: 13.5, color: AppTokens.ink),
             decoration: InputDecoration(
               isDense: true,
@@ -208,9 +213,14 @@ class FormToggleRow extends StatelessWidget {
         const SizedBox(width: AppTokens.gapMd),
         Switch(
           value: value,
-          onChanged: onChanged,
+          onChanged: onChanged == null
+              ? null
+              : (value) {
+                  FormDirtyScope.markDirty(context);
+                  onChanged!(value);
+                },
           activeThumbColor: Colors.white,
-          activeTrackColor: AppTokens.ink,
+          activeTrackColor: AppTokens.accent,
         ),
       ],
     );
@@ -271,8 +281,36 @@ class FormImagePickerField extends StatelessWidget {
     final String? error = this.error;
     final Uint8List? bytes = this.bytes;
     final bool hasNew = bytes != null;
+    // A newly picked image is an unsaved change.
+    if (hasNew) FormDirtyScope.markDirtyAfterFrame(context);
     final bool hasExisting = existingUrl.trim().isNotEmpty;
 
+    // The whole field is a dashed "browse" zone; a click anywhere on it
+    // picks a file.
+    return Material(
+      color: error != null
+          ? AppTokens.dangerFill.withValues(alpha: .4)
+          : AppTokens.accentTint.withValues(alpha: .35),
+      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+      child: InkWell(
+        key: const Key('form_image_browse_zone'),
+        onTap: enabled ? onPick : null,
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        child: CustomPaint(
+          painter: DashedBorderPainter(
+              color: error != null ? AppTokens.danger : AppTokens.inkFaint),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: _content(context, error, bytes, hasNew, hasExisting),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Preview, file name / hint and the buttons.
+  Widget _content(BuildContext context, String? error, Uint8List? bytes,
+      bool hasNew, bool hasExisting) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -299,7 +337,7 @@ class FormImagePickerField extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppTokens.radiusMd - 1),
                   child: hasNew
                       ? Image(
-                          image: sizedForBox(context, MemoryImage(bytes), 108),
+                          image: sizedForBox(context, MemoryImage(bytes!), 108),
                           fit: BoxFit.cover)
                       : hasExisting
                           ? Image(
@@ -334,13 +372,17 @@ class FormImagePickerField extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 hasNew
-                    ? readableFileSize(bytes.lengthInBytes)
-                    : "Square images work best — it is shown as a thumbnail.",
+                    ? readableFileSize(bytes!.lengthInBytes)
+                    : "Click here to browse. Square images work best — it "
+                        "is shown as a thumbnail.",
                 style: const TextStyle(
                     fontSize: 11.5, height: 1.35, color: AppTokens.inkFaint),
               ),
               const SizedBox(height: 10),
-              Row(
+              // Wraps on a phone rather than overflowing the zone.
+              Wrap(
+                spacing: AppTokens.gapSm,
+                runSpacing: 4,
                 children: [
                   OutlinedButton(
                     onPressed: enabled ? onPick : null,
@@ -358,9 +400,13 @@ class FormImagePickerField extends StatelessWidget {
                         style: const TextStyle(fontSize: 12.5)),
                   ),
                   if (hasNew) ...[
-                    const SizedBox(width: AppTokens.gapSm),
                     TextButton(
-                      onPressed: enabled ? onRemove : null,
+                      onPressed: enabled
+                          ? () {
+                              FormDirtyScope.markDirty(context);
+                              onRemove();
+                            }
+                          : null,
                       style: TextButton.styleFrom(
                           foregroundColor: AppTokens.danger,
                           padding: const EdgeInsets.symmetric(horizontal: 10)),
@@ -450,7 +496,10 @@ class FormAccessTypeField extends StatelessWidget {
                         ? Icons.lock_open_outlined
                         : Icons.paid_outlined,
                     selected: selected == type,
-                    onTap: () => onSelect(type),
+                    onTap: () {
+                      FormDirtyScope.markDirty(context);
+                      onSelect(type);
+                    },
                   ),
                 ),
             ],
@@ -591,7 +640,12 @@ class FormDropdownField extends StatelessWidget {
                 color: AppTokens.ink,
                 decoration: TextDecoration.none,
               ),
-              onChanged: onChanged,
+              onChanged: onChanged == null
+                  ? null
+                  : (value) {
+                      FormDirtyScope.markDirty(context);
+                      onChanged!(value);
+                    },
               items: items
                   .map((String item) => DropdownMenuItem<String>(
                         value: item,

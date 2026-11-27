@@ -84,7 +84,7 @@ class _AudioCardState extends State<AudioCard> {
           ),
           child: Icon(Icons.headphones_outlined,
               size: 20,
-              color: hasFile ? const Color(0xFFD92D20) : AppTokens.inkFaint),
+              color: hasFile ? AppTokens.accentInk : AppTokens.inkFaint),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -135,10 +135,10 @@ class _AudioCardState extends State<AudioCard> {
                                 style: TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF2563EB))),
+                                    color: AppTokens.accentInk)),
                             SizedBox(width: 4),
                             Icon(Icons.open_in_new,
-                                size: 12, color: Color(0xFF2563EB)),
+                                size: 12, color: AppTokens.accentInk),
                           ],
                         ),
                       ),
@@ -158,8 +158,7 @@ class _AudioCardState extends State<AudioCard> {
   /// Status chips shown beside (or, when compact, under) the identity.
   Widget _chips() {
     final bool isFree = _data.audioType.toUpperCase() == "FREE";
-    final Color typeColor =
-        isFree ? const Color(0xFF108460) : const Color(0xFFB54708);
+    final Color typeColor = isFree ? AppTokens.accentInk : AppTokens.accentInk;
 
     return StatusChip(
       icon: isFree ? Icons.lock_open_outlined : Icons.paid_outlined,
@@ -172,43 +171,51 @@ class _AudioCardState extends State<AudioCard> {
   }
 
   /// Row buttons; faded in on hover, always shown on compact screens.
-  Widget _actions(bool visible) {
-    return CardActions(
-      visible: visible,
-      buttons: [
-        CardEditButton(
-          buttonKey: Key('audio_edit_${_data.docId}'),
-          tooltip: "Edit audio",
-          onTap: _openEdit,
-        ),
-        CardDeleteButton(
-          buttonKey: Key('audio_delete_${_data.docId}'),
-          tooltip: "Delete audio",
-          onTap: _confirmDelete,
-        ),
-      ],
-    );
-  }
+  Widget _actions(bool visible) =>
+      audioActions(context, _data, widget.onChanged, visible);
+}
 
-  /// Opens the edit screen; the list reloads if it saved or deleted
-  /// something.
-  void _openEdit() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EditAudio(audioData: _data)),
-    ).ifSaved(widget.onChanged);
-  }
+/// Row buttons for [data], shared by the card and the table row (same
+/// keys); faded in on hover, always shown on compact screens.
+Widget audioActions(BuildContext context, AudioModel data,
+    VoidCallback onChanged, bool visible) {
+  return CardActions(
+    visible: visible,
+    buttons: [
+      CardEditButton(
+        buttonKey: Key('audio_edit_${data.docId}'),
+        tooltip: "Edit audio",
+        onTap: () => openEditAudio(context, data, onChanged),
+      ),
+      CardDeleteButton(
+        buttonKey: Key('audio_delete_${data.docId}'),
+        tooltip: "Delete audio",
+        onTap: () => confirmDeleteAudio(context, data, onChanged),
+      ),
+    ],
+  );
+}
 
-  /// Asks for confirmation, then deletes this item.
-  void _confirmDelete() {
-    final AudioViewModel audioViewModel =
-        Provider.of<AudioViewModel>(context, listen: false);
-    final String docId = _data.docId;
+/// Opens the edit screen; the list reloads if it saved or deleted
+/// something.
+void openEditAudio(
+    BuildContext context, AudioModel data, VoidCallback onChanged) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => EditAudio(audioData: data)),
+  ).ifSaved(onChanged);
+}
 
-    confirmDelete(
-      title: _data.title,
-      delete: () => audioViewModel.deleteAudio(docId),
-      successMessage: "Audio deleted successfully",
-    );
-  }
+/// Asks for confirmation, then deletes this item.
+void confirmDeleteAudio(
+    BuildContext context, AudioModel data, VoidCallback onChanged) {
+  final AudioViewModel audioViewModel =
+      Provider.of<AudioViewModel>(context, listen: false);
+  final String docId = data.docId;
+
+  confirmDelete(
+    title: data.title,
+    delete: () => audioViewModel.deleteAudio(docId),
+    successMessage: "Audio deleted successfully",
+  );
 }

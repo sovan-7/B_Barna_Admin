@@ -123,7 +123,7 @@ class _TransactionDetailsDialogState extends State<TransactionDetailsDialog> {
         FilledButton.icon(
           key: const Key('transaction_download_receipt'),
           style: FilledButton.styleFrom(
-            backgroundColor: AppTokens.ink,
+            backgroundColor: AppTokens.accent,
             foregroundColor: AppTokens.surface,
           ),
           onPressed: _saving ? null : _downloadReceipt,

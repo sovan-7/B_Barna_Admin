@@ -4,6 +4,7 @@ import 'package:bbarna/student/model/enrolled_course_model.dart';
 import 'package:bbarna/student/model/student_model.dart';
 import 'package:bbarna/subject/model/subject_model.dart';
 import 'package:bbarna/units/model/unit_model.dart';
+import 'package:bbarna/core/repo/firestore_pager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// How the student list is ordered.
@@ -101,6 +102,26 @@ class StudentRepo {
     return snapshot.docs
         .map((doc) => Student.fromDocumentSnapshot(doc))
         .toList();
+  }
+
+  /// Active today / active this week / signed in on a phone, for the
+  /// tiles above the list. `login_time` is the last sign-in in epoch
+  /// milliseconds; a phone holds the login while `active_device_id` is set.
+  Future<Map<String, int>> getStudentStats({DateTime? now}) async {
+    final DateTime at = now ?? DateTime.now();
+    final int startOfToday =
+        DateTime(at.year, at.month, at.day).millisecondsSinceEpoch;
+    final int weekAgo =
+        at.subtract(const Duration(days: 7)).millisecondsSinceEpoch;
+    final CollectionReference<Map<String, dynamic>> students =
+        _firestore.collection(student);
+    final List<int> counts = await Future.wait([
+      countQuery(
+          students.where("login_time", isGreaterThanOrEqualTo: startOfToday)),
+      countQuery(students.where("login_time", isGreaterThanOrEqualTo: weekAgo)),
+      countQuery(students.where("active_device_id", isNotEqualTo: "")),
+    ]);
+    return {"today": counts[0], "week": counts[1], "signedIn": counts[2]};
   }
 
   /// Total students in the collection.

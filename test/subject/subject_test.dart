@@ -89,11 +89,17 @@ List<SubjectModel> _fixture() => [
     ];
 
 CourseModel _course(String code, String name) {
-  final CourseModel model =
-      CourseModel(code, "", name, "", 1, 0, true, false);
+  final CourseModel model = CourseModel(code, "", name, "", 1, 0, true, false);
   model.docId = code;
   return model;
 }
+
+/// Subject rows on screen: table rows on wide windows, cards on narrow.
+Finder _rows() => find.byWidgetPredicate((widget) {
+      if (widget is SubjectCard) return true;
+      final Key? key = widget.key;
+      return key is ValueKey<String> && key.value.startsWith('subject_row_');
+    });
 
 const List<Size> _sizes = [
   Size(1440, 900),
@@ -105,8 +111,8 @@ const List<Size> _sizes = [
 late MockSubjectRepo repo;
 late MockCourseRepo courseRepo;
 
-Future<void> _pump(WidgetTester tester, Size size, Widget home,
-    SubjectViewModel vm) async {
+Future<void> _pump(
+    WidgetTester tester, Size size, Widget home, SubjectViewModel vm) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
@@ -149,7 +155,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text('Subjects'), findsOneWidget);
-        expect(find.byType(SubjectCard), findsNWidgets(3));
+        expect(_rows(), size.width < 900 ? findsWidgets : findsNWidgets(3));
       });
 
       testWidgets('the add form lays out at ${size.width.toInt()}',
@@ -182,8 +188,7 @@ void main() {
       expect(vm.subjectList.map((s) => s.docId).toList(), ['a', 'b', 'c']);
     });
 
-    testWidgets('search matches subject, code or course name',
-        (tester) async {
+    testWidgets('search matches subject, code or course name', (tester) async {
       final vm = SubjectViewModel(subjectRepo: repo);
       await _pump(tester, const Size(1440, 900),
           const Scaffold(body: SubjectList()), vm);
@@ -191,15 +196,15 @@ void main() {
       // By course — the old search only looked at code and name.
       await tester.enterText(find.byType(TextField).first, 'chemistry');
       await tester.pump();
-      expect(find.byType(SubjectCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
 
       await tester.enterText(find.byType(TextField).first, 'trig');
       await tester.pump();
-      expect(find.byType(SubjectCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
 
       await tester.enterText(find.byType(TextField).first, '');
       await tester.pump();
-      expect(find.byType(SubjectCard), findsNWidgets(3));
+      expect(_rows(), findsNWidgets(3));
     });
 
     testWidgets('a search survives the round trip to Add', (tester) async {
@@ -209,7 +214,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField).first, 'chemistry');
       await tester.pump();
-      expect(find.byType(SubjectCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
 
       await tester.tap(find.text('NEW SUBJECT'));
       await tester.pumpAndSettle();
@@ -222,7 +227,7 @@ void main() {
       // kept its text while the list showed everything.
       verify(() => repo.getSubjectList()).called(2);
       expect(find.widgetWithText(TextField, 'chemistry'), findsOneWidget);
-      expect(find.byType(SubjectCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
     });
 
     testWidgets('a search is put back when the list is opened again',
@@ -239,7 +244,7 @@ void main() {
           const Scaffold(body: SubjectList()), vm);
 
       expect(find.widgetWithText(TextField, 'trig'), findsOneWidget);
-      expect(find.byType(SubjectCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
     });
 
     testWidgets('an empty result says which kind of empty it is',
@@ -260,8 +265,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a discounted subject shows what students pay',
-        (tester) async {
+    testWidgets('a discounted subject shows what students pay', (tester) async {
       final vm = SubjectViewModel(subjectRepo: repo);
       await _pump(tester, const Size(1440, 900),
           const Scaffold(body: SubjectList()), vm);
@@ -363,8 +367,7 @@ void main() {
       when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
 
       final vm = SubjectViewModel(subjectRepo: repo);
-      expect(
-          await vm.updateSubject(_subject('a', 'MECH', 'Mechanics'), 'a'),
+      expect(await vm.updateSubject(_subject('a', 'MECH', 'Mechanics'), 'a'),
           isTrue);
 
       verifyNever(() => repo.uploadSubjectImage(any(), any()));
@@ -392,8 +395,7 @@ void main() {
       verifyNever(() => repo.addSubject(any()));
     });
 
-    testWidgets('a selling price above the price is rejected',
-        (tester) async {
+    testWidgets('a selling price above the price is rejected', (tester) async {
       final vm = SubjectViewModel(subjectRepo: repo);
       await _pump(tester, const Size(1024, 900),
           EditSubject(subjectData: _fixture().first), vm);
@@ -437,273 +439,335 @@ void main() {
       expect(find.text('Physics — Class 11'), findsWidgets);
     });
 
-  // The name and the code are what an admin pastes elsewhere -- into a
-  // search box, a spreadsheet, another module's form -- so they render as
-  // SelectableLabel rather than plain Text.
-  testWidgets('names and codes in the list are selectable', (tester) async {
-    await _pump(tester, const Size(1440, 900),
-        const Scaffold(body: SubjectList()), SubjectViewModel(subjectRepo: repo));
+    // The name and the code are what an admin pastes elsewhere -- into a
+    // search box, a spreadsheet, another module's form -- so they render as
+    // SelectableLabel rather than plain Text.
+    testWidgets('names and codes in the list are selectable', (tester) async {
+      await _pump(
+          tester,
+          const Size(1440, 900),
+          const Scaffold(body: SubjectList()),
+          SubjectViewModel(subjectRepo: repo));
 
-    final Iterable<SelectableLabel> labels =
-        tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
-    expect(labels, isNotEmpty);
-    for (final SelectableLabel label in labels) {
-      expect(label.data.trim(), isNotEmpty);
-    }
-    // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
-    expect(
-      find.descendant(
-        of: find.byType(SelectableLabel),
-        matching: find.byType(SelectableText),
-      ),
-      findsWidgets,
-    );
-  });
-
-  /// Coupons live on the subject document and are written outside this
-  /// panel, so until now an admin had no way to see which subjects carried
-  /// one or whether a code had already lapsed.
-  group('the coupon', () {
-    final int now = DateTime.now().millisecondsSinceEpoch;
-
-    Future<void> pumpWith(WidgetTester tester, SubjectModel subject) async {
-      when(() => repo.getSubjectList()).thenAnswer((_) async => [subject]);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: SubjectList()), SubjectViewModel(subjectRepo: repo));
-    }
-
-    testWidgets('the code is shown, and is selectable to copy',
-        (tester) async {
-      await pumpWith(
-        tester,
-        _subject('a', 'MECH', 'Mechanics',
-            couponCode: 'NEWYEAR50', couponDiscount: 100, couponValidTill: 0),
-      );
-
-      expect(find.text('NEWYEAR50'), findsOneWidget);
+      final Iterable<SelectableLabel> labels =
+          tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
+      expect(labels, isNotEmpty);
+      for (final SelectableLabel label in labels) {
+        expect(label.data.trim(), isNotEmpty);
+      }
+      // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
       expect(
-        find.byWidgetPredicate(
-            (w) => w is SelectableLabel && w.data == 'NEWYEAR50'),
-        findsOneWidget,
-        reason: 'a coupon code exists to be copied somewhere else',
+        find.descendant(
+          of: find.byType(SelectableLabel),
+          matching: find.byType(SelectableText),
+        ),
+        findsWidgets,
       );
     });
 
-    testWidgets('the saving is a rupee amount, not a percentage',
-        (tester) async {
-      await pumpWith(
-        tester,
-        _subject('a', 'MECH', 'Mechanics',
-            couponCode: 'NEWYEAR50', couponDiscount: 100),
-      );
+    /// Coupons live on the subject document and are written outside this
+    /// panel, so until now an admin had no way to see which subjects carried
+    /// one or whether a code had already lapsed.
+    group('stats and filters', () {
+      List<SubjectModel> twoCourses() {
+        final List<SubjectModel> subjects = _fixture();
+        subjects[1].courseCode = 'CHEM-12';
+        return subjects;
+      }
 
-      // The student app applies it as sellingPrice - couponDiscount.
-      expect(find.text(' · ₹100 off'), findsOneWidget);
+      testWidgets('the tiles count every subject', (tester) async {
+        when(() => repo.getSubjectList()).thenAnswer((_) async => twoCourses());
+        await _pump(
+            tester,
+            const Size(1440, 900),
+            const Scaffold(body: SubjectList()),
+            SubjectViewModel(subjectRepo: repo));
+
+        String value(String key) => (tester
+                .widget<Text>(find
+                    .descendant(
+                        of: find.byKey(Key(key)), matching: find.byType(Text))
+                    .at(1))
+                .data ??
+            '');
+        expect(value('subject_stat_total'), '3');
+        expect(value('subject_stat_visible'), '2');
+        expect(value('subject_stat_hidden'), '1');
+        expect(value('subject_stat_popular'), '1');
+      });
+
+      testWidgets(
+          'the course filter offers each course once and narrows the list',
+          (tester) async {
+        when(() => repo.getSubjectList()).thenAnswer((_) async => twoCourses());
+        final vm = SubjectViewModel(subjectRepo: repo);
+        await _pump(tester, const Size(1440, 900),
+            const Scaffold(body: SubjectList()), vm);
+
+        expect(vm.courseOptions, {
+          'CHEM-12': 'Chemistry — Class 12',
+          'PHY-11': 'Physics — Class 11',
+        });
+
+        vm.setCourseFilter('CHEM-12');
+        await tester.pump();
+        expect(_rows(), findsOneWidget);
+        expect(vm.subjectList.single.docId, 'b');
+
+        // Combines with the status chips.
+        await tester.tap(find.byKey(const Key('subject_filter_hidden')));
+        await tester.pump();
+        expect(find.text('No matches'), findsOneWidget);
+
+        vm.setCourseFilter(null);
+        await tester.pump();
+        expect(vm.subjectList.single.docId, 'c');
+      });
     });
 
-    testWidgets('a lapsed coupon is called out rather than advertised',
-        (tester) async {
-      await pumpWith(
-        tester,
-        _subject('a', 'MECH', 'Mechanics',
-            couponCode: 'OLDCODE',
-            couponDiscount: 50,
-            couponValidTill: now - const Duration(days: 2).inMilliseconds),
-      );
+    group('the coupon', () {
+      final int now = DateTime.now().millisecondsSinceEpoch;
 
-      expect(find.text('OLDCODE'), findsOneWidget);
-      expect(find.text(' · expired'), findsOneWidget);
+      Future<void> pumpWith(WidgetTester tester, SubjectModel subject) async {
+        when(() => repo.getSubjectList()).thenAnswer((_) async => [subject]);
+        await _pump(
+            tester,
+            const Size(1440, 900),
+            const Scaffold(body: SubjectList()),
+            SubjectViewModel(subjectRepo: repo));
+      }
+
+      testWidgets('the code is shown, and is selectable to copy',
+          (tester) async {
+        await pumpWith(
+          tester,
+          _subject('a', 'MECH', 'Mechanics',
+              couponCode: 'NEWYEAR50', couponDiscount: 100, couponValidTill: 0),
+        );
+
+        expect(find.text('NEWYEAR50'), findsOneWidget);
+        expect(
+          find.byWidgetPredicate(
+              (w) => w is SelectableLabel && w.data == 'NEWYEAR50'),
+          findsOneWidget,
+          reason: 'a coupon code exists to be copied somewhere else',
+        );
+      });
+
+      testWidgets('the saving is a rupee amount, not a percentage',
+          (tester) async {
+        await pumpWith(
+          tester,
+          _subject('a', 'MECH', 'Mechanics',
+              couponCode: 'NEWYEAR50', couponDiscount: 100),
+        );
+
+        // The student app applies it as sellingPrice - couponDiscount.
+        expect(find.text(' · ₹100 off'), findsOneWidget);
+      });
+
+      testWidgets('a lapsed coupon is called out rather than advertised',
+          (tester) async {
+        await pumpWith(
+          tester,
+          _subject('a', 'MECH', 'Mechanics',
+              couponCode: 'OLDCODE',
+              couponDiscount: 50,
+              couponValidTill: now - const Duration(days: 2).inMilliseconds),
+        );
+
+        expect(find.text('OLDCODE'), findsOneWidget);
+        expect(find.text(' · expired'), findsOneWidget);
+      });
+
+      testWidgets('a coupon still in date is not marked expired',
+          (tester) async {
+        await pumpWith(
+          tester,
+          _subject('a', 'MECH', 'Mechanics',
+              couponCode: 'LIVECODE',
+              couponDiscount: 50,
+              couponValidTill: now + const Duration(days: 2).inMilliseconds),
+        );
+
+        expect(find.text('LIVECODE'), findsOneWidget);
+        expect(find.text(' · expired'), findsNothing);
+      });
+
+      testWidgets('a subject with no coupon shows no chip', (tester) async {
+        await pumpWith(tester, _subject('a', 'MECH', 'Mechanics'));
+
+        expect(find.byIcon(Icons.local_offer_outlined), findsNothing);
+      });
+
+      test('saving a subject carries the coupon code, discount and expiry', () {
+        final SubjectModel subject = _subject('a', 'MECH', 'Mechanics',
+            couponCode: 'NEWYEAR50', couponDiscount: 100, couponValidTill: 999);
+
+        final Map<String, dynamic> written = subject.toMap();
+        expect(written['couponCode'], 'NEWYEAR50');
+        expect(written['couponDiscount'], 100);
+        expect(written['couponValidTill'], 999);
+      });
+
+      test('a blank coupon in the model writes the NA/-1 defaults', () {
+        final SubjectModel subject = _subject('a', 'MECH', 'Mechanics');
+
+        final Map<String, dynamic> written = subject.toMap();
+        expect(written['couponCode'], stringDefault);
+        expect(written['couponDiscount'], doubleDefault);
+        expect(written['couponValidTill'], intDefault);
+      });
     });
 
-    testWidgets('a coupon still in date is not marked expired',
-        (tester) async {
-      await pumpWith(
-        tester,
-        _subject('a', 'MECH', 'Mechanics',
-            couponCode: 'LIVECODE',
-            couponDiscount: 50,
-            couponValidTill: now + const Duration(days: 2).inMilliseconds),
-      );
+    group('editing the coupon in the form', () {
+      testWidgets('an existing coupon prefills the code and discount fields',
+          (tester) async {
+        final SubjectModel withCoupon = _subject('a', 'MECH', 'Mechanics',
+            couponCode: 'NEWYEAR50', couponDiscount: 100, couponValidTill: 0);
+        final vm = SubjectViewModel(subjectRepo: repo);
+        await _pump(tester, const Size(1024, 900),
+            EditSubject(subjectData: withCoupon), vm);
 
-      expect(find.text('LIVECODE'), findsOneWidget);
-      expect(find.text(' · expired'), findsNothing);
+        expect(find.text('NEWYEAR50'), findsOneWidget);
+        expect(find.text('100'), findsOneWidget);
+      });
+
+      testWidgets('a coupon code without a discount blocks submission',
+          (tester) async {
+        final vm = SubjectViewModel(subjectRepo: repo);
+        await _pump(tester, const Size(1024, 900),
+            EditSubject(subjectData: _fixture().first), vm);
+
+        // Coupon code is the 9th TextField: code, priority, name, description,
+        // video, validity, price, selling price, coupon code, coupon discount
+        // -- the form's own layout order.
+        final Finder fields = find.byType(TextField);
+        await tester.enterText(fields.at(8), 'SAVE10');
+        await tester.pump();
+
+        await tester.tap(find.byKey(const Key('subject_save_button')));
+        await tester.pump();
+
+        expect(find.text('Set a discount for this coupon'), findsOneWidget);
+        verifyNever(() => repo.updateSubject(any(), any()));
+      });
+
+      testWidgets('a coupon without a valid-till date blocks submission',
+          (tester) async {
+        final vm = SubjectViewModel(subjectRepo: repo);
+        await _pump(tester, const Size(1024, 900),
+            EditSubject(subjectData: _fixture().first), vm);
+
+        final Finder fields = find.byType(TextField);
+        await tester.enterText(fields.at(8), 'SAVE10');
+        await tester.enterText(fields.at(9), '10');
+        await tester.pump();
+
+        await tester.tap(find.byKey(const Key('subject_save_button')));
+        await tester.pump();
+
+        expect(find.text('Set how long this coupon is valid'), findsOneWidget);
+        verifyNever(() => repo.updateSubject(any(), any()));
+      });
+
+      testWidgets('a quick pick in the calendar sets the valid-till date',
+          (tester) async {
+        when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
+        final vm = SubjectViewModel(subjectRepo: repo);
+        await _pump(tester, const Size(1024, 900),
+            EditSubject(subjectData: _fixture().first), vm);
+
+        final Finder fields = find.byType(TextField);
+        await tester.enterText(fields.at(8), 'SAVE10');
+        await tester.enterText(fields.at(9), '10');
+        await tester.pump();
+
+        final Finder validTill =
+            find.byKey(const Key('subject_coupon_valid_till'));
+        await tester.ensureVisible(validTill);
+        await tester.tap(validTill);
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('2 weeks'));
+        await tester.pump();
+        expect(find.text('Expires in 14 days'), findsOneWidget);
+
+        await tester.tap(find.byKey(const Key('valid_till_confirm')));
+        await tester.pumpAndSettle();
+
+        final DateTime inTwoWeeks =
+            DateUtils.dateOnly(DateTime.now()).add(const Duration(days: 14));
+        expect(find.text(DateFormat('d MMM yyyy').format(inTwoWeeks)),
+            findsOneWidget);
+
+        await tester.tap(find.byKey(const Key('subject_save_button')));
+        await tester.pump();
+        await tester.pump();
+
+        final SubjectModel saved =
+            verify(() => repo.updateSubject(captureAny(), 'a')).captured.single
+                as SubjectModel;
+        expect(
+            saved.couponValidTill,
+            DateTime(inTwoWeeks.year, inTwoWeeks.month, inTwoWeeks.day, 23, 59,
+                    59, 999)
+                .millisecondsSinceEpoch);
+      });
+
+      testWidgets('an existing expiry is prefilled and saved back',
+          (tester) async {
+        when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
+        final DateTime inAWeek = DateTime.now().add(const Duration(days: 7));
+        final int validTill =
+            DateTime(inAWeek.year, inAWeek.month, inAWeek.day, 23, 59, 59, 999)
+                .millisecondsSinceEpoch;
+        final SubjectModel withCoupon = _subject('a', 'MECH', 'Mechanics',
+            couponCode: 'NEWYEAR50',
+            couponDiscount: 100,
+            couponValidTill: validTill);
+        final vm = SubjectViewModel(subjectRepo: repo);
+        await _pump(tester, const Size(1024, 900),
+            EditSubject(subjectData: withCoupon), vm);
+
+        expect(find.text(DateFormat('d MMM yyyy').format(inAWeek)),
+            findsOneWidget);
+
+        await tester.tap(find.byKey(const Key('subject_save_button')));
+        await tester.pump();
+        await tester.pump();
+
+        final SubjectModel saved =
+            verify(() => repo.updateSubject(captureAny(), 'a')).captured.single
+                as SubjectModel;
+        expect(saved.toMap()['couponValidTill'], validTill);
+      });
+
+      testWidgets('leaving both coupon fields blank on save clears the coupon',
+          (tester) async {
+        when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
+        final SubjectModel withCoupon = _subject('a', 'MECH', 'Mechanics',
+            couponCode: 'NEWYEAR50', couponDiscount: 100, couponValidTill: 0);
+        final vm = SubjectViewModel(subjectRepo: repo);
+        await _pump(tester, const Size(1024, 900),
+            EditSubject(subjectData: withCoupon), vm);
+
+        final Finder fields = find.byType(TextField);
+        await tester.enterText(fields.at(8), '');
+        await tester.enterText(fields.at(9), '');
+        await tester.pump();
+
+        await tester.tap(find.byKey(const Key('subject_save_button')));
+        await tester.pump();
+        await tester.pump();
+
+        final SubjectModel saved =
+            verify(() => repo.updateSubject(captureAny(), 'a')).captured.single
+                as SubjectModel;
+        expect(saved.toMap()['couponCode'], stringDefault);
+        expect(saved.toMap()['couponDiscount'], doubleDefault);
+      });
     });
-
-    testWidgets('a subject with no coupon shows no chip', (tester) async {
-      await pumpWith(tester, _subject('a', 'MECH', 'Mechanics'));
-
-      expect(find.byIcon(Icons.local_offer_outlined), findsNothing);
-    });
-
-    test('saving a subject carries the coupon code, discount and expiry', () {
-      final SubjectModel subject = _subject('a', 'MECH', 'Mechanics',
-          couponCode: 'NEWYEAR50', couponDiscount: 100, couponValidTill: 999);
-
-      final Map<String, dynamic> written = subject.toMap();
-      expect(written['couponCode'], 'NEWYEAR50');
-      expect(written['couponDiscount'], 100);
-      expect(written['couponValidTill'], 999);
-    });
-
-    test('a blank coupon in the model writes the NA/-1 defaults', () {
-      final SubjectModel subject = _subject('a', 'MECH', 'Mechanics');
-
-      final Map<String, dynamic> written = subject.toMap();
-      expect(written['couponCode'], stringDefault);
-      expect(written['couponDiscount'], doubleDefault);
-      expect(written['couponValidTill'], intDefault);
-    });
-  });
-
-  group('editing the coupon in the form', () {
-    testWidgets('an existing coupon prefills the code and discount fields',
-        (tester) async {
-      final SubjectModel withCoupon = _subject('a', 'MECH', 'Mechanics',
-          couponCode: 'NEWYEAR50', couponDiscount: 100, couponValidTill: 0);
-      final vm = SubjectViewModel(subjectRepo: repo);
-      await _pump(tester, const Size(1024, 900),
-          EditSubject(subjectData: withCoupon), vm);
-
-      expect(find.text('NEWYEAR50'), findsOneWidget);
-      expect(find.text('100'), findsOneWidget);
-    });
-
-    testWidgets('a coupon code without a discount blocks submission',
-        (tester) async {
-      final vm = SubjectViewModel(subjectRepo: repo);
-      await _pump(tester, const Size(1024, 900),
-          EditSubject(subjectData: _fixture().first), vm);
-
-      // Coupon code is the 9th TextField: code, priority, name, description,
-      // video, validity, price, selling price, coupon code, coupon discount
-      // -- the form's own layout order.
-      final Finder fields = find.byType(TextField);
-      await tester.enterText(fields.at(8), 'SAVE10');
-      await tester.pump();
-
-      await tester.tap(find.byKey(const Key('subject_save_button')));
-      await tester.pump();
-
-      expect(find.text('Set a discount for this coupon'), findsOneWidget);
-      verifyNever(() => repo.updateSubject(any(), any()));
-    });
-
-    testWidgets('a coupon without a valid-till date blocks submission',
-        (tester) async {
-      final vm = SubjectViewModel(subjectRepo: repo);
-      await _pump(tester, const Size(1024, 900),
-          EditSubject(subjectData: _fixture().first), vm);
-
-      final Finder fields = find.byType(TextField);
-      await tester.enterText(fields.at(8), 'SAVE10');
-      await tester.enterText(fields.at(9), '10');
-      await tester.pump();
-
-      await tester.tap(find.byKey(const Key('subject_save_button')));
-      await tester.pump();
-
-      expect(find.text('Set how long this coupon is valid'), findsOneWidget);
-      verifyNever(() => repo.updateSubject(any(), any()));
-    });
-
-    testWidgets('a quick pick in the calendar sets the valid-till date',
-        (tester) async {
-      when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
-      final vm = SubjectViewModel(subjectRepo: repo);
-      await _pump(tester, const Size(1024, 900),
-          EditSubject(subjectData: _fixture().first), vm);
-
-      final Finder fields = find.byType(TextField);
-      await tester.enterText(fields.at(8), 'SAVE10');
-      await tester.enterText(fields.at(9), '10');
-      await tester.pump();
-
-      final Finder validTill = find.byKey(const Key('subject_coupon_valid_till'));
-      await tester.ensureVisible(validTill);
-      await tester.tap(validTill);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('2 weeks'));
-      await tester.pump();
-      expect(find.text('Expires in 14 days'), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('valid_till_confirm')));
-      await tester.pumpAndSettle();
-
-      final DateTime inTwoWeeks =
-          DateUtils.dateOnly(DateTime.now()).add(const Duration(days: 14));
-      expect(find.text(DateFormat('d MMM yyyy').format(inTwoWeeks)),
-          findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('subject_save_button')));
-      await tester.pump();
-      await tester.pump();
-
-      final SubjectModel saved =
-          verify(() => repo.updateSubject(captureAny(), 'a')).captured.single
-              as SubjectModel;
-      expect(
-          saved.couponValidTill,
-          DateTime(inTwoWeeks.year, inTwoWeeks.month, inTwoWeeks.day, 23, 59,
-                  59, 999)
-              .millisecondsSinceEpoch);
-    });
-
-    testWidgets('an existing expiry is prefilled and saved back',
-        (tester) async {
-      when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
-      final DateTime inAWeek = DateTime.now().add(const Duration(days: 7));
-      final int validTill = DateTime(
-              inAWeek.year, inAWeek.month, inAWeek.day, 23, 59, 59, 999)
-          .millisecondsSinceEpoch;
-      final SubjectModel withCoupon = _subject('a', 'MECH', 'Mechanics',
-          couponCode: 'NEWYEAR50',
-          couponDiscount: 100,
-          couponValidTill: validTill);
-      final vm = SubjectViewModel(subjectRepo: repo);
-      await _pump(tester, const Size(1024, 900),
-          EditSubject(subjectData: withCoupon), vm);
-
-      expect(find.text(DateFormat('d MMM yyyy').format(inAWeek)),
-          findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('subject_save_button')));
-      await tester.pump();
-      await tester.pump();
-
-      final SubjectModel saved =
-          verify(() => repo.updateSubject(captureAny(), 'a')).captured.single
-              as SubjectModel;
-      expect(saved.toMap()['couponValidTill'], validTill);
-    });
-
-    testWidgets('leaving both coupon fields blank on save clears the coupon',
-        (tester) async {
-      when(() => repo.updateSubject(any(), any())).thenAnswer((_) async {});
-      final SubjectModel withCoupon = _subject('a', 'MECH', 'Mechanics',
-          couponCode: 'NEWYEAR50', couponDiscount: 100, couponValidTill: 0);
-      final vm = SubjectViewModel(subjectRepo: repo);
-      await _pump(tester, const Size(1024, 900),
-          EditSubject(subjectData: withCoupon), vm);
-
-      final Finder fields = find.byType(TextField);
-      await tester.enterText(fields.at(8), '');
-      await tester.enterText(fields.at(9), '');
-      await tester.pump();
-
-      await tester.tap(find.byKey(const Key('subject_save_button')));
-      await tester.pump();
-      await tester.pump();
-
-      final SubjectModel saved =
-          verify(() => repo.updateSubject(captureAny(), 'a')).captured.single
-              as SubjectModel;
-      expect(saved.toMap()['couponCode'], stringDefault);
-      expect(saved.toMap()['couponDiscount'], doubleDefault);
-    });
-  });
-
-
   });
 
   group('intro video and validity', () {
@@ -751,8 +815,7 @@ void main() {
 
     testWidgets('an older subject with no validity must get one before saving',
         (tester) async {
-      final SubjectModel older = _fixture().first
-        ..validityMonths = intDefault;
+      final SubjectModel older = _fixture().first..validityMonths = intDefault;
       final vm = SubjectViewModel(subjectRepo: repo);
       await _pump(
           tester, const Size(1024, 900), EditSubject(subjectData: older), vm);
@@ -830,8 +893,7 @@ void main() {
       await tester.tap(find.byKey(const Key('subject_save_button')));
       await tester.pump();
 
-      expect(
-          find.text('Enter 1 to 120 months'), findsOneWidget);
+      expect(find.text('Enter 1 to 120 months'), findsOneWidget);
       verifyNever(() => repo.updateSubject(any(), any()));
     });
 

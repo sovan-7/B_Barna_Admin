@@ -1,30 +1,64 @@
 import 'package:bbarna/core/widgets/selectable_label.dart';
 import 'package:bbarna/resources/app_tokens.dart';
+import 'package:bbarna/utils/helper.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// The small grey box showing an item's code (e.g. "NOTES-01") next to its
-/// title. The text can be selected and copied.
+/// title. The text can be selected and copied; with [copyable] a small
+/// button copies it in one click (codes are what topics and quizzes attach
+/// content by).
 class CodeChip extends StatelessWidget {
   /// The code to show.
   final String code;
 
-  const CodeChip(this.code, {super.key});
+  /// Adds a copy button after the code.
+  final bool copyable;
+
+  const CodeChip(this.code, {this.copyable = false, super.key});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: EdgeInsets.fromLTRB(7, 2, copyable ? 3 : 7, 2),
       decoration: BoxDecoration(
         color: AppTokens.surfaceMuted,
         borderRadius: BorderRadius.circular(AppTokens.radiusSm),
         border: Border.all(color: AppTokens.hairline),
       ),
-      child: SelectableLabel(code,
-          style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.4,
-              color: AppTokens.inkMuted)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: SelectableLabel(code,
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                    color: AppTokens.inkMuted)),
+          ),
+          if (copyable) ...[
+            const SizedBox(width: 2),
+            Tooltip(
+              message: "Copy code",
+              child: InkWell(
+                key: Key('copy_code_$code'),
+                borderRadius: BorderRadius.circular(4),
+                onTap: () async {
+                  await Clipboard.setData(ClipboardData(text: code));
+                  await Helper.showSnackBarMessage(
+                      msg: "Copied $code", isSuccess: true);
+                },
+                child: const Padding(
+                  padding: EdgeInsets.all(2),
+                  child: Icon(Icons.copy_rounded,
+                      size: 12, color: AppTokens.inkFaint),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

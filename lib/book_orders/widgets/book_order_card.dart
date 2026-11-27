@@ -19,13 +19,13 @@ class BookOrderStatusLook {
   static Color color(String status) {
     switch (status) {
       case BookOrderStatus.shipped:
-        return const Color(0xFF175CD3);
+        return AppTokens.accentInk;
       case BookOrderStatus.delivered:
-        return const Color(0xFF108460);
+        return AppTokens.accentInk;
       case BookOrderStatus.cancelled:
         return AppTokens.danger;
       default:
-        return const Color(0xFFB54708);
+        return AppTokens.accentInk;
     }
   }
 
@@ -168,7 +168,8 @@ class BookOrderCard extends StatelessWidget {
         final bool success = await viewModel.setStatus(order, status);
         if (success) {
           Helper.showInfoMessage(
-              msg: "Order marked ${BookOrderStatus.label(status).toLowerCase()}");
+              msg:
+                  "Order marked ${BookOrderStatus.label(status).toLowerCase()}");
         }
       },
       itemBuilder: (context) => [

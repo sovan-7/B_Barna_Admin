@@ -17,13 +17,13 @@ class GroupLook {
   const GroupLook._();
 
   /// The app's default colour: sender names and links.
-  static const Color appColour = Color(0xFF042B6E);
+  static const Color appColour = AppTokens.accentInk;
 
   /// One message's card.
   static const Color card = Color(0xFFF1F2F6);
 
   /// The tick after a sender's name.
-  static const Color verified = Color(0xFF1D9BF0);
+  static const Color verified = AppTokens.accentInk;
 
   /// Role, time and date labels.
   static const Color muted = Color(0xFF8E8E93);

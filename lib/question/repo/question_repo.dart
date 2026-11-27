@@ -100,6 +100,18 @@ class QuestionRepo {
   /// Total questions in the collection.
   Future<int> getQuestionListLength() => countDocuments(_collection);
 
+  /// Added-this-month and without-a-solution counts for the tiles above
+  /// the list. A question saved without a `solution` field at all is not
+  /// in the second count (Firestore cannot count a missing field).
+  Future<Map<String, int>> getQuestionStats() async {
+    final List<int> counts = await Future.wait([
+      countQuery(_collection.where("timeStamp",
+          isGreaterThanOrEqualTo: startOfMonthMillis())),
+      countQuery(_collection.where("solution", isEqualTo: "")),
+    ]);
+    return {"month": counts[0], "noSolution": counts[1]};
+  }
+
   /// Questions whose `question_code` starts with [searchText] (at most
   /// [pageSize], the same as a page of the list).
   Future<List<Question>> searchQuestion(String searchText) async =>

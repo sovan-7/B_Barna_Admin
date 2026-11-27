@@ -7,6 +7,7 @@ import 'package:bbarna/documents/video/screen/video_list.dart';
 import 'package:bbarna/documents/video/viewModel/video_view_model.dart';
 import 'package:bbarna/documents/video/widgets/video_card.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/core/widgets/list_page/table_cells.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -32,8 +33,7 @@ VideoModel _video(
 
 List<VideoModel> _fixture() => [
       _video('a', 'INTRO-01', 'Introduction to Kinematics', timeStamp: 300),
-      _video('b', 'INTRO-02', 'Newton\'s Laws',
-          type: "PAID", timeStamp: 200),
+      _video('b', 'INTRO-02', 'Newton\'s Laws', type: "PAID", timeStamp: 200),
       _video(
           'c',
           'INTRO-03',
@@ -42,6 +42,13 @@ List<VideoModel> _fixture() => [
           link: "",
           timeStamp: 100),
     ];
+
+/// Video rows on screen: table rows on wide windows, cards on narrow.
+Finder _rows() => find.byWidgetPredicate((widget) {
+      if (widget is VideoCard) return true;
+      final Key? key = widget.key;
+      return key is ValueKey<String> && key.value.startsWith('video_row_');
+    });
 
 const List<Size> _sizes = [
   Size(1440, 900),
@@ -85,7 +92,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text('Videos'), findsOneWidget);
-        expect(find.byType(VideoCard), findsNWidgets(3));
+        expect(_rows(), size.width < 900 ? findsWidgets : findsNWidgets(3));
       });
 
       testWidgets('the add form lays out at ${size.width.toInt()}',
@@ -108,12 +115,81 @@ void main() {
     }
   });
 
+  group('stats and chips', () {
+    testWidgets('the tiles come from count queries over the whole collection',
+        (tester) async {
+      when(() => repo.getVideoListLength()).thenAnswer((_) async => 148);
+      when(() => repo.getVideoStats())
+          .thenAnswer((_) async => {"free": 36, "paid": 112, "month": 14});
+      final vm = VideoViewModel(videoRepo: repo);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: VideoList()), vm);
+
+      String value(String key) => (tester
+              .widget<Text>(find
+                  .descendant(
+                      of: find.byKey(Key(key)), matching: find.byType(Text))
+                  .at(1))
+              .data ??
+          '');
+      expect(value('video_stat_total'), '148');
+      expect(value('video_stat_free'), '36');
+      expect(value('video_stat_paid'), '112');
+      expect(value('video_stat_month'), '14');
+    });
+
+    testWidgets('a failed count shows a dash, not a zero', (tester) async {
+      when(() => repo.getVideoStats()).thenThrow(Exception('offline'));
+      final vm = VideoViewModel(videoRepo: repo);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: VideoList()), vm);
+
+      expect(
+          find.descendant(
+              of: find.byKey(const Key('video_stat_free')),
+              matching: find.text('—')),
+          findsOneWidget);
+    });
+
+    testWidgets('the chips narrow the loaded rows and say so', (tester) async {
+      final vm = VideoViewModel(videoRepo: repo);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: VideoList()), vm);
+      expect(_rows(), findsNWidgets(3));
+
+      await tester.tap(find.byKey(const Key('video_filter_paid')));
+      await tester.pump();
+      expect(_rows(), findsOneWidget);
+      expect(find.byKey(const Key('paged_list_chip_note')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('video_filter_free')));
+      await tester.pump();
+      expect(_rows(), findsNWidgets(2));
+
+      await tester.tap(find.byKey(const Key('video_filter_all')));
+      await tester.pump();
+      expect(_rows(), findsNWidgets(3));
+      expect(find.byKey(const Key('paged_list_chip_note')), findsNothing);
+    });
+
+    testWidgets('a row shows access, a copyable code and an open link',
+        (tester) async {
+      final vm = VideoViewModel(videoRepo: repo);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: VideoList()), vm);
+
+      expect(find.widgetWithText(StatusPill, 'Free'), findsNWidgets(2));
+      expect(find.widgetWithText(StatusPill, 'Paid'), findsOneWidget);
+      expect(find.byKey(const Key('copy_code_INTRO-01')), findsOneWidget);
+    });
+  });
+
   group('the list', () {
     testWidgets('says how much of the collection is loaded', (tester) async {
       when(() => repo.getVideoListLength()).thenAnswer((_) async => 320);
       final vm = VideoViewModel(videoRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: VideoList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: VideoList()), vm);
 
       expect(find.text('Showing 3 of 320'), findsOneWidget);
       expect(find.byKey(const Key('paged_list_load_more')), findsOneWidget);
@@ -125,8 +201,8 @@ void main() {
           .thenAnswer((_) async => [_video('d', 'INTRO-04', 'Momentum')]);
 
       final vm = VideoViewModel(videoRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: VideoList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: VideoList()), vm);
 
       await tester.tap(find.byKey(const Key('paged_list_load_more')));
       await tester.pump();
@@ -141,15 +217,15 @@ void main() {
           .thenAnswer((_) async => [_fixture().first]);
 
       final vm = VideoViewModel(videoRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: VideoList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: VideoList()), vm);
 
       await tester.enterText(find.byType(TextField).first, 'intro-01');
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
 
       verify(() => repo.searchVideo('INTRO-01')).called(1);
-      expect(find.byType(VideoCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
       expect(vm.hasMore, isFalse, reason: 'paging does not apply to a search');
     });
 
@@ -158,8 +234,8 @@ void main() {
       when(() => repo.searchVideo(any())).thenThrow(Exception('offline'));
 
       final vm = VideoViewModel(videoRepo: repo);
-      await _pump(tester, const Size(1024, 768),
-          const Scaffold(body: VideoList()), vm);
+      await _pump(
+          tester, const Size(1024, 768), const Scaffold(body: VideoList()), vm);
 
       await tester.enterText(find.byType(TextField).first, 'zzz');
       await tester.pump(const Duration(milliseconds: 500));
@@ -172,18 +248,20 @@ void main() {
       expect(find.byKey(const Key('list_retry_button')), findsOneWidget);
     });
 
+    // The card (narrow windows) spells this out; the table has its own test.
     testWidgets('a video with no link says so', (tester) async {
       final vm = VideoViewModel(videoRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: VideoList()), vm);
+      await _pump(
+          tester, const Size(800, 900), const Scaffold(body: VideoList()), vm);
 
       expect(find.text('No link set'), findsOneWidget);
     });
 
+    // The card (narrow windows) spells this out; the table has its own test.
     testWidgets('free and paid are told apart', (tester) async {
       final vm = VideoViewModel(videoRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: VideoList()), vm);
+      await _pump(
+          tester, const Size(800, 900), const Scaffold(body: VideoList()), vm);
 
       expect(find.text('FREE'), findsNWidgets(2));
       expect(find.text('PAID'), findsOneWidget);
@@ -191,8 +269,8 @@ void main() {
 
     testWidgets('mounting mid-build does not throw', (tester) async {
       final vm = VideoViewModel(videoRepo: repo);
-      await _pump(tester, const Size(1024, 768),
-          const Scaffold(body: VideoList()), vm);
+      await _pump(
+          tester, const Size(1024, 768), const Scaffold(body: VideoList()), vm);
       expect(tester.takeException(), isNull);
     });
   });
@@ -242,36 +320,35 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      final VideoModel saved =
-          verify(() => repo.addVideo(captureAny())).captured.single
-              as VideoModel;
+      final VideoModel saved = verify(() => repo.addVideo(captureAny()))
+          .captured
+          .single as VideoModel;
       expect(saved.code, 'INTRO-09', reason: 'codes are stored upper-cased');
       expect(saved.videoType, 'FREE');
       expect(saved.link, 'https://youtu.be/abc');
     });
 
-  // The name and the code are what an admin pastes elsewhere -- into a
-  // search box, a spreadsheet, another module's form -- so they render as
-  // SelectableLabel rather than plain Text.
-  testWidgets('names and codes in the list are selectable', (tester) async {
-    await _pump(tester, const Size(1440, 900),
-        const Scaffold(body: VideoList()), VideoViewModel(videoRepo: repo));
+    // The name and the code are what an admin pastes elsewhere -- into a
+    // search box, a spreadsheet, another module's form -- so they render as
+    // SelectableLabel rather than plain Text.
+    testWidgets('names and codes in the list are selectable', (tester) async {
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: VideoList()), VideoViewModel(videoRepo: repo));
 
-    final Iterable<SelectableLabel> labels =
-        tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
-    expect(labels, isNotEmpty);
-    for (final SelectableLabel label in labels) {
-      expect(label.data.trim(), isNotEmpty);
-    }
-    // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
-    expect(
-      find.descendant(
-        of: find.byType(SelectableLabel),
-        matching: find.byType(SelectableText),
-      ),
-      findsWidgets,
-    );
-  });
-
+      final Iterable<SelectableLabel> labels =
+          tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
+      expect(labels, isNotEmpty);
+      for (final SelectableLabel label in labels) {
+        expect(label.data.trim(), isNotEmpty);
+      }
+      // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
+      expect(
+        find.descendant(
+          of: find.byType(SelectableLabel),
+          matching: find.byType(SelectableText),
+        ),
+        findsWidgets,
+      );
+    });
   });
 }

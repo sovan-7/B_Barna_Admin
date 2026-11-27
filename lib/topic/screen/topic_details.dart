@@ -1,11 +1,13 @@
 import 'package:bbarna/core/widgets/form/admin_form_scaffold.dart';
 import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/resources/app_tokens.dart';
-import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/topic/model/topic_model.dart';
 import 'package:bbarna/topic/viewModel/topic_view_model.dart';
 import 'package:bbarna/topic/widgets/topic_content_section.dart';
 import 'package:bbarna/utils/helper.dart';
+import 'package:bbarna/topic/widgets/content_tabs.dart';
+import 'package:bbarna/topic/screen/edit_topic.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -95,79 +97,48 @@ class _TopicDetailsState extends State<TopicDetails> {
       children: [
         _pageHeader(),
         const SizedBox(height: AppTokens.gapLg),
-        for (final ContentKind kind in ContentKind.values)
-          TopicContentSection(
-            // Keyed by kind so each section keeps its own rows.
-            key: ValueKey(kind),
-            kind: kind,
-            initialCodes: widget.topicData.contentCodes(kind),
-            titles: _titles[kind],
-            checkFailed: _checkFailed.contains(kind),
-            onRecheck: (codes) => _resolve(kind, codes),
-            onSave: (codes) => _save(topicViewModel, kind, codes),
-          ),
+        ContentTabs(tabs: [
+          for (final ContentKind kind in ContentKind.values)
+            ContentTab(
+              label: contentTabMeta[kind]!.$1,
+              icon: contentTabMeta[kind]!.$2,
+              initialCount: widget.topicData.contentCodes(kind).length,
+              builder: (onState) => TopicContentSection(
+                // Keyed by kind so each section keeps its own rows.
+                key: ValueKey(kind),
+                kind: kind,
+                initialCodes: widget.topicData.contentCodes(kind),
+                titles: _titles[kind],
+                checkFailed: _checkFailed.contains(kind),
+                onRecheck: (codes) => _resolve(kind, codes),
+                onSave: (codes) => _save(topicViewModel, kind, codes),
+                onStateChanged: onState,
+              ),
+            ),
+        ]),
         const SizedBox(height: AppTokens.gapLg),
       ],
     );
   }
 
-  /// Back button, title and subtitle at the top of the page.
+  /// The topic card at the top of the page.
   Widget _pageHeader() {
     final TopicModel data = widget.topicData;
-    String or(String value, String fallback) =>
-        value.isEmpty || value == stringDefault ? fallback : value;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        FormBackButton(onTap: () => Navigator.pop(context)),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(or(data.name, "Topic"),
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTokens.pageTitle),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppTokens.surface,
-                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                      border: Border.all(color: AppTokens.hairline),
-                    ),
-                    child: Text(data.code,
-                        style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.4,
-                            color: AppTokens.inkMuted)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 3),
-              // The topic's own name as the page heading.
-              Text(
-                "${or(data.courseName, 'No course')}  ›  "
-                "${or(data.subjectName, 'No subject')}  ›  "
-                "${or(data.unitName, 'No unit')}",
-                overflow: TextOverflow.ellipsis,
-                style: AppTokens.pageSubtitle,
-              ),
-              const SizedBox(height: 3),
-              const Text(
-                  "Attach content by its code. Each list saves on its own.",
-                  style: TextStyle(fontSize: 12, color: AppTokens.inkFaint)),
-            ],
-          ),
-        ),
-      ],
+    return TopicHeaderCard(
+      name: data.name,
+      code: data.code,
+      courseName: data.courseName,
+      subjectName: data.subjectName,
+      unitName: data.unitName,
+      // A saved edit (or a delete) closes this page too, so it never shows
+      // the old details; the list behind it reloads.
+      onEdit: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => EditTopic(topicData: data)),
+      ).ifSaved(() {
+        if (mounted) Navigator.pop(context, true);
+      }),
+      hint: "Attach content by its code. Each tab saves on its own.",
     );
   }
 }

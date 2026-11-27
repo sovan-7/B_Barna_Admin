@@ -1,3 +1,4 @@
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:bbarna/resources/app_colors.dart';
 
@@ -149,7 +150,7 @@ class CodeListField extends StatelessWidget {
               margin: const EdgeInsets.only(left: 10),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(5),
-                color: AppColorsInApp.colorBlue,
+                color: AppTokens.accentInk,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,

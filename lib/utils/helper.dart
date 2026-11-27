@@ -81,7 +81,7 @@ class Helper {
         if (i != teacherModuleIndex &&
             i != transactionModuleIndex &&
             !hiddenModuleIndices.contains(i) &&
-            access.contains(moduleList[i]))
+            accessGrants(access, i))
           i,
     ];
   }

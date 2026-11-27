@@ -92,6 +92,11 @@ class _TeacherFormState extends TeacherFormTestHooks {
       phoneController.text = existing.phoneNumber;
       selectedRole = existing.role.isEmpty ? roleSubadmin : existing.role;
       selectedModules.addAll(existing.moduleAccess);
+      // Old Topics access counts as Topics (see accessGrants), so its chip
+      // shows ticked; saving then stores the Topics module too.
+      if (accessGrants(existing.moduleAccess, topic1ModuleIndex)) {
+        selectedModules.add(moduleList[topic1ModuleIndex]);
+      }
     }
   }
 

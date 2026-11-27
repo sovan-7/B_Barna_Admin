@@ -1,5 +1,5 @@
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
-import 'package:bbarna/resources/app_colors.dart';
 
 /// The black "+ NEW …" button at the top-right of every list screen.
 // ignore: must_be_immutable
@@ -29,7 +29,7 @@ class AddWidget extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          color: AppColorsInApp.colorBlack1,
+          color: AppTokens.accent,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -37,7 +37,7 @@ class AddWidget extends StatelessWidget {
             Icon(
               icon,
               size: 15,
-              color: AppColorsInApp.colorWhite,
+              color: AppTokens.onAccent,
             ),
             const SizedBox(
               width: 5,
@@ -47,7 +47,7 @@ class AddWidget extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: AppColorsInApp.colorWhite),
+                  color: AppTokens.onAccent),
             ),
           ],
         ),

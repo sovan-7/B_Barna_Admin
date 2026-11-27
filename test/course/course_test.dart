@@ -28,8 +28,8 @@ CourseModel _course(
   bool isLocked = false,
   String description = "A description that runs on a bit.",
 }) {
-  final CourseModel model = CourseModel(code, description, name, "", priority,
-      timeStamp, willDisplay, isLocked);
+  final CourseModel model = CourseModel(
+      code, description, name, "", priority, timeStamp, willDisplay, isLocked);
   model.docId = id;
   return model;
 }
@@ -46,6 +46,12 @@ List<CourseModel> _fixture() => [
           timeStamp: 100,
           willDisplay: false),
     ];
+
+/// Rows of the wide-screen course table.
+Finder _tableRows() => find.byWidgetPredicate((widget) {
+      final Key? key = widget.key;
+      return key is ValueKey<String> && key.value.startsWith('course_row_');
+    });
 
 const List<Size> _sizes = [
   Size(1440, 900),
@@ -89,8 +95,16 @@ void main() {
         await _pump(tester, size, const Scaffold(body: CourseList()), vm);
 
         expect(tester.takeException(), isNull);
-        expect(find.text('Courses'), findsOneWidget);
-        expect(find.byType(CourseCard), findsNWidgets(3));
+        expect(find.text('Courses'), findsWidgets);
+        if (size.width >= 900) {
+          // Wide windows get the table, every row on screen.
+          expect(_tableRows(), findsNWidgets(3));
+          expect(find.byType(CourseCard), findsNothing);
+        } else {
+          // Narrow ones keep the cards, scrolling once they run out of room.
+          expect(find.byType(CourseCard), findsWidgets);
+          expect(_tableRows(), findsNothing);
+        }
       });
 
       testWidgets('the add form lays out at ${size.width.toInt()}',
@@ -105,8 +119,7 @@ void main() {
       testWidgets('the edit form lays out at ${size.width.toInt()}',
           (tester) async {
         final vm = CourseViewModel(courseRepo: repo);
-        await _pump(tester, size,
-            EditCourse(courseData: _fixture().first), vm);
+        await _pump(tester, size, EditCourse(courseData: _fixture().first), vm);
 
         expect(tester.takeException(), isNull);
         expect(find.text('Edit course'), findsOneWidget);
@@ -146,11 +159,11 @@ void main() {
 
       await tester.enterText(find.byType(TextField).first, 'chem');
       await tester.pump();
-      expect(find.byType(CourseCard), findsOneWidget);
+      expect(_tableRows(), findsOneWidget);
 
       await tester.enterText(find.byType(TextField).first, '');
       await tester.pump();
-      expect(find.byType(CourseCard), findsNWidgets(3));
+      expect(_tableRows(), findsNWidgets(3));
     });
 
     testWidgets('an empty result says which kind of empty it is',
@@ -182,6 +195,68 @@ void main() {
       await _pump(tester, const Size(1024, 768),
           const Scaffold(body: CourseList()), vm);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('stats and filters', () {
+    testWidgets('the tiles count every course, whatever the search',
+        (tester) async {
+      final vm = CourseViewModel(courseRepo: repo);
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: CourseList()), vm);
+      await tester.enterText(find.byType(TextField).first, 'chem');
+      await tester.pump();
+
+      String value(String key) => (tester
+              .widget<Text>(find
+                  .descendant(
+                      of: find.byKey(Key(key)), matching: find.byType(Text))
+                  .at(1))
+              .data ??
+          '');
+      expect(value('course_stat_total'), '3');
+      expect(value('course_stat_visible'), '2');
+      expect(value('course_stat_hidden'), '1');
+      expect(value('course_stat_locked'), '1');
+    });
+
+    testWidgets('the chips narrow the list and survive a reload',
+        (tester) async {
+      final vm = CourseViewModel(courseRepo: repo);
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: CourseList()), vm);
+
+      await tester.tap(find.byKey(const Key('course_filter_hidden')));
+      await tester.pump();
+      expect(vm.courseList.map((c) => c.docId), ['c']);
+      expect(_tableRows(), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('course_filter_locked')));
+      await tester.pump();
+      expect(vm.courseList.map((c) => c.docId), ['b']);
+
+      await vm.getCourseList();
+      await tester.pump();
+      expect(vm.courseList.map((c) => c.docId), ['b']);
+
+      await tester.tap(find.byKey(const Key('course_filter_all')));
+      await tester.pump();
+      expect(_tableRows(), findsNWidgets(3));
+    });
+
+    testWidgets('a filter that matches nothing offers no add button',
+        (tester) async {
+      when(() => repo.getCourseList()).thenAnswer((_) async => [
+            _course('a', 'X', 'Only visible', timeStamp: 1),
+          ]);
+      final vm = CourseViewModel(courseRepo: repo);
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: CourseList()), vm);
+
+      await tester.tap(find.byKey(const Key('course_filter_hidden')));
+      await tester.pump();
+      expect(find.text('No matches'), findsOneWidget);
+      expect(find.text('Add a course'), findsNothing);
     });
   });
 
@@ -224,8 +299,8 @@ void main() {
 
       final vm = CourseViewModel(courseRepo: repo);
       final Uint8List bytes = Uint8List.fromList([1, 2, 3]);
-      expect(await vm.createCourse(_course('', 'PHY', 'Physics'), bytes),
-          isTrue);
+      expect(
+          await vm.createCourse(_course('', 'PHY', 'Physics'), bytes), isTrue);
 
       // Keyed by document id, not course code — two courses sharing a code
       // used to overwrite each other's image in storage.
@@ -255,7 +330,8 @@ void main() {
       when(() => repo.updateCourse(any(), any())).thenAnswer((_) async {});
 
       final vm = CourseViewModel(courseRepo: repo);
-      expect(await vm.updateCourse(_course('a', 'PHY', 'Physics'), 'a'), isTrue);
+      expect(
+          await vm.updateCourse(_course('a', 'PHY', 'Physics'), 'a'), isTrue);
 
       verifyNever(() => repo.uploadCourseImage(any(), any()));
     });
@@ -297,6 +373,16 @@ void main() {
       expect(find.text('Give the course a name'), findsOneWidget);
     });
 
+    testWidgets('the bar says when there are unsaved changes', (tester) async {
+      final vm = CourseViewModel(courseRepo: repo);
+      await _pump(tester, const Size(1024, 900), const AddCourse(), vm);
+      expect(find.byKey(const Key('form_unsaved_changes')), findsNothing);
+
+      await tester.enterText(find.byType(TextField).first, 'PHY-11');
+      await tester.pump();
+      expect(find.byKey(const Key('form_unsaved_changes')), findsOneWidget);
+    });
+
     testWidgets('the code field upper-cases as you type', (tester) async {
       final vm = CourseViewModel(courseRepo: repo);
       await _pump(tester, const Size(1024, 900), const AddCourse(), vm);
@@ -321,28 +407,30 @@ void main() {
       verify(() => repo.updateCourse(any(), 'a')).called(1);
     });
 
-  // The name and the code are what an admin pastes elsewhere -- into a
-  // search box, a spreadsheet, another module's form -- so they render as
-  // SelectableLabel rather than plain Text.
-  testWidgets('names and codes in the list are selectable', (tester) async {
-    await _pump(tester, const Size(1440, 900),
-        const Scaffold(body: CourseList()), CourseViewModel(courseRepo: repo));
+    // The name and the code are what an admin pastes elsewhere -- into a
+    // search box, a spreadsheet, another module's form -- so they render as
+    // SelectableLabel rather than plain Text.
+    testWidgets('names and codes in the list are selectable', (tester) async {
+      await _pump(
+          tester,
+          const Size(1440, 900),
+          const Scaffold(body: CourseList()),
+          CourseViewModel(courseRepo: repo));
 
-    final Iterable<SelectableLabel> labels =
-        tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
-    expect(labels, isNotEmpty);
-    for (final SelectableLabel label in labels) {
-      expect(label.data.trim(), isNotEmpty);
-    }
-    // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
-    expect(
-      find.descendant(
-        of: find.byType(SelectableLabel),
-        matching: find.byType(SelectableText),
-      ),
-      findsWidgets,
-    );
-  });
-
+      final Iterable<SelectableLabel> labels =
+          tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
+      expect(labels, isNotEmpty);
+      for (final SelectableLabel label in labels) {
+        expect(label.data.trim(), isNotEmpty);
+      }
+      // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
+      expect(
+        find.descendant(
+          of: find.byType(SelectableLabel),
+          matching: find.byType(SelectableText),
+        ),
+        findsWidgets,
+      );
+    });
   });
 }

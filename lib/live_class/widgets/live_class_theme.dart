@@ -1,4 +1,5 @@
 import 'package:bbarna/live_class/model/live_class_model.dart';
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -89,7 +90,7 @@ class LiveClassTheme {
   static Color accentFor(LiveClassStatus status) {
     switch (status) {
       case LiveClassStatus.upcoming:
-        return const Color(0xFF2563EB);
+        return AppTokens.accentInk;
       case LiveClassStatus.live:
         return const Color(0xFFE0393E);
       case LiveClassStatus.past:

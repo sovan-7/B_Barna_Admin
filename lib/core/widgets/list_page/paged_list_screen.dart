@@ -1,5 +1,8 @@
 import 'package:bbarna/core/viewModel/paged_list_view_model.dart';
 import 'package:bbarna/core/widgets/add_widget.dart';
+import 'package:bbarna/core/widgets/list_page/admin_table.dart';
+import 'package:bbarna/core/widgets/list_page/filter_chips.dart';
+import 'package:bbarna/core/widgets/list_page/stats_strip.dart';
 import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_error_state.dart';
 import 'package:bbarna/core/widgets/list_page/list_page_frame.dart';
@@ -16,6 +19,11 @@ import 'package:provider/provider.dart';
 /// it edits or deletes the item, so the list reloads.
 typedef PagedListItemBuilder<T> = Widget Function(
     BuildContext context, T item, VoidCallback onChanged);
+
+/// Builds the cells of one table row (see [PagedListScreen.tableColumns]).
+/// [hovered] fades the row actions in; [onChanged] reloads the list.
+typedef PagedListCellsBuilder<T> = List<Widget> Function(
+    BuildContext context, T item, bool hovered, VoidCallback onChanged);
 
 /// A complete list screen for any [PagedListViewModel]: header with count
 /// and "NEW …" button, server-side code search, skeleton while loading,
@@ -89,6 +97,34 @@ class PagedListScreen<VM extends PagedListViewModel<T>, T>
   /// Gets the view model so it can refresh the list afterwards.
   final Widget Function(BuildContext context, VM viewModel)? extraHeaderAction;
 
+  // ---- Stats, chips and the table ------------------------------------------
+
+  /// The tiles above the list (usually from `viewModel.stats`); none when
+  /// null.
+  final List<Widget> Function(VM viewModel)? statTiles;
+
+  /// Chips beside the search box. Their values are matched by [chipMatches]
+  /// against the rows already loaded; "all" shows everything.
+  final List<FilterOption<String>>? chipOptions;
+
+  /// Whether [item] is shown under chip [filter] (never called for "all").
+  final bool Function(T item, String filter)? chipMatches;
+
+  /// Columns of the wide-screen table; the list stays cards when null.
+  final List<AdminTableColumn>? tableColumns;
+
+  /// Cells of one table row, one per [tableColumns] entry.
+  final PagedListCellsBuilder<T>? rowCells;
+
+  /// A stable id per row (the document id), for row keys.
+  final String Function(T item)? rowId;
+
+  /// Prefix of the row keys (`<prefix>_row_<id>`), for tests.
+  final String rowKeyPrefix;
+
+  /// Narrowest list width the table is used at (cards below it).
+  final double tableMinWidth;
+
   const PagedListScreen({
     required this.title,
     required this.subtitle,
@@ -104,8 +140,17 @@ class PagedListScreen<VM extends PagedListViewModel<T>, T>
     required this.itemBuilder,
     this.onFirstFrame,
     this.extraHeaderAction,
+    this.statTiles,
+    this.chipOptions,
+    this.chipMatches,
+    this.tableColumns,
+    this.rowCells,
+    this.rowId,
+    this.rowKeyPrefix = "item",
+    this.tableMinWidth = 760,
     super.key,
-  });
+  }) : assert(
+            tableColumns == null || rowCells != null, 'a table needs rowCells');
 
   @override
   State<PagedListScreen<VM, T>> createState() => _PagedListScreenState<VM, T>();
@@ -153,23 +198,49 @@ class _PagedListScreenState<VM extends PagedListViewModel<T>, T>
             subtitle: widget.subtitle,
             trailing: _headerActions(viewModel),
           ),
+          if (widget.statTiles != null) ...[
+            const SizedBox(height: AppTokens.gapMd),
+            StatsStrip(tiles: widget.statTiles!(viewModel)),
+          ],
           const SizedBox(height: AppTokens.gapMd),
-          // The hint names the code on purpose: the search is a server-side
-          // prefix match on the code field, not a match on titles.
-          ListSearchField(
-            controller: searchController,
-            hintText: widget.searchHint,
-            onChanged: (text) {
-              viewModel.search(text);
-              setState(() {});
-            },
-            onCleared: () {
-              viewModel.search("");
-              setState(() {});
-            },
+          ListToolbar(
+            // The hint names the code on purpose: the search is a
+            // server-side prefix match on the code field, not on titles.
+            search: ListSearchField(
+              controller: searchController,
+              hintText: widget.searchHint,
+              onChanged: (text) {
+                viewModel.search(text);
+                setState(() {});
+              },
+              onCleared: () {
+                viewModel.search("");
+                setState(() {});
+              },
+            ),
+            filters: [
+              if (widget.chipOptions != null)
+                FilterChipBar<String>(
+                  options: widget.chipOptions!,
+                  selected: viewModel.chipFilter,
+                  onChanged: viewModel.setChipFilter,
+                ),
+            ],
           ),
           const SizedBox(height: AppTokens.gapMd),
           Expanded(child: _body(viewModel)),
+          if (_chipActive(viewModel) &&
+              !viewModel.isLoading &&
+              viewModel.items.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                "The filter applies to the ${viewModel.items.length} loaded. "
+                "Load more to widen it.",
+                key: const Key('paged_list_chip_note'),
+                style: const TextStyle(fontSize: 12, color: AppTokens.inkFaint),
+              ),
+            ),
           // Footer only once there are rows to count.
           if (!viewModel.isLoading && viewModel.items.isNotEmpty)
             PagedListFooter(
@@ -222,29 +293,60 @@ class _PagedListScreenState<VM extends PagedListViewModel<T>, T>
       return ListSkeleton(rowHeight: widget.skeletonRowHeight);
     }
 
-    final List<T> items = viewModel.items;
+    final List<T> loaded = viewModel.items;
     // A failed load or search: say so, with Retry, rather than "No X yet".
     final String? loadError = viewModel.loadError;
-    if (items.isEmpty && loadError != null) {
+    if (loaded.isEmpty && loadError != null) {
       return ListErrorState(title: loadError, onRetry: viewModel.refresh);
     }
+
+    final bool chipActive = _chipActive(viewModel);
+    final List<T> items = chipActive
+        ? loaded
+            .where((item) => widget.chipMatches!(item, viewModel.chipFilter))
+            .toList()
+        : loaded;
     if (items.isEmpty) {
       return ListEmptyState(
-        isFiltered: searchController.text.trim().isNotEmpty,
+        isFiltered: searchController.text.trim().isNotEmpty || chipActive,
         icon: widget.emptyIcon,
         title: widget.emptyTitle,
         message: widget.emptyMessage,
-        filteredMessage: widget.filteredMessage,
+        filteredMessage: chipActive
+            ? "Nothing loaded matches that filter."
+            : widget.filteredMessage,
         addLabel: widget.emptyAddLabel,
         onAdd: () => _openAdd(viewModel),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
-      itemCount: items.length,
-      itemBuilder: (context, index) =>
-          widget.itemBuilder(context, items[index], viewModel.refresh),
+    Widget cards(BuildContext context) => ListView.builder(
+          padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
+          itemCount: items.length,
+          itemBuilder: (context, index) =>
+              widget.itemBuilder(context, items[index], viewModel.refresh),
+        );
+
+    final List<AdminTableColumn>? columns = widget.tableColumns;
+    if (columns == null) return cards(context);
+
+    return WideOrNarrow(
+      minWidth: widget.tableMinWidth,
+      narrow: cards,
+      wide: (context) => AdminTable(
+        columns: columns,
+        rowCount: items.length,
+        rowKey: widget.rowId == null
+            ? null
+            : (i) => ValueKey(
+                '${widget.rowKeyPrefix}_row_${widget.rowId!(items[i])}'),
+        cellsBuilder: (context, i, hovered) =>
+            widget.rowCells!(context, items[i], hovered, viewModel.refresh),
+      ),
     );
   }
+
+  /// Whether a chip other than "all" is narrowing the rows.
+  bool _chipActive(VM viewModel) =>
+      widget.chipMatches != null && viewModel.chipFilter != "all";
 }

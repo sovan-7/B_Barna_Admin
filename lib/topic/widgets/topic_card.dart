@@ -146,130 +146,143 @@ class _TopicCardState extends State<TopicCard> {
     );
   }
 
-  /// What is attached: one chip per content kind that has items (empty
-  /// kinds are left out), or a "Nothing attached" note.
-  Widget _chips() {
-    final List<Widget> chips = <Widget>[];
-    for (final ContentKind kind in ContentKind.values) {
-      final int count = _data.contentCodes(kind).length;
-      if (count == 0) continue;
-      chips.add(_countChip(kind, count));
-    }
-
-    if (chips.isEmpty) {
-      return Wrap(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTokens.surfaceMuted,
-              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-              border: Border.all(color: AppTokens.hairline),
-            ),
-            child: const Text("No content yet",
-                style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppTokens.inkFaint)),
-          ),
-        ],
-      );
-    }
-
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: chips,
-    );
-  }
-
-  /// Icon for each kind of attached content.
-  static const Map<ContentKind, IconData> _kindIcons = {
-    ContentKind.video: Icons.play_circle_outline,
-    ContentKind.audio: Icons.graphic_eq,
-    ContentKind.pdf: Icons.picture_as_pdf_outlined,
-    ContentKind.quiz: Icons.quiz_outlined,
-  };
-
-  /// How many items of [kind] are attached to the topic.
-  Widget _countChip(ContentKind kind, int count) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        border: Border.all(color: AppTokens.hairline),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(_kindIcons[kind], size: 12, color: AppTokens.inkMuted),
-          const SizedBox(width: 5),
-          Text("${kind.label} $count",
-              style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppTokens.inkMuted)),
-        ],
-      ),
-    );
-  }
+  /// What is attached (see [topicContentChips]).
+  Widget _chips() => topicContentChips(_data);
 
   /// Row buttons; faded in on hover, always shown on compact screens.
-  Widget _actions(bool visible) {
-    return CardActions(
-      visible: visible,
-      buttons: [
-        CardIconButton(
-          buttonKey: Key('topic_content_${_data.docId}'),
-          icon: Icons.playlist_add,
-          tooltip: "Manage content",
-          color: AppTokens.inkMuted,
-          onTap: _openContent,
-        ),
-        CardEditButton(
-          buttonKey: Key('topic_edit_${_data.docId}'),
-          tooltip: "Edit topic",
-          onTap: _openEdit,
-        ),
-        CardDeleteButton(
-          buttonKey: Key('topic_delete_${_data.docId}'),
-          tooltip: "Delete topic",
-          onTap: _confirmDelete,
+  Widget _actions(bool visible) =>
+      topicActions(context, _data, widget.onChanged, visible);
+}
+
+/// Row buttons for [data], shared by the card and the table row (same
+/// keys); faded in on hover, always shown on compact screens.
+Widget topicActions(BuildContext context, TopicModel data,
+    VoidCallback onChanged, bool visible) {
+  return CardActions(
+    visible: visible,
+    buttons: [
+      CardIconButton(
+        buttonKey: Key('topic_content_${data.docId}'),
+        icon: Icons.playlist_add,
+        tooltip: "Manage content",
+        color: AppTokens.inkMuted,
+        onTap: () => openContentTopic(context, data, onChanged),
+      ),
+      CardEditButton(
+        buttonKey: Key('topic_edit_${data.docId}'),
+        tooltip: "Edit topic",
+        onTap: () => openEditTopic(context, data, onChanged),
+      ),
+      CardDeleteButton(
+        buttonKey: Key('topic_delete_${data.docId}'),
+        tooltip: "Delete topic",
+        onTap: () => confirmDeleteTopic(context, data, onChanged),
+      ),
+    ],
+  );
+}
+
+/// Opens the topic details screen to manage attached content. Content
+/// saves update this topic in place; the list reloads only if the topic
+/// itself was edited (or deleted) from there.
+void openContentTopic(
+    BuildContext context, TopicModel data, VoidCallback onChanged) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => TopicDetails(topicData: data)),
+  ).ifSaved(onChanged);
+}
+
+/// Opens the edit screen; the list reloads if it saved or deleted
+/// something.
+void openEditTopic(
+    BuildContext context, TopicModel data, VoidCallback onChanged) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => EditTopic(topicData: data)),
+  ).ifSaved(onChanged);
+}
+
+/// Asks for confirmation, then deletes this item.
+void confirmDeleteTopic(
+    BuildContext context, TopicModel data, VoidCallback onChanged) {
+  final TopicViewModel topicViewModel =
+      Provider.of<TopicViewModel>(context, listen: false);
+  final String docId = data.docId;
+
+  confirmDelete(
+    title: data.name,
+    delete: () => topicViewModel.deleteTopic(docId),
+    successMessage: "Topic deleted successfully",
+  );
+}
+
+/// What [data] holds: one chip per content kind that has items (empty
+/// kinds are left out), or a "Nothing attached" note.
+Widget topicContentChips(TopicModel data) {
+  final List<Widget> chips = <Widget>[];
+  for (final ContentKind kind in ContentKind.values) {
+    final int count = data.contentCodes(kind).length;
+    if (count == 0) continue;
+    chips.add(_topicCountChip(kind, count));
+  }
+
+  if (chips.isEmpty) {
+    return Wrap(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTokens.surfaceMuted,
+            borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+            border: Border.all(color: AppTokens.hairline),
+          ),
+          child: const Text("No content yet",
+              style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppTokens.inkFaint)),
         ),
       ],
     );
   }
 
-  /// Opens the topic details screen to manage attached content. No reload
-  /// afterwards: content saves update this topic in place.
-  void _openContent() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => TopicDetails(topicData: _data)),
-    );
-  }
+  return Wrap(
+    spacing: 6,
+    runSpacing: 6,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: chips,
+  );
+}
 
-  /// Opens the edit screen; the list reloads if it saved or deleted
-  /// something.
-  void _openEdit() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EditTopic(topicData: _data)),
-    ).ifSaved(widget.onChanged);
-  }
+/// Icon for each kind of attached content.
+const Map<ContentKind, IconData> _topicKindIcons = {
+  ContentKind.video: Icons.play_circle_outline,
+  ContentKind.audio: Icons.graphic_eq,
+  ContentKind.pdf: Icons.picture_as_pdf_outlined,
+  ContentKind.quiz: Icons.quiz_outlined,
+};
 
-  /// Asks for confirmation, then deletes this item.
-  void _confirmDelete() {
-    final TopicViewModel topicViewModel =
-        Provider.of<TopicViewModel>(context, listen: false);
-    final String docId = _data.docId;
-
-    confirmDelete(
-      title: _data.name,
-      delete: () => topicViewModel.deleteTopic(docId),
-      successMessage: "Topic deleted successfully",
-    );
-  }
+/// How many items of [kind] are attached to the topic.
+Widget _topicCountChip(ContentKind kind, int count) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: AppTokens.surfaceMuted,
+      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+      border: Border.all(color: AppTokens.hairline),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(_topicKindIcons[kind], size: 12, color: AppTokens.inkMuted),
+        const SizedBox(width: 5),
+        Text("${kind.label} $count",
+            style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: AppTokens.inkMuted)),
+      ],
+    ),
+  );
 }

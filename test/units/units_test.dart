@@ -80,6 +80,13 @@ CourseModel _course(String code, String name) {
   return model;
 }
 
+/// Rows on screen: table rows on wide windows, cards on narrow.
+Finder _rows() => find.byWidgetPredicate((widget) {
+      if (widget is UnitCard) return true;
+      final Key? key = widget.key;
+      return key is ValueKey<String> && key.value.startsWith('unit_row_');
+    });
+
 const List<Size> _sizes = [
   Size(1440, 900),
   Size(1024, 768),
@@ -118,7 +125,8 @@ void main() {
   setUp(() {
     repo = MockUnitRepo();
     courseRepo = MockCourseRepo();
-    when(() => repo.getFirstUnitList(any())).thenAnswer((_) async => _fixture());
+    when(() => repo.getFirstUnitList(any()))
+        .thenAnswer((_) async => _fixture());
     when(() => repo.getUnitListLength()).thenAnswer((_) async => 3);
     when(() => repo.getSubjectListByCourseCode(any()))
         .thenAnswer((_) async => [_subject('MECH', 'Mechanics')]);
@@ -134,7 +142,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text('Units'), findsOneWidget);
-        expect(find.byType(UnitCard), findsNWidgets(3));
+        expect(_rows(), size.width < 900 ? findsWidgets : findsNWidgets(3));
       });
 
       testWidgets('the add form lays out at ${size.width.toInt()}',
@@ -161,8 +169,8 @@ void main() {
     testWidgets('shows how much of the collection is loaded', (tester) async {
       when(() => repo.getUnitListLength()).thenAnswer((_) async => 320);
       final vm = UnitViewModel(unitRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: UnitList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: UnitList()), vm);
 
       expect(find.text('Showing 3 of 320'), findsOneWidget);
       expect(find.byKey(const Key('paged_list_load_more')), findsOneWidget);
@@ -176,8 +184,8 @@ void main() {
           ]);
 
       final vm = UnitViewModel(unitRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: UnitList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: UnitList()), vm);
 
       await tester.tap(find.byKey(const Key('paged_list_load_more')));
       await tester.pump();
@@ -191,8 +199,8 @@ void main() {
 
     testWidgets('no load more when everything already fits', (tester) async {
       final vm = UnitViewModel(unitRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: UnitList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: UnitList()), vm);
 
       expect(find.text('Showing 3 of 3'), findsOneWidget);
       expect(find.byKey(const Key('paged_list_load_more')), findsNothing);
@@ -204,8 +212,8 @@ void main() {
           .thenAnswer((_) async => [_fixture().first]);
 
       final vm = UnitViewModel(unitRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: UnitList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: UnitList()), vm);
 
       await tester.enterText(find.byType(TextField).first, 'mech-01');
       // The query is debounced.
@@ -214,13 +222,13 @@ void main() {
 
       // Uppercased for the prefix match, which is how the codes are stored.
       verify(() => repo.searchUnit('MECH-01')).called(1);
-      expect(find.byType(UnitCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
       expect(vm.hasMore, isFalse, reason: 'paging does not apply to a search');
 
       await tester.enterText(find.byType(TextField).first, '');
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
-      expect(find.byType(UnitCard), findsNWidgets(3));
+      expect(_rows(), findsNWidgets(3));
     });
 
     testWidgets('a failed search reports it instead of popping the page',
@@ -228,8 +236,8 @@ void main() {
       when(() => repo.searchUnit(any())).thenThrow(Exception('offline'));
 
       final vm = UnitViewModel(unitRepo: repo);
-      await _pump(tester, const Size(1024, 768),
-          const Scaffold(body: UnitList()), vm);
+      await _pump(
+          tester, const Size(1024, 768), const Scaffold(body: UnitList()), vm);
 
       await tester.enterText(find.byType(TextField).first, 'zzz');
       await tester.pump(const Duration(milliseconds: 500));
@@ -248,8 +256,8 @@ void main() {
       when(() => repo.getUnitListLength()).thenAnswer((_) async => 0);
 
       final vm = UnitViewModel(unitRepo: repo);
-      await _pump(tester, const Size(1024, 768),
-          const Scaffold(body: UnitList()), vm);
+      await _pump(
+          tester, const Size(1024, 768), const Scaffold(body: UnitList()), vm);
 
       expect(find.text('No units yet'), findsOneWidget);
       expect(find.text('Add a unit'), findsOneWidget);
@@ -257,28 +265,31 @@ void main() {
 
     testWidgets('visibility reflects the flag', (tester) async {
       final vm = UnitViewModel(unitRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: UnitList()), vm);
+      await _pump(
+          tester, const Size(800, 900), const Scaffold(body: UnitList()), vm);
 
       // The old row rendered `const ActiveButton()` with no argument, so
       // every unit showed the same green "ACTIVE" badge.
-      expect(find.text('Visible'), findsNWidgets(2));
-      expect(find.text('Hidden'), findsOneWidget);
+      // On the cards (the tiles and chips above say Visible / Hidden too).
+      Finder onCards(String text) => find.descendant(
+          of: find.byType(UnitCard), matching: find.text(text));
+      expect(onCards('Visible'), findsNWidgets(2));
+      expect(onCards('Hidden'), findsOneWidget);
     });
 
     testWidgets('a shared unit says how many other subjects it is in',
         (tester) async {
       final vm = UnitViewModel(unitRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: UnitList()), vm);
+      await _pump(
+          tester, const Size(800, 900), const Scaffold(body: UnitList()), vm);
 
       expect(find.text('Also in 2 more subjects'), findsOneWidget);
     });
 
     testWidgets('mounting mid-build does not throw', (tester) async {
       final vm = UnitViewModel(unitRepo: repo);
-      await _pump(tester, const Size(1024, 768),
-          const Scaffold(body: UnitList()), vm);
+      await _pump(
+          tester, const Size(1024, 768), const Scaffold(body: UnitList()), vm);
       expect(tester.takeException(), isNull);
     });
   });
@@ -289,8 +300,8 @@ void main() {
           .thenAnswer((_) async {});
 
       final vm = UnitViewModel(unitRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: UnitList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: UnitList()), vm);
       clearInteractions(repo);
 
       await tester.tap(find.byKey(const Key('unit_lock_a')));
@@ -319,8 +330,7 @@ void main() {
 
       final vm = UnitViewModel(unitRepo: repo);
       final Uint8List bytes = Uint8List.fromList([1, 2, 3]);
-      expect(
-          await vm.createUnit(_unit('', 'MECH-01', 'Laws of Motion'), bytes),
+      expect(await vm.createUnit(_unit('', 'MECH-01', 'Laws of Motion'), bytes),
           isTrue);
 
       // Keyed by document id, not unit code — two units sharing a code
@@ -414,8 +424,7 @@ void main() {
       expect(find.text('No subjects in this course'), findsOneWidget);
     });
 
-    testWidgets('extra subject codes can be added and removed',
-        (tester) async {
+    testWidgets('extra subject codes can be added and removed', (tester) async {
       final vm = UnitViewModel(unitRepo: repo);
       await _pump(tester, const Size(1024, 900), const AddUnit(), vm);
 
@@ -450,41 +459,40 @@ void main() {
         (tester) async {
       when(() => repo.updateUnit(any(), any())).thenAnswer((_) async {});
       final vm = UnitViewModel(unitRepo: repo);
-      await _pump(tester, const Size(1024, 900),
-          EditUnit(unitData: _fixture()[1]), vm);
+      await _pump(
+          tester, const Size(1024, 900), EditUnit(unitData: _fixture()[1]), vm);
 
       await tester.tap(find.byKey(const Key('unit_save_button')));
       await tester.pump();
       await tester.pump();
 
-      final UnitModel saved =
-          verify(() => repo.updateUnit(captureAny(), 'b')).captured.single
-              as UnitModel;
+      final UnitModel saved = verify(() => repo.updateUnit(captureAny(), 'b'))
+          .captured
+          .single as UnitModel;
       expect(saved.subjectCodeList, ['MECH', 'ENG', 'APP']);
     });
 
-  // The name and the code are what an admin pastes elsewhere -- into a
-  // search box, a spreadsheet, another module's form -- so they render as
-  // SelectableLabel rather than plain Text.
-  testWidgets('names and codes in the list are selectable', (tester) async {
-    await _pump(tester, const Size(1440, 900),
-        const Scaffold(body: UnitList()), UnitViewModel(unitRepo: repo));
+    // The name and the code are what an admin pastes elsewhere -- into a
+    // search box, a spreadsheet, another module's form -- so they render as
+    // SelectableLabel rather than plain Text.
+    testWidgets('names and codes in the list are selectable', (tester) async {
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: UnitList()), UnitViewModel(unitRepo: repo));
 
-    final Iterable<SelectableLabel> labels =
-        tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
-    expect(labels, isNotEmpty);
-    for (final SelectableLabel label in labels) {
-      expect(label.data.trim(), isNotEmpty);
-    }
-    // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
-    expect(
-      find.descendant(
-        of: find.byType(SelectableLabel),
-        matching: find.byType(SelectableText),
-      ),
-      findsWidgets,
-    );
-  });
-
+      final Iterable<SelectableLabel> labels =
+          tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
+      expect(labels, isNotEmpty);
+      for (final SelectableLabel label in labels) {
+        expect(label.data.trim(), isNotEmpty);
+      }
+      // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
+      expect(
+        find.descendant(
+          of: find.byType(SelectableLabel),
+          matching: find.byType(SelectableText),
+        ),
+        findsWidgets,
+      );
+    });
   });
 }

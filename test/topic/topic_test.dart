@@ -94,6 +94,13 @@ CourseModel _course(String code, String name) {
   return model;
 }
 
+/// Rows on screen: table rows on wide windows, cards on narrow.
+Finder _rows() => find.byWidgetPredicate((widget) {
+      if (widget is TopicCard) return true;
+      final Key? key = widget.key;
+      return key is ValueKey<String> && key.value.startsWith('topic_row_');
+    });
+
 const List<Size> _sizes = [
   Size(1440, 900),
   Size(1024, 768),
@@ -153,7 +160,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text('Topics'), findsOneWidget);
-        expect(find.byType(TopicCard), findsNWidgets(3));
+        expect(_rows(), size.width < 900 ? findsWidgets : findsNWidgets(3));
       });
 
       testWidgets('the add form lays out at ${size.width.toInt()}',
@@ -182,9 +189,12 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text("Newton's First Law"), findsOneWidget);
-        // Video, Audio, PDF and Quiz each get their own section.
+        // Video, Audio, PDF and Quiz each get their own tab; Video is open.
         expect(find.text('Video'), findsOneWidget);
-        expect(find.text('Quiz'), findsOneWidget);
+        expect(find.text('Quizzes'), findsOneWidget);
+        for (int i = 0; i < 4; i++) {
+          expect(find.byKey(Key('content_tab_$i')), findsOneWidget);
+        }
       });
     }
   });
@@ -193,8 +203,8 @@ void main() {
     testWidgets('shows how much of the collection is loaded', (tester) async {
       when(() => repo.getTopicListLength()).thenAnswer((_) async => 320);
       final vm = TopicViewModel(topicRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: TopicList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: TopicList()), vm);
 
       expect(find.text('Showing 3 of 320'), findsOneWidget);
       expect(find.byKey(const Key('paged_list_load_more')), findsOneWidget);
@@ -208,8 +218,8 @@ void main() {
           ]);
 
       final vm = TopicViewModel(topicRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: TopicList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: TopicList()), vm);
 
       await tester.tap(find.byKey(const Key('paged_list_load_more')));
       await tester.pump();
@@ -222,8 +232,8 @@ void main() {
 
     testWidgets('no load more when everything already fits', (tester) async {
       final vm = TopicViewModel(topicRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: TopicList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: TopicList()), vm);
 
       expect(find.text('Showing 3 of 3'), findsOneWidget);
       expect(find.byKey(const Key('paged_list_load_more')), findsNothing);
@@ -235,8 +245,8 @@ void main() {
           .thenAnswer((_) async => [_fixture().first]);
 
       final vm = TopicViewModel(topicRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: TopicList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: TopicList()), vm);
 
       await tester.enterText(find.byType(TextField).first, 'newt-01');
       await tester.pump(const Duration(milliseconds: 500));
@@ -244,13 +254,13 @@ void main() {
 
       // Uppercased for the prefix match, which is how the codes are stored.
       verify(() => repo.searchTopic('NEWT-01')).called(1);
-      expect(find.byType(TopicCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
       expect(vm.hasMore, isFalse, reason: 'paging does not apply to a search');
 
       await tester.enterText(find.byType(TextField).first, '');
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
-      expect(find.byType(TopicCard), findsNWidgets(3));
+      expect(_rows(), findsNWidgets(3));
     });
 
     testWidgets('a failed search reports it instead of popping the page',
@@ -258,8 +268,8 @@ void main() {
       when(() => repo.searchTopic(any())).thenThrow(Exception('offline'));
 
       final vm = TopicViewModel(topicRepo: repo);
-      await _pump(tester, const Size(1024, 768),
-          const Scaffold(body: TopicList()), vm);
+      await _pump(
+          tester, const Size(1024, 768), const Scaffold(body: TopicList()), vm);
 
       await tester.enterText(find.byType(TextField).first, 'zzz');
       await tester.pump(const Duration(milliseconds: 500));
@@ -278,8 +288,8 @@ void main() {
       when(() => repo.getTopicListLength()).thenAnswer((_) async => 0);
 
       final vm = TopicViewModel(topicRepo: repo);
-      await _pump(tester, const Size(1024, 768),
-          const Scaffold(body: TopicList()), vm);
+      await _pump(
+          tester, const Size(1024, 768), const Scaffold(body: TopicList()), vm);
 
       expect(find.text('No topics yet'), findsOneWidget);
       expect(find.text('Add a topic'), findsOneWidget);
@@ -288,8 +298,8 @@ void main() {
     testWidgets('the row counts only the content that is there',
         (tester) async {
       final vm = TopicViewModel(topicRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: TopicList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: TopicList()), vm);
 
       // The old strip always printed "Video: 0  Audio: 0  Pdf: 0  Quiz: 0",
       // so an empty topic looked exactly as busy as a full one.
@@ -303,16 +313,16 @@ void main() {
     testWidgets('a shared topic says how many other units it is in',
         (tester) async {
       final vm = TopicViewModel(topicRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: TopicList()), vm);
+      await _pump(
+          tester, const Size(800, 900), const Scaffold(body: TopicList()), vm);
 
       expect(find.text('Also in 2 more units'), findsOneWidget);
     });
 
     testWidgets('mounting mid-build does not throw', (tester) async {
       final vm = TopicViewModel(topicRepo: repo);
-      await _pump(tester, const Size(1024, 768),
-          const Scaffold(body: TopicList()), vm);
+      await _pump(
+          tester, const Size(1024, 768), const Scaffold(body: TopicList()), vm);
       expect(tester.takeException(), isNull);
     });
   });
@@ -524,6 +534,76 @@ void main() {
       expect(find.text("Couldn't check this code"), findsNothing);
     });
 
+    testWidgets('Edit topic opens the edit page; a saved edit closes details',
+        (tester) async {
+      bool listReloaded = false;
+      final vm = TopicViewModel(topicRepo: repo);
+      await _pump(
+        tester,
+        const Size(1280, 900),
+        Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => openContentTopic(
+                  context, _fixture().first, () => listReloaded = true),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+        vm,
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TopicDetails), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('topic_header_edit')));
+      await tester.pumpAndSettle();
+      expect(find.byType(EditTopic), findsOneWidget);
+
+      // The edit page closes the way it does after a save.
+      navigatorKey.currentState!.pop(true);
+      await tester.pumpAndSettle();
+      expect(find.byType(TopicDetails), findsNothing);
+      expect(listReloaded, isTrue);
+    });
+
+    testWidgets('closing the edit page without saving keeps details open',
+        (tester) async {
+      final vm = TopicViewModel(topicRepo: repo);
+      await _pump(tester, const Size(1280, 900),
+          TopicDetails(topicData: _fixture().first), vm);
+
+      await tester.tap(find.byKey(const Key('topic_header_edit')));
+      await tester.pumpAndSettle();
+      navigatorKey.currentState!.pop();
+      await tester.pumpAndSettle();
+      expect(find.byType(TopicDetails), findsOneWidget);
+    });
+
+    testWidgets('an edit marks its tab, and survives switching tabs',
+        (tester) async {
+      final vm = TopicViewModel(topicRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          TopicDetails(topicData: _fixture().first), vm);
+      expect(find.byKey(const Key('content_tab_dirty_0')), findsNothing);
+
+      await tester.enterText(
+          find.byKey(const Key('topic_video_code_0')), 'VID-9');
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const Key('content_tab_dirty_0')), findsOneWidget);
+      expect(find.byKey(const Key('content_tabs_unsaved')), findsOneWidget);
+
+      // To Audio and back: the typed code is still there, unsaved.
+      await tester.tap(find.byKey(const Key('content_tab_1')));
+      await tester.pump();
+      expect(find.byKey(const Key('topic_video_code_0')), findsNothing);
+      await tester.tap(find.byKey(const Key('content_tab_0')));
+      await tester.pump();
+      expect(find.text('VID-9'), findsOneWidget);
+      expect(find.byKey(const Key('content_tab_dirty_0')), findsOneWidget);
+    });
+
     testWidgets('save is disabled until something changes', (tester) async {
       final vm = TopicViewModel(topicRepo: repo);
       await _pump(tester, const Size(1024, 900),
@@ -608,32 +688,32 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      verify(() => repo.setContentCodes(
-          'a', ContentKind.video, ['VID-1', 'VID-2'])).called(1);
+      verify(() =>
+              repo.setContentCodes('a', ContentKind.video, ['VID-1', 'VID-2']))
+          .called(1);
     });
 
-  // The name and the code are what an admin pastes elsewhere -- into a
-  // search box, a spreadsheet, another module's form -- so they render as
-  // SelectableLabel rather than plain Text.
-  testWidgets('names and codes in the list are selectable', (tester) async {
-    await _pump(tester, const Size(1440, 900),
-        const Scaffold(body: TopicList()), TopicViewModel(topicRepo: repo));
+    // The name and the code are what an admin pastes elsewhere -- into a
+    // search box, a spreadsheet, another module's form -- so they render as
+    // SelectableLabel rather than plain Text.
+    testWidgets('names and codes in the list are selectable', (tester) async {
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: TopicList()), TopicViewModel(topicRepo: repo));
 
-    final Iterable<SelectableLabel> labels =
-        tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
-    expect(labels, isNotEmpty);
-    for (final SelectableLabel label in labels) {
-      expect(label.data.trim(), isNotEmpty);
-    }
-    // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
-    expect(
-      find.descendant(
-        of: find.byType(SelectableLabel),
-        matching: find.byType(SelectableText),
-      ),
-      findsWidgets,
-    );
-  });
-
+      final Iterable<SelectableLabel> labels =
+          tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
+      expect(labels, isNotEmpty);
+      for (final SelectableLabel label in labels) {
+        expect(label.data.trim(), isNotEmpty);
+      }
+      // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
+      expect(
+        find.descendant(
+          of: find.byType(SelectableLabel),
+          matching: find.byType(SelectableText),
+        ),
+        findsWidgets,
+      );
+    });
   });
 }

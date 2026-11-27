@@ -68,6 +68,37 @@ class QuizRepo {
   /// Total quizzes in the collection.
   Future<int> getQuizListLength() => countDocuments(_collection);
 
+  /// Live / upcoming / pending counts for the tiles above the list, as
+  /// students see them: an upcoming quiz whose opening time has passed
+  /// counts as live. Upcoming quizzes are few, so they are read and judged
+  /// here rather than with a range query that would need its own index.
+  Future<Map<String, int>> getQuizStats({DateTime? now}) async {
+    final DateTime at = now ?? DateTime.now();
+    final List<Object> results = await Future.wait<Object>([
+      countQuery(
+          _collection.where("quiz_status", isEqualTo: QuizModel.statusLive)),
+      countQuery(_collection.where("quiz_status", isEqualTo: "PENDING")),
+      _collection
+          .where("quiz_status", isEqualTo: QuizModel.statusUpcoming)
+          .get(),
+    ]);
+    int opened = 0;
+    int upcoming = 0;
+    for (final QuizModel quiz in _toModels(
+        (results[2] as QuerySnapshot<Map<String, dynamic>>).docs)) {
+      if (quiz.statusAt(at) == QuizModel.statusLive) {
+        opened++;
+      } else {
+        upcoming++;
+      }
+    }
+    return {
+      "live": (results[0] as int) + opened,
+      "upcoming": upcoming,
+      "pending": results[1] as int,
+    };
+  }
+
   /// Quizzes whose `quiz_code` starts with [searchText].
   Future<List<QuizModel>> searchQuiz(String searchText) async =>
       _toModels(await prefixSearch(_collection, "quiz_code", searchText));

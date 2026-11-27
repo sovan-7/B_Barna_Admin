@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 /// Green for "ready" rows and the finished import.
-const Color _success = Color(0xFF067647);
+const Color _success = AppTokens.accentInk;
 
 /// Import Questions: download the template, choose a .csv / .xlsx file,
 /// check every row, then import the ready ones in one go.

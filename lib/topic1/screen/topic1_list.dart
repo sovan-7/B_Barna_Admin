@@ -7,10 +7,15 @@ import 'package:bbarna/topic1/screen/add_topic1.dart';
 import 'package:bbarna/topic1/viewModel/topic1_view_model.dart';
 import 'package:bbarna/topic1/widgets/topic1_card.dart';
 import 'package:bbarna/utils/helper.dart';
+import 'package:bbarna/core/widgets/list_page/admin_table.dart';
+import 'package:bbarna/core/widgets/list_page/filter_chips.dart';
+import 'package:bbarna/core/widgets/list_page/stats_strip.dart';
+import 'package:bbarna/core/widgets/list_page/table_identity.dart';
+import 'package:bbarna/core/widgets/card/card_chips.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// The New Topics list (sidebar module; `Topic1…` in code). All the
+/// The Topics list (sidebar module; `Topic1…` in code, once "New Topics"). All the
 /// behaviour lives in [PagedListScreen]; this only supplies the texts and
 /// card, the one-time "copy from Topics" action (hidden; see
 /// [showCopyButton]), and preloads the course list the Add/Edit form needs.
@@ -25,7 +30,7 @@ class Topic1List extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PagedListScreen<Topic1ViewModel, Topic1Model>(
-      title: "New Topics",
+      title: "Topics",
       subtitle: "Newest first. PDFs are uploaded and videos are YouTube "
           "links, straight on the topic.",
       addButtonLabel: "NEW TOPIC",
@@ -51,6 +56,52 @@ class Topic1List extends StatelessWidget {
         topicData: topic,
         onChanged: onChanged,
       ),
+      statTiles: (vm) => [
+        StatTile.count(
+            key: const Key('topic1_stat_total'),
+            label: "Total",
+            count: vm.totalCount),
+        StatTile.count(
+            key: const Key('topic1_stat_month'),
+            label: "Added this month",
+            count: vm.stats["month"]),
+      ],
+      chipOptions: const [
+        FilterOption("all", "All", key: Key('topic1_filter_all')),
+        FilterOption("content", "Has content",
+            key: Key('topic1_filter_content')),
+        FilterOption("empty", "No content", key: Key('topic1_filter_empty')),
+      ],
+      chipMatches: (topic, filter) =>
+          (topic.contentCount > 0) == (filter == "content"),
+      tableColumns: const [
+        AdminTableColumn("Topic", flex: 5),
+        AdminTableColumn("Code", width: 120),
+        AdminTableColumn("Priority", width: 64),
+        AdminTableColumn("Content", flex: 3),
+        AdminTableColumn("", width: 108, alignment: Alignment.centerRight),
+      ],
+      rowId: (topic) => topic.docId,
+      rowKeyPrefix: "topic1",
+      tableMinWidth: 780,
+      rowCells: (context, topic, hovered, onChanged) => [
+        TableIdentity(
+          title: topic.name,
+          subtitle: [
+                if (TableIdentity.hasText(topic.subjectName)) topic.subjectName,
+                if (TableIdentity.hasText(topic.unitName)) topic.unitName,
+              ].join(" › ") +
+              (topic.unitCodeList.length > 1
+                  ? " · also in ${topic.unitCodeList.length - 1} more"
+                  : ""),
+          icon: Icons.checklist_rtl,
+          iconColor: AppTokens.accentInk,
+        ),
+        CodeChip(topic.code),
+        TableText("${topic.displayPriority}"),
+        topic1ContentChips(topic),
+        topic1Actions(context, topic, onChanged, hovered),
+      ],
     );
   }
 

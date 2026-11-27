@@ -58,10 +58,10 @@ class AppTokens {
 
   // ---- Shell metrics --------------------------------------------------
   /// Width of the navigation rail when it shows labels.
-  static const double railWidth = 260;
+  static const double railWidth = 184;
 
   /// Width when it is reduced to icons.
-  static const double railCollapsedWidth = 72;
+  static const double railCollapsedWidth = 64;
 
   /// Below this the rail drops to icons on its own, so the cramped
   /// `Expanded(child: ExtraSideBar(...))` panels on the add/edit screens
@@ -72,11 +72,72 @@ class AppTokens {
   /// by [Sidebar], [AppHeader] and every add/edit screen.
   static const double compactBreakpoint = 900;
 
-  /// Height of the top [AppHeader] bar.
-  static const double headerHeight = 56;
+  /// Height of the top [AppHeader] bar, and of the brand row at the top of
+  /// the rail beside it, so the two line up.
+  static const double headerHeight = 52;
 
   /// Errors and destructive actions.
   static const Color danger = Color(0xFFD92D20);
+
+  // ---- Brand: one colour (the logo's gold) on white -----------------------
+  /// The one brand colour, sampled from the B_BARNA logo's rings. Fills
+  /// for the selected module, primary buttons, picked chips, switches.
+  /// Text on it is [onAccent] (dark): white on this gold is unreadable.
+  static const Color accent = Color(0xFFDFAA12);
+
+  /// Text and icons on [accent].
+  static const Color onAccent = ink;
+
+  /// Pale wash of [accent]: selected rows, soft badges, the account
+  /// initial.
+  static const Color accentTint = Color(0xFFFDF3D7);
+
+  /// [accent] darkened enough to read as text or an icon on white and on
+  /// [accentTint] (plain gold on white is about 2:1).
+  static const Color accentInk = Color(0xFF7A5A00);
+
+  // ---- Navigation rail (white, like every other surface) ------------------
+  /// Behind the navigation rail.
+  static const Color railBackground = surface;
+
+  /// A rail row under the pointer.
+  static const Color railHover = surfaceMuted;
+
+  /// Rail labels and the brand name.
+  static const Color onRail = ink;
+
+  /// Group headings, idle icons and the "Admin portal" line on the rail.
+  static const Color onRailMuted = inkMuted;
+
+  // ---- Status tints (fill + text pairs) ---------------------------------
+  // One brand colour: good / paid / upcoming states are shades of gold,
+  // idle states grey, and red is kept only for errors, destructive actions
+  // and "live now".
+
+  /// Visible, sent, free, active.
+  static const Color successFill = accentTint;
+
+  /// Text on [successFill].
+  static const Color successText = accentInk;
+
+  /// Locked, paid, needs attention: an outlined gold pill (see
+  /// `StatusTone.warning`), so it reads apart from the filled one.
+  static const Color warningFill = surface;
+
+  /// Text on [warningFill].
+  static const Color warningText = accentInk;
+
+  /// Failed, expired, live-now.
+  static const Color dangerFill = Color(0xFFFCEBEB);
+
+  /// Text on [dangerFill].
+  static const Color dangerText = Color(0xFFA32D2D);
+
+  /// Upcoming, informational.
+  static const Color infoFill = accentTint;
+
+  /// Text on [infoFill].
+  static const Color infoText = accentInk;
 
   /// A tight contact shadow plus a wide soft one, rather than one big blur
   /// — cards read as resting on the page instead of floating over it.

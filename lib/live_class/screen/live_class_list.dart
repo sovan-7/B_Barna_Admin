@@ -9,6 +9,7 @@ import 'package:bbarna/live_class/widgets/live_class_list_header.dart';
 import 'package:bbarna/live_class/widgets/live_class_theme.dart';
 import 'package:bbarna/utils/navigation.dart';
 import 'package:bbarna/utils/session.dart';
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -144,16 +145,15 @@ class _LiveClassListState extends State<LiveClassList> {
       key: const Key('live_class_app_sync_banner'),
       padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFB54708).withValues(alpha: .06),
+        color: AppTokens.accentInk.withValues(alpha: .06),
         borderRadius: BorderRadius.circular(LiveClassTheme.radiusMd),
-        border:
-            Border.all(color: const Color(0xFFB54708).withValues(alpha: .28)),
+        border: Border.all(color: AppTokens.accentInk.withValues(alpha: .28)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(Icons.sync_problem_outlined,
-              size: 17, color: Color(0xFFB54708)),
+              size: 17, color: AppTokens.accentInk),
           const SizedBox(width: 10),
           Expanded(
             child: Column(

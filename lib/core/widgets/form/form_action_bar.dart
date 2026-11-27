@@ -1,3 +1,4 @@
+import 'package:bbarna/core/widgets/form/form_dirty_scope.dart';
 import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
@@ -84,6 +85,15 @@ class FormActionBar extends StatelessWidget {
                         ),
                       ),
               if (!narrow) const Spacer(),
+              if (!narrow && FormDirtyScope.isDirty(context)) ...[
+                const Text("Unsaved changes",
+                    key: Key('form_unsaved_changes'),
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppTokens.warningText)),
+                const SizedBox(width: AppTokens.gapMd),
+              ],
               TextButton(
                 onPressed: isSaving ? null : () => Navigator.pop(context),
                 style: TextButton.styleFrom(
@@ -110,10 +120,10 @@ class FormActionBar extends StatelessWidget {
         key: saveKey,
         onPressed: isSaving ? null : onSave,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTokens.ink,
-          disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
-          foregroundColor: Colors.white,
-          disabledForegroundColor: Colors.white,
+          backgroundColor: AppTokens.accent,
+          disabledBackgroundColor: AppTokens.accent.withValues(alpha: .55),
+          foregroundColor: AppTokens.onAccent,
+          disabledForegroundColor: AppTokens.onAccent,
           elevation: 0,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
@@ -123,7 +133,7 @@ class FormActionBar extends StatelessWidget {
                 height: 18,
                 width: 18,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2.2, color: Colors.white),
+                    strokeWidth: 2.2, color: AppTokens.onAccent),
               )
             : Text(saveLabel,
                 overflow: TextOverflow.ellipsis,

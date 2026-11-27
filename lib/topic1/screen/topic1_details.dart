@@ -9,6 +9,9 @@ import 'package:bbarna/topic1/viewModel/topic1_view_model.dart';
 import 'package:bbarna/topic1/widgets/topic1_pdf_section.dart';
 import 'package:bbarna/topic1/widgets/topic1_video_section.dart';
 import 'package:bbarna/utils/helper.dart';
+import 'package:bbarna/topic/widgets/content_tabs.dart';
+import 'package:bbarna/topic1/screen/edit_topic1.dart';
+import 'package:bbarna/utils/navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -104,107 +107,89 @@ class _Topic1DetailsState extends State<Topic1Details> {
   @override
   Widget build(BuildContext context) {
     return AdminFormScaffold(
-      headerTitle: "New Topics",
+      headerTitle: "Topics",
       sidebarIndex: topic1ModuleIndex,
       body: (context, width) => FormPageBody(
         width: width,
         children: [
           _pageHeader(),
           const SizedBox(height: AppTokens.gapLg),
-          ..._sections(Provider.of<Topic1ViewModel>(context, listen: false)),
+          ContentTabs(
+              tabs:
+                  _tabs(Provider.of<Topic1ViewModel>(context, listen: false))),
           const SizedBox(height: AppTokens.gapLg),
         ],
       ),
     );
   }
 
-  /// PDFs, videos, then audio and quiz codes. Each section keeps its own
-  /// rows and reports saves through its callback, so nothing here needs to
-  /// rebuild when the view model changes.
-  List<Widget> _sections(Topic1ViewModel viewModel) {
+  /// PDFs, videos, then audio and quiz codes, one tab each. Each section
+  /// keeps its own rows and reports saves through its callback, so nothing
+  /// here needs to rebuild when the view model changes.
+  List<ContentTab> _tabs(Topic1ViewModel viewModel) {
     final Topic1Model topic = widget.topicData;
     return [
-      Topic1PdfSection(
-        key: const ValueKey('topic1_pdfs'),
-        initialPdfs: topic.pdfList,
-        pickFile: widget.pickFile,
-        onSave: (drafts) => _savePdfs(viewModel, drafts),
+      ContentTab(
+        label: contentTabMeta[ContentKind.pdf]!.$1,
+        icon: contentTabMeta[ContentKind.pdf]!.$2,
+        initialCount: topic.pdfList.length,
+        builder: (onState) => Topic1PdfSection(
+          key: const ValueKey('topic1_pdfs'),
+          initialPdfs: topic.pdfList,
+          pickFile: widget.pickFile,
+          onSave: (drafts) => _savePdfs(viewModel, drafts),
+          onStateChanged: onState,
+        ),
       ),
-      Topic1VideoSection(
-        key: const ValueKey('topic1_videos'),
-        initialVideos: topic.videoList,
-        onSave: (videos) => _saveVideos(viewModel, videos),
+      ContentTab(
+        label: contentTabMeta[ContentKind.video]!.$1,
+        icon: contentTabMeta[ContentKind.video]!.$2,
+        initialCount: topic.videoList.length,
+        builder: (onState) => Topic1VideoSection(
+          key: const ValueKey('topic1_videos'),
+          initialVideos: topic.videoList,
+          onSave: (videos) => _saveVideos(viewModel, videos),
+          onStateChanged: onState,
+        ),
       ),
       for (final ContentKind kind in Topic1Model.codeKinds)
-        TopicContentSection(
-          key: ValueKey(kind),
-          kind: kind,
-          initialCodes: topic.contentCodes(kind),
-          titles: _titles[kind],
-          checkFailed: _checkFailed.contains(kind),
-          onRecheck: (codes) => _resolve(kind, codes),
-          onSave: (codes) => _saveCodes(viewModel, kind, codes),
+        ContentTab(
+          label: contentTabMeta[kind]!.$1,
+          icon: contentTabMeta[kind]!.$2,
+          initialCount: topic.contentCodes(kind).length,
+          builder: (onState) => TopicContentSection(
+            key: ValueKey(kind),
+            kind: kind,
+            initialCodes: topic.contentCodes(kind),
+            titles: _titles[kind],
+            checkFailed: _checkFailed.contains(kind),
+            onRecheck: (codes) => _resolve(kind, codes),
+            onSave: (codes) => _saveCodes(viewModel, kind, codes),
+            onStateChanged: onState,
+          ),
         ),
     ];
   }
 
-  /// Back button, name, code, breadcrumb and a one-line explanation.
+  /// The topic card at the top of the page.
   Widget _pageHeader() {
     final Topic1Model data = widget.topicData;
-    String or(String value, String fallback) =>
-        value.isEmpty || value == stringDefault ? fallback : value;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        FormBackButton(onTap: () => Navigator.pop(context)),
-        const SizedBox(width: AppTokens.gapMd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(or(data.name, "Topic"),
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTokens.pageTitle),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppTokens.surface,
-                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                      border: Border.all(color: AppTokens.hairline),
-                    ),
-                    child: Text(data.code,
-                        style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.4,
-                            color: AppTokens.inkMuted)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 3),
-              Text(
-                "${or(data.courseName, 'No course')}  ›  "
-                "${or(data.subjectName, 'No subject')}  ›  "
-                "${or(data.unitName, 'No unit')}",
-                overflow: TextOverflow.ellipsis,
-                style: AppTokens.pageSubtitle,
-              ),
-              const SizedBox(height: 3),
-              const Text(
-                  "Upload PDFs and add YouTube links here; audio and quizzes "
-                  "attach by code. Each list saves on its own.",
-                  style: TextStyle(fontSize: 12, color: AppTokens.inkFaint)),
-            ],
-          ),
-        ),
-      ],
+    return TopicHeaderCard(
+      name: data.name,
+      code: data.code,
+      courseName: data.courseName,
+      subjectName: data.subjectName,
+      unitName: data.unitName,
+      // A saved edit (or a delete) closes this page too, so it never shows
+      // the old details; the list behind it reloads.
+      onEdit: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => EditTopic1(topicData: data)),
+      ).ifSaved(() {
+        if (mounted) Navigator.pop(context, true);
+      }),
+      hint: "Upload PDFs and add YouTube links; audio and quizzes attach by "
+          "code. Each tab saves on its own.",
     );
   }
 }

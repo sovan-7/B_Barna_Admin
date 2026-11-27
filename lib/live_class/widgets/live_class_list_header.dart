@@ -4,6 +4,8 @@ import 'package:bbarna/live_class/widgets/live_class_agenda.dart';
 import 'package:bbarna/live_class/widgets/live_class_card_parts.dart';
 import 'package:bbarna/live_class/widgets/live_class_status_badge.dart';
 import 'package:bbarna/live_class/widgets/live_class_theme.dart';
+import 'package:bbarna/core/widgets/list_page/stats_strip.dart';
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// Strip at the top of the class list while a class is running: the first
@@ -120,74 +122,32 @@ class LiveClassStatsStrip extends StatelessWidget {
   const LiveClassStatsStrip(
       {required this.stats, required this.showChats, super.key});
 
-  /// Narrowest width with every tile on one line.
-  static const double _oneLineMinWidth = 600;
-
   /// Amber, for counts that need doing.
-  static const Color _attention = Color(0xFFB54708);
+  static const Color _attention = AppTokens.accentInk;
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> tiles = [
-      _tile(const Key('live_class_stat_today'), "Today", stats.today, null),
-      _tile(const Key('live_class_stat_next_week'), "Next 7 days",
-          stats.nextWeek, null),
-      _tile(const Key('live_class_stat_missing_notes'), "Missing notes",
-          stats.missingNotes, stats.missingNotes > 0 ? _attention : null),
-      if (showChats)
-        _tile(const Key('live_class_stat_chats'), "Chats to clear",
-            stats.chatsToClear, null),
-    ];
-
-    return LayoutBuilder(builder: (context, constraints) {
-      if (constraints.maxWidth >= _oneLineMinWidth) {
-        return Row(
-          children: [
-            for (int i = 0; i < tiles.length; i++) ...[
-              if (i > 0) const SizedBox(width: LiveClassTheme.gapSm),
-              Expanded(child: tiles[i]),
-            ],
-          ],
-        );
-      }
-      final double half = (constraints.maxWidth - LiveClassTheme.gapSm) / 2;
-      return Wrap(
-        spacing: LiveClassTheme.gapSm,
-        runSpacing: LiveClassTheme.gapSm,
-        children: [
-          for (final Widget tile in tiles) SizedBox(width: half, child: tile)
-        ],
-      );
-    });
-  }
-
-  /// One tile: a small label over a large number.
-  Widget _tile(Key key, String label, int value, Color? color) {
-    return Container(
-      key: key,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: LiveClassTheme.surface,
-        borderRadius: BorderRadius.circular(LiveClassTheme.radiusMd),
-        border: Border.all(color: LiveClassTheme.hairline),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 12, color: LiveClassTheme.inkMuted)),
-          const SizedBox(height: 2),
-          Text("$value",
-              style: TextStyle(
-                  fontSize: 20,
-                  height: 1.2,
-                  fontWeight: FontWeight.w600,
-                  color: color ?? LiveClassTheme.ink)),
-        ],
-      ),
+    return StatsStrip(
+      tiles: [
+        StatTile.count(
+            key: const Key('live_class_stat_today'),
+            label: "Today",
+            count: stats.today),
+        StatTile.count(
+            key: const Key('live_class_stat_next_week'),
+            label: "Next 7 days",
+            count: stats.nextWeek),
+        StatTile.count(
+            key: const Key('live_class_stat_missing_notes'),
+            label: "Missing notes",
+            count: stats.missingNotes,
+            valueColor: stats.missingNotes > 0 ? _attention : null),
+        if (showChats)
+          StatTile.count(
+              key: const Key('live_class_stat_chats'),
+              label: "Chats to clear",
+              count: stats.chatsToClear),
+      ],
     );
   }
 }

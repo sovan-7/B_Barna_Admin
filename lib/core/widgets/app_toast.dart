@@ -19,9 +19,9 @@ enum ToastLevel {
 extension _ToastLevelStyle on ToastLevel {
   /// Accent colour.
   Color get color => switch (this) {
-        ToastLevel.success => const Color(0xFF108460),
+        ToastLevel.success => AppTokens.accentInk,
         ToastLevel.error => AppTokens.danger,
-        ToastLevel.info => const Color(0xFF175CD3),
+        ToastLevel.info => AppTokens.accentInk,
       };
 
   /// Leading icon.

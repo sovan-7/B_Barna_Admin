@@ -157,6 +157,74 @@ void main() {
     });
   });
 
+  group('date range', () {
+    TransactionModel at(String id, DateTime when, double paid) {
+      final TransactionModel t = _t(id, paid: paid);
+      return TransactionModel(
+        docId: t.docId,
+        studentId: t.studentId,
+        studentName: t.studentName,
+        phone: t.phone,
+        subjectCode: t.subjectCode,
+        subjectName: t.subjectName,
+        courseType: t.courseType,
+        coursePrice: t.coursePrice,
+        offerDiscount: t.offerDiscount,
+        couponCode: t.couponCode,
+        couponDiscount: t.couponDiscount,
+        amountPaid: t.amountPaid,
+        paymentId: t.paymentId,
+        method: t.method,
+        receiptNo: t.receiptNo,
+        createdAt: when,
+      );
+    }
+
+    test('this month and last 30 days narrow what is shown', () async {
+      final DateTime now = DateTime.now();
+      answerFirstPage([
+        at('new', now.subtract(const Duration(hours: 1)), 1000),
+        at('old', now.subtract(const Duration(days: 45)), 500),
+      ]);
+      final vm = TransactionViewModel(repo: repo);
+      await vm.getTransactions();
+
+      expect(vm.shown, hasLength(2));
+      vm.setRange(TransactionRange.last30);
+      expect(vm.shown.map((t) => t.docId), ['new']);
+      expect(vm.totalCollected, 1000);
+      vm.setRange(TransactionRange.all);
+      expect(vm.shown, hasLength(2));
+    });
+
+    test('compares with the previous period only once it is fully loaded',
+        () async {
+      final DateTime now = DateTime.now();
+      final List<TransactionModel> rows = [
+        at('new', now.subtract(const Duration(days: 1)), 1200),
+        at('prev', now.subtract(const Duration(days: 40)), 1000),
+      ];
+      answerFirstPage(rows, hasMore: true);
+      final vm = TransactionViewModel(repo: repo);
+      await vm.getTransactions();
+      vm.setRange(TransactionRange.last30);
+
+      // More pages to load and nothing older than 60 days yet: no number.
+      expect(vm.previousCollected(now: now), isNull);
+
+      answerFirstPage(rows);
+      await vm.getTransactions();
+      expect(vm.previousCollected(now: now), 1000);
+    });
+
+    test('all time has nothing to compare with', () async {
+      answerFirstPage([_t('a')]);
+      final vm = TransactionViewModel(repo: repo);
+      await vm.getTransactions();
+      expect(vm.previousCollected(), isNull);
+    });
+  });
+
   group('loading', () {
     test('a failed load reports an error instead of an empty list', () async {
       when(() => repo.getPage()).thenThrow(Exception('permission-denied'));
@@ -344,20 +412,26 @@ void main() {
       expect(csv.onPressed, isNull);
     });
 
-    testWidgets('tapping a row opens its details and receipt', (tester) async {
-      answerFirstPage([_t('a', coupon: 'BARNA20', couponOff: 500)]);
-      await pump(tester, const Size(1024, 900));
+    for (final (String layout, Size size, String rowKey) in const [
+      ('card', Size(800, 900), 'transaction_row_a'),
+      ('table row', Size(1440, 900), 'transaction_table_row_a'),
+    ]) {
+      testWidgets('tapping a $layout opens its details and receipt',
+          (tester) async {
+        answerFirstPage([_t('a', coupon: 'BARNA20', couponOff: 500)]);
+        await pump(tester, size);
 
-      await tester.tap(find.byKey(const Key('transaction_row_a')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+        await tester.tap(find.byKey(Key(rowKey)));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Payment successful'), findsOneWidget);
-      expect(find.text('BB-20261030-a'), findsOneWidget);
-      expect(find.text('pay_ABC123'), findsOneWidget);
-      expect(find.byKey(const Key('transaction_download_receipt')),
-          findsOneWidget);
-    });
+        expect(find.text('Payment successful'), findsOneWidget);
+        expect(find.text('BB-20261030-a'), findsOneWidget);
+        expect(find.text('pay_ABC123'), findsOneWidget);
+        expect(find.byKey(const Key('transaction_download_receipt')),
+            findsOneWidget);
+      });
+    }
 
     testWidgets('a short window scrolls instead of overflowing',
         (tester) async {

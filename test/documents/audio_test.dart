@@ -45,6 +45,13 @@ List<AudioModel> _fixture() => [
           timeStamp: 100),
     ];
 
+/// Audio rows on screen: table rows on wide windows, cards on narrow.
+Finder _rows() => find.byWidgetPredicate((widget) {
+      if (widget is AudioCard) return true;
+      final Key? key = widget.key;
+      return key is ValueKey<String> && key.value.startsWith('audio_row_');
+    });
+
 const List<Size> _sizes = [
   Size(1440, 900),
   Size(1024, 768),
@@ -90,7 +97,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text('Audio'), findsOneWidget);
-        expect(find.byType(AudioCard), findsNWidgets(3));
+        expect(_rows(), size.width < 900 ? findsWidgets : findsNWidgets(3));
       });
 
       testWidgets('the add form lays out at ${size.width.toInt()}',
@@ -117,17 +124,18 @@ void main() {
     testWidgets('says how much of the collection is loaded', (tester) async {
       when(() => repo.getAudioListLength()).thenAnswer((_) async => 90);
       final vm = AudioViewModel(audioRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: AudioList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: AudioList()), vm);
 
       expect(find.text('Showing 3 of 90'), findsOneWidget);
       expect(find.byKey(const Key('paged_list_load_more')), findsOneWidget);
     });
 
+    // The card (narrow windows) spells this out; the table has its own test.
     testWidgets('a clip with no file says so', (tester) async {
       final vm = AudioViewModel(audioRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: AudioList()), vm);
+      await _pump(
+          tester, const Size(800, 900), const Scaffold(body: AudioList()), vm);
 
       expect(find.text('No file uploaded'), findsOneWidget);
       expect(find.text('Play the file'), findsNWidgets(2));
@@ -138,15 +146,15 @@ void main() {
           .thenAnswer((_) async => [_fixture().first]);
 
       final vm = AudioViewModel(audioRepo: repo);
-      await _pump(tester, const Size(1440, 900),
-          const Scaffold(body: AudioList()), vm);
+      await _pump(
+          tester, const Size(1440, 900), const Scaffold(body: AudioList()), vm);
 
       await tester.enterText(find.byType(TextField).first, 'lecture-01');
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
 
       verify(() => repo.searchAudio('LECTURE-01')).called(1);
-      expect(find.byType(AudioCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
     });
 
     testWidgets('a failed search reports it instead of popping the page',
@@ -154,8 +162,8 @@ void main() {
       when(() => repo.searchAudio(any())).thenThrow(Exception('offline'));
 
       final vm = AudioViewModel(audioRepo: repo);
-      await _pump(tester, const Size(1024, 768),
-          const Scaffold(body: AudioList()), vm);
+      await _pump(
+          tester, const Size(1024, 768), const Scaffold(body: AudioList()), vm);
 
       await tester.enterText(find.byType(TextField).first, 'zzz');
       await tester.pump(const Duration(milliseconds: 500));
@@ -169,8 +177,8 @@ void main() {
 
     testWidgets('mounting mid-build does not throw', (tester) async {
       final vm = AudioViewModel(audioRepo: repo);
-      await _pump(tester, const Size(1024, 768),
-          const Scaffold(body: AudioList()), vm);
+      await _pump(
+          tester, const Size(1024, 768), const Scaffold(body: AudioList()), vm);
       expect(tester.takeException(), isNull);
     });
   });
@@ -246,28 +254,27 @@ void main() {
       verifyNever(() => repo.uploadAudio(any(), any()));
     });
 
-  // The name and the code are what an admin pastes elsewhere -- into a
-  // search box, a spreadsheet, another module's form -- so they render as
-  // SelectableLabel rather than plain Text.
-  testWidgets('names and codes in the list are selectable', (tester) async {
-    await _pump(tester, const Size(1440, 900),
-        const Scaffold(body: AudioList()), AudioViewModel(audioRepo: repo));
+    // The name and the code are what an admin pastes elsewhere -- into a
+    // search box, a spreadsheet, another module's form -- so they render as
+    // SelectableLabel rather than plain Text.
+    testWidgets('names and codes in the list are selectable', (tester) async {
+      await _pump(tester, const Size(1440, 900),
+          const Scaffold(body: AudioList()), AudioViewModel(audioRepo: repo));
 
-    final Iterable<SelectableLabel> labels =
-        tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
-    expect(labels, isNotEmpty);
-    for (final SelectableLabel label in labels) {
-      expect(label.data.trim(), isNotEmpty);
-    }
-    // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
-    expect(
-      find.descendant(
-        of: find.byType(SelectableLabel),
-        matching: find.byType(SelectableText),
-      ),
-      findsWidgets,
-    );
-  });
-
+      final Iterable<SelectableLabel> labels =
+          tester.widgetList<SelectableLabel>(find.byType(SelectableLabel));
+      expect(labels, isNotEmpty);
+      for (final SelectableLabel label in labels) {
+        expect(label.data.trim(), isNotEmpty);
+      }
+      // Drag-select and Ctrl/Cmd-C come from the SelectableText each builds.
+      expect(
+        find.descendant(
+          of: find.byType(SelectableLabel),
+          matching: find.byType(SelectableText),
+        ),
+        findsWidgets,
+      );
+    });
   });
 }

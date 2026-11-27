@@ -80,7 +80,7 @@ class TransactionCard extends StatelessWidget {
         StatusChip(
           icon: t.isFree ? Icons.card_giftcard : Icons.check_circle_outline,
           label: t.isFree ? "Free" : "Paid",
-          color: t.isFree ? AppTokens.inkMuted : const Color(0xFF108460),
+          color: t.isFree ? AppTokens.inkMuted : AppTokens.accentInk,
           filled: !t.isFree,
         ),
         StatusChip(

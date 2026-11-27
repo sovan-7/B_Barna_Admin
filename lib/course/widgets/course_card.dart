@@ -118,8 +118,7 @@ class _CourseCardState extends State<CourseCard> {
               ? Icons.visibility_outlined
               : Icons.visibility_off_outlined,
           label: _data.willDisplay ? "Visible" : "Hidden",
-          color:
-              _data.willDisplay ? const Color(0xFF108460) : AppTokens.inkFaint,
+          color: _data.willDisplay ? AppTokens.accentInk : AppTokens.inkFaint,
           filled: true,
         ),
         _lockChip(),
@@ -131,7 +130,7 @@ class _CourseCardState extends State<CourseCard> {
   /// with the other two, but it is tappable and says what it will do.
   Widget _lockChip() {
     final bool locked = _data.isLocked;
-    final Color color = locked ? const Color(0xFFB54708) : AppTokens.inkFaint;
+    final Color color = locked ? AppTokens.accentInk : AppTokens.inkFaint;
 
     return Tooltip(
       message: locked ? "Unlock this course" : "Lock this course",
@@ -179,42 +178,49 @@ class _CourseCardState extends State<CourseCard> {
   }
 
   /// Row buttons; faded in on hover, always shown on compact screens.
-  Widget _actions(bool visible) {
-    return CardActions(
-      visible: visible,
-      buttons: [
-        CardEditButton(
-          buttonKey: Key('course_edit_${_data.docId}'),
-          tooltip: "Edit course",
-          onTap: _openEdit,
-        ),
-        CardDeleteButton(
-          buttonKey: Key('course_delete_${_data.docId}'),
-          tooltip: "Delete course",
-          onTap: _confirmDelete,
-        ),
-      ],
-    );
-  }
+  Widget _actions(bool visible) =>
+      courseActions(context, _data, widget.onChanged, visible);
+}
 
-  /// Opens the edit screen; the list reloads when it comes back.
-  void _openEdit() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EditCourse(courseData: _data)),
-    ).ifSaved(widget.onChanged);
-  }
+/// Edit and delete for [course], shared by the card and the table row
+/// (same keys, so tests find them either way).
+Widget courseActions(BuildContext context, CourseModel course,
+    VoidCallback onChanged, bool visible) {
+  return CardActions(
+    visible: visible,
+    buttons: [
+      CardEditButton(
+        buttonKey: Key('course_edit_${course.docId}'),
+        tooltip: "Edit course",
+        onTap: () => openEditCourse(context, course, onChanged),
+      ),
+      CardDeleteButton(
+        buttonKey: Key('course_delete_${course.docId}'),
+        tooltip: "Delete course",
+        onTap: () => confirmDeleteCourse(context, course),
+      ),
+    ],
+  );
+}
 
-  /// Asks for confirmation, then deletes this item.
-  void _confirmDelete() {
-    final CourseViewModel courseViewModel =
-        Provider.of<CourseViewModel>(context, listen: false);
-    final String docId = _data.docId;
+/// Opens the edit screen; [onChanged] runs when it comes back having saved.
+void openEditCourse(
+    BuildContext context, CourseModel course, VoidCallback onChanged) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => EditCourse(courseData: course)),
+  ).ifSaved(onChanged);
+}
 
-    confirmDelete(
-      title: _data.name,
-      delete: () => courseViewModel.deleteCourse(docId),
-      successMessage: "Course deleted successfully",
-    );
-  }
+/// Asks for confirmation, then deletes [course].
+void confirmDeleteCourse(BuildContext context, CourseModel course) {
+  final CourseViewModel courseViewModel =
+      Provider.of<CourseViewModel>(context, listen: false);
+  final String docId = course.docId;
+
+  confirmDelete(
+    title: course.name,
+    delete: () => courseViewModel.deleteCourse(docId),
+    successMessage: "Course deleted successfully",
+  );
 }

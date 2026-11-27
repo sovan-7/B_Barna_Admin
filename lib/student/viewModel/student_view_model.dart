@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bbarna/core/viewModel/async_list.dart';
 import 'package:bbarna/core/mixins/safe_notifier.dart';
 import 'package:bbarna/course/model/course_model.dart';
@@ -105,9 +107,25 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
     }
   }
 
+  /// Counts for the tiles above the list (see `getStudentStats`); empty
+  /// until they arrive, and if they fail (the tiles then show a dash).
+  Map<String, int> stats = {};
+
+  /// Reloads [stats]. Failures only cost the tiles their numbers, so they
+  /// are not toasted.
+  Future<void> loadStats() async {
+    try {
+      stats = await _studentRepo.getStudentStats();
+    } catch (_) {
+      stats = {};
+    }
+    notifyListeners();
+  }
+
   /// Loads the first page in the current [sort] order, re-applies the
   /// search, and refreshes the counts.
   Future<void> fetchFirstStudentList() async {
+    unawaited(loadStats());
     // Skeleton only when nothing is on screen yet.
     isLoading = copyStudentList.isEmpty;
     loadError = null;
@@ -221,8 +239,8 @@ class StudentViewModel extends ChangeNotifier with SafeNotifier {
         if (student.studentId == studentId) {
           // Keep the sign-in time for the row's "Active ..." label: the phone
           // really was active then, even though the stored field is deleted.
-          student.loginTime = student.lastLoginAt?.millisecondsSinceEpoch ??
-              student.loginTime;
+          student.loginTime =
+              student.lastLoginAt?.millisecondsSinceEpoch ?? student.loginTime;
           student.activeDeviceId = "";
           student.activeDeviceName = "";
           student.activeLoginAt = null;

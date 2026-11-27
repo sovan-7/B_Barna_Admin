@@ -3,6 +3,9 @@ import 'package:bbarna/documents/audio/model/audio_model.dart';
 import 'package:bbarna/documents/audio/screen/add_audio.dart';
 import 'package:bbarna/documents/audio/viewModel/audio_view_model.dart';
 import 'package:bbarna/documents/audio/widgets/audio_card.dart';
+import 'package:bbarna/core/widgets/card/card_chips.dart';
+import 'package:bbarna/documents/media_table.dart';
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// The audio clip list (sidebar module). All the behaviour lives in
@@ -30,6 +33,27 @@ class AudioList extends StatelessWidget {
         audioData: audio,
         onChanged: onChanged,
       ),
+      statTiles: (vm) => mediaStatTiles("audio", vm.totalCount, vm.stats),
+      chipOptions: accessChipOptions("audio"),
+      chipMatches: (audio, filter) =>
+          accessChipMatches(audio.audioType, filter),
+      tableColumns: mediaColumns("Audio"),
+      rowId: (audio) => audio.docId,
+      rowKeyPrefix: "audio",
+      tableMinWidth: 720,
+      rowCells: (context, audio, hovered, onChanged) => [
+        mediaIdentity(
+            title: audio.title,
+            description: audio.description,
+            icon: Icons.headphones_outlined,
+            color: AppTokens.accentInk),
+        CodeChip(audio.code, copyable: true),
+        accessPill(audio.audioType),
+        addedCell(audio.timeStamp),
+        openLinkCell(
+            audio.link, Key('audio_open_${audio.docId}'), "Open the audio"),
+        audioActions(context, audio, onChanged, hovered),
+      ],
     );
   }
 }

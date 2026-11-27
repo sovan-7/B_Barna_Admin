@@ -312,7 +312,7 @@ class _QuestionFormState extends State<QuestionForm> {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: _answer == null ? AppTokens.danger : const Color(0xFF108460),
+          color: _answer == null ? AppTokens.danger : AppTokens.accentInk,
         ),
       ),
       children: [
@@ -339,7 +339,7 @@ class _QuestionFormState extends State<QuestionForm> {
   /// "Correct" toggle beside an option; marking one unmarks the others.
   Widget _correctToggle(QuestionOption option) {
     final bool selected = _answer == option;
-    const Color green = Color(0xFF108460);
+    const Color green = AppTokens.accentInk;
 
     return Tooltip(
       message: selected

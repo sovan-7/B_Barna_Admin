@@ -53,7 +53,7 @@ const String unit = "unit";
 /// `topic` collection.
 const String topic = "topic";
 
-/// `topics` collection, written by the New Topics module (`Topic1…` in
+/// `topics` collection, written by the Topics module (`Topic1…` in
 /// code): topics whose PDFs are uploaded and whose videos are YouTube links,
 /// both stored on the topic itself rather than attached by code (see
 /// `Topic1Model`). The module's one-time copy fills it from [topic]
@@ -148,7 +148,21 @@ const Set<int> hiddenModuleIndices = {
   bookModuleIndex,
   bookOrderModuleIndex,
   question1ModuleIndex,
+  // The old Topics module: "Topics" is now the former New Topics (Topic1).
+  // Its code and the `topic` collection stay; see [accessGrants].
+  topicModuleIndex,
 };
+
+/// Whether a teacher's stored module [access] lets them open the module at
+/// [moduleIndex].
+///
+/// Access to the old Topics module ("TOPIC", now hidden) carries over to
+/// Topics (Topic1), so teachers who were given topics keep them without
+/// anyone editing their accounts.
+bool accessGrants(Iterable<String> access, int moduleIndex) =>
+    access.contains(moduleList[moduleIndex]) ||
+    (moduleIndex == topic1ModuleIndex &&
+        access.contains(moduleList[topicModuleIndex]));
 
 /// The `course_type` of a subject that is a full course. Only these
 /// subjects get live classes (the student app shows its Live Class tab on
@@ -177,6 +191,85 @@ final List<int> moduleNavOrder = [
     ],
 ];
 
+/// One heading in the sidebar and the modules listed under it.
+class ModuleGroup {
+  /// Heading shown above the modules ("Content") and the first part of the
+  /// header's breadcrumb.
+  final String label;
+
+  /// Positions in [moduleList], in the order they are listed.
+  final List<int> modules;
+
+  const ModuleGroup(this.label, this.modules);
+}
+
+/// How the sidebar groups the modules. Display only: a module's identity
+/// stays its [moduleList] string, and access checks still go through
+/// `Helper.allowedModuleIndices`. Every position in [moduleList] appears in
+/// exactly one group (hidden ones too, so un-hiding one needs no change
+/// here); groups the signed-in teacher can open nothing in are not shown.
+const List<ModuleGroup> moduleGroups = [
+  ModuleGroup("Content", [
+    courseModuleIndex,
+    subjectModuleIndex,
+    unitModuleIndex,
+    topicModuleIndex,
+    topic1ModuleIndex,
+  ]),
+  ModuleGroup("Media", [videoModuleIndex, pdfModuleIndex, audioModuleIndex]),
+  ModuleGroup("Assessment", [
+    quizModuleIndex,
+    questionModuleIndex,
+    question1ModuleIndex,
+  ]),
+  ModuleGroup("People", [studentModuleIndex, teacherModuleIndex]),
+  ModuleGroup("Engage", [
+    liveClassModuleIndex,
+    bannerModuleIndex,
+    notificationModuleIndex,
+  ]),
+  ModuleGroup("Shop", [bookModuleIndex, bookOrderModuleIndex]),
+  ModuleGroup("Finance", [transactionModuleIndex]),
+];
+
+/// The group [moduleIndex] is listed under, or null for an unknown index.
+ModuleGroup? groupOfModule(int moduleIndex) {
+  for (final ModuleGroup group in moduleGroups) {
+    if (group.modules.contains(moduleIndex)) return group;
+  }
+  return null;
+}
+
+/// Position of the Banners module within [moduleList].
+const int bannerModuleIndex = 0;
+
+/// Position of the Courses module within [moduleList].
+const int courseModuleIndex = 1;
+
+/// Position of the Subjects module within [moduleList].
+const int subjectModuleIndex = 2;
+
+/// Position of the Units module within [moduleList].
+const int unitModuleIndex = 3;
+
+/// Position of the Videos module within [moduleList].
+const int videoModuleIndex = 5;
+
+/// Position of the PDFs module within [moduleList].
+const int pdfModuleIndex = 6;
+
+/// Position of the Audio module within [moduleList].
+const int audioModuleIndex = 7;
+
+/// Position of the Quizzes module within [moduleList].
+const int quizModuleIndex = 8;
+
+/// Position of the Questions module within [moduleList].
+const int questionModuleIndex = 9;
+
+/// Position of the Students module within [moduleList].
+const int studentModuleIndex = 10;
+
 /// Position of the Books module within [moduleList] — the value the Book
 /// form passes as `sidebarIndex`. New modules are appended, never
 /// inserted, so the positions of the older ones never move.
@@ -204,7 +297,8 @@ const int liveClassModuleIndex = 12;
 /// Position of the Topics module within [moduleList].
 const int topicModuleIndex = 4;
 
-/// Position of the New Topics module (`Topic1…` in code) within
+/// Position of the Topics module (`Topic1…` in code; once "New Topics")
+/// within
 /// [moduleList] — the value every Topic1 screen passes as `sidebarIndex`.
 /// Shown right after Topics (see [moduleNavOrder]).
 const int topic1ModuleIndex = 17;
@@ -238,7 +332,7 @@ const List<String> moduleDisplayList = [
   "Book orders",
   "Notifications",
   "Transactions",
-  "New Topics",
+  "Topics",
   "Question1",
 ];
 

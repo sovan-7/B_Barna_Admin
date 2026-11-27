@@ -3,9 +3,9 @@ import 'package:bbarna/core/widgets/sidebar.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 
-/// The frame around every Add/Edit page: the top [AppHeader], the module
-/// sidebar on the left (or in a drawer below [AppTokens.compactBreakpoint])
-/// with [sidebarIndex] highlighted, and [body] filling the rest.
+/// The frame around every Add/Edit page: the navy module rail on the left
+/// (or in a drawer below [AppTokens.compactBreakpoint]) with [sidebarIndex]
+/// highlighted, the [AppHeader] breadcrumb, and [body] filling the rest.
 ///
 /// [body] is built with the window width so the page can adapt its own
 /// layout (stacked fields, narrower padding, …).
@@ -51,20 +51,21 @@ class _AdminFormScaffoldState extends State<AdminFormScaffold> {
         onPopInvokedWithResult: (didPop, result) {
           if (didPop) return;
         },
-        child: Column(
+        child: Row(
           children: [
-            AppHeader(
-              onTapIcon: () => _scaffoldKey.currentState?.openDrawer(),
-              title: widget.headerTitle,
-            ),
+            // The same rail as the list screens on wide windows, in a
+            // drawer otherwise.
+            if (!isCompact)
+              ExtraSideBar(sidebarIndex: widget.sidebarIndex, inline: true),
             Expanded(
-              child: Row(
+              child: Column(
                 children: [
-                  // Sidebar inline on wide windows, in a drawer otherwise.
-                  if (!isCompact)
-                    Expanded(
-                        child: ExtraSideBar(sidebarIndex: widget.sidebarIndex)),
-                  Expanded(flex: 5, child: widget.body(context, width)),
+                  AppHeader(
+                    onTapIcon: () => _scaffoldKey.currentState?.openDrawer(),
+                    moduleIndex: widget.sidebarIndex,
+                    title: widget.headerTitle,
+                  ),
+                  Expanded(child: widget.body(context, width)),
                 ],
               ),
             ),
@@ -72,7 +73,10 @@ class _AdminFormScaffoldState extends State<AdminFormScaffold> {
         ),
       ),
       drawer: isCompact
-          ? Drawer(child: ExtraSideBar(sidebarIndex: widget.sidebarIndex))
+          ? Drawer(
+              width: AppTokens.railWidth,
+              backgroundColor: AppTokens.railBackground,
+              child: ExtraSideBar(sidebarIndex: widget.sidebarIndex))
           : null,
     );
   }

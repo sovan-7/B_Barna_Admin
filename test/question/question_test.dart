@@ -52,6 +52,13 @@ List<Question> _fixture() => [
           timeStamp: 100),
     ];
 
+/// Question rows on screen: table rows on wide windows, cards on narrow.
+Finder _rows() => find.byWidgetPredicate((widget) {
+      if (widget is QuestionCard) return true;
+      final Key? key = widget.key;
+      return key is ValueKey<String> && key.value.startsWith('question_row_');
+    });
+
 const List<Size> _sizes = [
   Size(1440, 900),
   Size(1024, 768),
@@ -293,7 +300,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text('Questions'), findsOneWidget);
-        expect(find.byType(QuestionCard), findsNWidgets(3));
+        expect(_rows(), size.width < 900 ? findsWidgets : findsNWidgets(3));
       });
     }
   });
@@ -312,7 +319,7 @@ void main() {
 
     testWidgets('calls out a question with no answer marked', (tester) async {
       final vm = QuestionViewModel(questionRepo: repo);
-      await _pump(tester, const Size(1440, 900),
+      await _pump(tester, const Size(800, 900),
           const Scaffold(body: QuestionList()), vm);
 
       expect(find.text('No answer set'), findsOneWidget);
@@ -321,7 +328,7 @@ void main() {
 
     testWidgets('calls out missing options', (tester) async {
       final vm = QuestionViewModel(questionRepo: repo);
-      await _pump(tester, const Size(1440, 900),
+      await _pump(tester, const Size(800, 900),
           const Scaffold(body: QuestionList()), vm);
 
       expect(find.text('2 of 4 options'), findsOneWidget);
@@ -373,7 +380,7 @@ void main() {
       await tester.pump();
 
       verify(() => repo.searchQuestion('PHY-001')).called(1);
-      expect(find.byType(QuestionCard), findsOneWidget);
+      expect(_rows(), findsOneWidget);
     });
 
     testWidgets('a failed search reports it instead of popping the page',

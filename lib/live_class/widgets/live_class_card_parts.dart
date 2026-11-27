@@ -10,6 +10,7 @@ import 'package:bbarna/utils/helper.dart';
 import 'package:bbarna/utils/navigation.dart';
 import 'package:bbarna/utils/session.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -18,10 +19,10 @@ import 'package:provider/provider.dart';
 // find, so they stay the same wherever a piece is shown.
 
 /// Colour of the PDF icon and the Replace PDF action.
-const Color _pdfRed = Color(0xFFD92D20);
+const Color _pdfRed = AppTokens.accentInk;
 
 /// Colour of the Upload PDF pill and the Replace action.
-const Color _uploadBlue = Color(0xFF2563EB);
+const Color _uploadBlue = AppTokens.accentInk;
 
 /// The class's subject names, blanks dropped (a code stands in for a
 /// missing name).
@@ -67,7 +68,7 @@ class LiveClassTypeChip extends StatelessWidget {
       key: Key('live_class_type_chip_${data.docId}'),
       icon: data.isFree ? Icons.lock_open_outlined : Icons.paid_outlined,
       label: data.classType,
-      color: data.isFree ? const Color(0xFF108460) : const Color(0xFFB54708),
+      color: data.isFree ? AppTokens.accentInk : AppTokens.accentInk,
       filled: true,
     );
   }
@@ -295,7 +296,7 @@ class LiveClassLinkRow extends StatelessWidget {
       child: Row(
         children: [
           const Icon(Icons.play_circle_outline,
-              size: 15, color: Color(0xFFE0393E)),
+              size: 15, color: AppTokens.accentInk),
           const SizedBox(width: 7),
           Expanded(
             child: SelectableText(

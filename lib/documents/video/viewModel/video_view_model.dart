@@ -30,6 +30,9 @@ class VideoViewModel extends PagedListViewModel<VideoModel> {
   Future<int> fetchTotalCount() => _videoRepo.getVideoListLength();
 
   @override
+  Future<Map<String, int>> fetchStats() => _videoRepo.getVideoStats();
+
+  @override
   Future<List<VideoModel>> fetchSearchResults(String query) =>
       _videoRepo.searchVideo(query);
 

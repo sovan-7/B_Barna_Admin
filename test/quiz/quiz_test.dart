@@ -78,6 +78,13 @@ Question _question(String code, String body) {
   return q;
 }
 
+/// Quiz rows on screen: table rows on wide windows, cards on narrow.
+Finder _rows() => find.byWidgetPredicate((widget) {
+      if (widget is QuizCard) return true;
+      final Key? key = widget.key;
+      return key is ValueKey<String> && key.value.startsWith('quiz_row_');
+    });
+
 const List<Size> _sizes = [
   Size(1440, 900),
   Size(1024, 768),
@@ -149,7 +156,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text('Quizzes'), findsOneWidget);
-        expect(find.byType(QuizCard), findsNWidgets(3));
+        expect(_rows(), size.width < 900 ? findsWidgets : findsNWidgets(3));
       });
 
       testWidgets('the add form lays out at ${size.width.toInt()}',
@@ -176,7 +183,7 @@ void main() {
     testWidgets('shows the numbers that define a quiz', (tester) async {
       final vm = QuizViewModel(quizRepo: repo);
       await _pump(
-          tester, const Size(1440, 900), const Scaffold(body: QuizList()), vm);
+          tester, const Size(800, 900), const Scaffold(body: QuizList()), vm);
 
       // None of this was on the old row.
       expect(find.text('1h 30m'), findsNWidgets(2));
@@ -190,7 +197,7 @@ void main() {
         (tester) async {
       final vm = QuizViewModel(quizRepo: repo);
       await _pump(
-          tester, const Size(1440, 900), const Scaffold(body: QuizList()), vm);
+          tester, const Size(800, 900), const Scaffold(body: QuizList()), vm);
 
       // MOCK-03 says 5 questions but names only one.
       expect(find.text('1 attached (set to 5)'), findsOneWidget);
@@ -200,7 +207,7 @@ void main() {
     testWidgets('status is told apart', (tester) async {
       final vm = QuizViewModel(quizRepo: repo);
       await _pump(
-          tester, const Size(1440, 900), const Scaffold(body: QuizList()), vm);
+          tester, const Size(800, 900), const Scaffold(body: QuizList()), vm);
 
       expect(find.text('LIVE'), findsOneWidget);
       expect(find.text('UPCOMING'), findsOneWidget);
@@ -636,7 +643,7 @@ void main() {
           ]);
       final vm = QuizViewModel(quizRepo: repo);
       await _pump(
-          tester, const Size(1440, 900), const Scaffold(body: QuizList()), vm);
+          tester, const Size(800, 900), const Scaffold(body: QuizList()), vm);
 
       expect(find.text('Opens ${LiveClassFormat.full.format(future)}'),
           findsOneWidget);

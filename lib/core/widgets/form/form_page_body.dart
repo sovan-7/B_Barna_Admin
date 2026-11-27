@@ -1,3 +1,4 @@
+import 'package:bbarna/core/widgets/form/form_dirty_scope.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 
@@ -7,8 +8,10 @@ double formPagePadding(double width) => width < 700 ? 16 : 32;
 /// A form page's scrolling content plus the action bar pinned below it.
 ///
 /// [children] (header, sections, …) are centred in a column at most
-/// [maxWidth] wide and scroll; [actionBar] stays at the bottom.
-class FormPageBody extends StatelessWidget {
+/// [maxWidth] wide and scroll; [actionBar] stays at the bottom. Both sit
+/// in a [FormDirtyScope], so the shared fields can tell the action bar
+/// that something has changed.
+class FormPageBody extends StatefulWidget {
   /// Window width, for the side padding.
   final double width;
 
@@ -30,26 +33,44 @@ class FormPageBody extends StatelessWidget {
   });
 
   @override
+  State<FormPageBody> createState() => _FormPageBodyState();
+}
+
+class _FormPageBodyState extends State<FormPageBody> {
+  /// Whether anything on this page has been changed.
+  final FormDirtyController _dirty = FormDirtyController();
+
+  @override
+  void dispose() {
+    _dirty.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: formPagePadding(width), vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxWidth),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: children,
+    final Widget? actionBar = widget.actionBar;
+    return FormDirtyScope(
+      controller: _dirty,
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                  horizontal: formPagePadding(widget.width), vertical: 24),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: widget.maxWidth),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: widget.children,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        if (actionBar != null) actionBar!,
-      ],
+          if (actionBar != null) actionBar,
+        ],
+      ),
     );
   }
 }
@@ -124,9 +145,12 @@ class FormBackButton extends StatelessWidget {
   }
 }
 
-/// A white card grouping related fields under an upper-case [title]
-/// (e.g. "COURSE DETAILS"), with an optional [trailing] widget on the
+/// A white card grouping related fields under a [title] with a small
+/// icon (e.g. "Course details"), with an optional [trailing] widget on the
 /// title row.
+///
+/// Titles may be written upper-case ("COURSE DETAILS"); they are shown in
+/// sentence case, acronyms such as PDF kept.
 class FormSection extends StatelessWidget {
   /// Section heading, e.g. "COURSE DETAILS".
   final String title;
@@ -137,16 +161,87 @@ class FormSection extends StatelessWidget {
   /// Shown at the right end of the title row (e.g. a count or a button).
   final Widget? trailing;
 
+  /// Icon before the title; picked from the title's words when null.
+  final IconData? icon;
+
   const FormSection({
     required this.title,
     required this.children,
     this.trailing,
+    this.icon,
     super.key,
   });
+
+  /// Words kept as written rather than lower-cased.
+  static const Map<String, String> _keepCase = {
+    "PDF": "PDF",
+    "PDFS": "PDFs",
+    "URL": "URL",
+    "ID": "ID",
+    "YOUTUBE": "YouTube",
+    "WHATSAPP": "WhatsApp",
+  };
+
+  /// "COURSE DETAILS" → "Course details"; mixed-case titles are left alone.
+  static String sentenceCase(String title) {
+    if (title != title.toUpperCase()) return title;
+    final List<String> words = title.toLowerCase().split(' ');
+    for (int i = 0; i < words.length; i++) {
+      final String bare = words[i].replaceAll(RegExp(r'[^a-z]'), '');
+      final String? kept = _keepCase[bare.toUpperCase()];
+      if (kept != null) {
+        words[i] = words[i].replaceFirst(bare, kept);
+      } else if (i == 0 && words[i].isNotEmpty) {
+        words[i] = words[i][0].toUpperCase() + words[i].substring(1);
+      }
+    }
+    return words.join(' ');
+  }
+
+  /// An icon that fits the title's words, or a neutral one.
+  static IconData iconFor(String title) {
+    final String t = title.toUpperCase();
+    bool has(String word) => t.contains(word);
+    if (has("IMAGE") || has("PICTURE") || has("COVER")) {
+      return Icons.image_outlined;
+    }
+    if (has("AVAILABILITY") || has("VISIB")) return Icons.visibility_outlined;
+    if (has("PRICE") || has("PRICING")) return Icons.currency_rupee;
+    if (has("COUPON")) return Icons.local_offer_outlined;
+    if (has("WHERE") || has("BELONG")) return Icons.account_tree_outlined;
+    if (has("ACCESS") || has("ROLE")) return Icons.lock_outline;
+    if (has("ACCOUNT")) return Icons.person_outline;
+    if (has("FILE") || has("PDF")) return Icons.attach_file;
+    if (has("LINK") || has("VIDEO")) return Icons.link;
+    if (has("AUDIO")) return Icons.headphones_outlined;
+    if (has("QUESTION")) return Icons.help_outline;
+    if (has("ANSWER")) return Icons.lightbulb_outline;
+    if (has("RULES")) return Icons.rule;
+    if (has("CONTENT")) return Icons.layers_outlined;
+    if (has("ENROL")) return Icons.school_outlined;
+    if (has("MESSAGE")) return Icons.chat_bubble_outline;
+    if (has("SCHEDULE") || has("TIME") || has("WHEN")) return Icons.schedule;
+    return Icons.notes_outlined;
+  }
 
   @override
   Widget build(BuildContext context) {
     final Widget? trailing = this.trailing;
+    final Widget heading = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon ?? iconFor(title), size: 16, color: AppTokens.inkMuted),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(sentenceCase(title),
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppTokens.ink)),
+        ),
+      ],
+    );
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
@@ -160,11 +255,12 @@ class FormSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (trailing == null)
-            Text(title, style: AppTokens.sectionTitle)
+            heading
           else
             Row(
               children: [
-                Text(title, style: AppTokens.sectionTitle),
+                Flexible(child: heading),
+                const SizedBox(width: AppTokens.gapSm),
                 const Spacer(),
                 trailing,
               ],

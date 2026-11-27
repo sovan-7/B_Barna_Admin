@@ -35,6 +35,9 @@ class QuizViewModel extends PagedListViewModel<QuizModel> {
   Future<int> fetchTotalCount() => _quizRepo.getQuizListLength();
 
   @override
+  Future<Map<String, int>> fetchStats() => _quizRepo.getQuizStats();
+
+  @override
   Future<List<QuizModel>> fetchSearchResults(String query) =>
       _quizRepo.searchQuiz(query);
 

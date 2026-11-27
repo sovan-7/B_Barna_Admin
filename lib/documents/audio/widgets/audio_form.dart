@@ -340,9 +340,7 @@ class _AudioFormState extends State<AudioForm> {
                 children: [
                   Icon(hasNew ? Icons.audio_file : Icons.upload_file_outlined,
                       size: 30,
-                      color: hasNew
-                          ? const Color(0xFFD92D20)
-                          : AppTokens.inkFaint),
+                      color: hasNew ? AppTokens.accentInk : AppTokens.inkFaint),
                   const SizedBox(height: 10),
                   Text(
                     hasNew

@@ -174,6 +174,12 @@ class Topic1Repo {
   /// Total Topic1 documents in the collection.
   Future<int> getTopicListLength() => countDocuments(_collection);
 
+  /// Added-this-month count for the tiles above the list.
+  Future<Map<String, int>> getTopicStats() async => {
+        "month": await countQuery(_collection.where("timeStamp",
+            isGreaterThanOrEqualTo: startOfMonthMillis())),
+      };
+
   /// Topic1 documents whose `topic_code` starts with [searchText].
   Future<List<Topic1Model>> searchTopic(String searchText) async =>
       _toModels(await prefixSearch(_collection, "topic_code", searchText));
