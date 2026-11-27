@@ -863,10 +863,14 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text("Newton's First Law"), findsOneWidget);
-        expect(find.text('PDFs'), findsOneWidget);
+        // One tab per kind of content; the PDF tab is open.
+        for (int i = 0; i < 4; i++) {
+          expect(find.byKey(Key('content_tab_$i')), findsOneWidget);
+        }
         expect(find.text('Videos'), findsOneWidget);
         expect(find.text('Audio'), findsOneWidget);
-        expect(find.text('Quiz'), findsOneWidget);
+        expect(find.text('Quizzes'), findsOneWidget);
+        expect(find.byKey(const ValueKey('topic1_pdfs')), findsOneWidget);
       });
     }
   });
@@ -1082,6 +1086,9 @@ void main() {
       final vm = Topic1ViewModel(topic1Repo: repo);
       await _pump(tester, const Size(1440, 1200),
           Topic1Details(topicData: _fixture()[1]), vm);
+      // The videos are on the second tab.
+      await tester.tap(find.byKey(const Key('content_tab_1')));
+      await tester.pump();
 
       await _tap(tester, const Key('topic1_video_add'));
       await tester.enterText(
@@ -1101,6 +1108,9 @@ void main() {
       final vm = Topic1ViewModel(topic1Repo: repo);
       await _pump(
           tester, const Size(1440, 1200), Topic1Details(topicData: topic), vm);
+      // The videos are on the second tab.
+      await tester.tap(find.byKey(const Key('content_tab_1')));
+      await tester.pump();
 
       await _tap(tester, const Key('topic1_video_add'));
       await tester.enterText(
@@ -1124,6 +1134,9 @@ void main() {
       final vm = Topic1ViewModel(topic1Repo: repo);
       await _pump(tester, const Size(1440, 1400),
           Topic1Details(topicData: _fixture().first), vm);
+      // The videos are on the second tab.
+      await tester.tap(find.byKey(const Key('content_tab_1')));
+      await tester.pump();
 
       expect(find.byKey(const Key('topic1_video_link_0')), findsNothing);
       expect(find.text('Lecture v1'), findsOneWidget);

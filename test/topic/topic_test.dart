@@ -189,9 +189,12 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text("Newton's First Law"), findsOneWidget);
-        // Video, Audio, PDF and Quiz each get their own section.
+        // Video, Audio, PDF and Quiz each get their own tab; Video is open.
         expect(find.text('Video'), findsOneWidget);
-        expect(find.text('Quiz'), findsOneWidget);
+        expect(find.text('Quizzes'), findsOneWidget);
+        for (int i = 0; i < 4; i++) {
+          expect(find.byKey(Key('content_tab_$i')), findsOneWidget);
+        }
       });
     }
   });
@@ -529,6 +532,30 @@ void main() {
 
       expect(find.text('Intro to inertia'), findsOneWidget);
       expect(find.text("Couldn't check this code"), findsNothing);
+    });
+
+    testWidgets('an edit marks its tab, and survives switching tabs',
+        (tester) async {
+      final vm = TopicViewModel(topicRepo: repo);
+      await _pump(tester, const Size(1024, 900),
+          TopicDetails(topicData: _fixture().first), vm);
+      expect(find.byKey(const Key('content_tab_dirty_0')), findsNothing);
+
+      await tester.enterText(
+          find.byKey(const Key('topic_video_code_0')), 'VID-9');
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const Key('content_tab_dirty_0')), findsOneWidget);
+      expect(find.byKey(const Key('content_tabs_unsaved')), findsOneWidget);
+
+      // To Audio and back: the typed code is still there, unsaved.
+      await tester.tap(find.byKey(const Key('content_tab_1')));
+      await tester.pump();
+      expect(find.byKey(const Key('topic_video_code_0')), findsNothing);
+      await tester.tap(find.byKey(const Key('content_tab_0')));
+      await tester.pump();
+      expect(find.text('VID-9'), findsOneWidget);
+      expect(find.byKey(const Key('content_tab_dirty_0')), findsOneWidget);
     });
 
     testWidgets('save is disabled until something changes', (tester) async {

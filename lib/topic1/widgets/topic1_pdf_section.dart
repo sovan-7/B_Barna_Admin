@@ -97,12 +97,17 @@ class Topic1PdfSection extends StatefulWidget {
   /// are then rebuilt from it), or null when the save failed.
   final Future<List<Topic1Pdf>?> Function(List<Topic1PdfDraft> drafts) onSave;
 
+  /// Told whenever the section's unsaved state or row count changes (after
+  /// the frame), so a tab can show "Unsaved changes" and a count. Optional.
+  final void Function(bool dirty, int count)? onStateChanged;
+
   /// Picks a file; replaceable so tests need no real file picker.
   final Future<PickedPdf?> Function() pickFile;
 
   const Topic1PdfSection({
     required this.initialPdfs,
     required this.onSave,
+    this.onStateChanged,
     this.pickFile = pickPdfFile,
     super.key,
   });
@@ -224,8 +229,24 @@ class _Topic1PdfSectionState extends State<Topic1PdfSection> {
     _changed();
   }
 
+  /// The last state reported through `onStateChanged`.
+  (bool, int)? _reported;
+
+  /// Reports the unsaved state and row count once they change.
+  void _reportState() {
+    final (bool, int) now = (_dirty, _rows.length);
+    if (now == _reported) return;
+    _reported = now;
+    final void Function(bool, int)? report = widget.onStateChanged;
+    if (report == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) report(now.$1, now.$2);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    _reportState();
     return Topic1SectionCard(
       icon: Icons.picture_as_pdf_outlined,
       title: "PDFs",

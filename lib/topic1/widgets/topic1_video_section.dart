@@ -54,9 +54,14 @@ class Topic1VideoSection extends StatefulWidget {
   /// Saves the videos. Returns true when the write went through.
   final Future<bool> Function(List<Topic1Video> videos) onSave;
 
+  /// Told whenever the section's unsaved state or row count changes (after
+  /// the frame), so a tab can show "Unsaved changes" and a count. Optional.
+  final void Function(bool dirty, int count)? onStateChanged;
+
   const Topic1VideoSection({
     required this.initialVideos,
     required this.onSave,
+    this.onStateChanged,
     super.key,
   });
 
@@ -173,8 +178,24 @@ class _Topic1VideoSectionState extends State<Topic1VideoSection> {
     });
   }
 
+  /// The last state reported through `onStateChanged`.
+  (bool, int)? _reported;
+
+  /// Reports the unsaved state and row count once they change.
+  void _reportState() {
+    final (bool, int) now = (_dirty, _rows.length);
+    if (now == _reported) return;
+    _reported = now;
+    final void Function(bool, int)? report = widget.onStateChanged;
+    if (report == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) report(now.$1, now.$2);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    _reportState();
     return Topic1SectionCard(
       icon: Icons.play_circle_outline,
       title: "Videos",

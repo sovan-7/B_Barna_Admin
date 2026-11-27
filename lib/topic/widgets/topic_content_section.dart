@@ -27,11 +27,16 @@ class TopicContentSection extends StatefulWidget {
   /// Saves the given codes. Returns true when the write went through.
   final Future<bool> Function(List<String> codes) onSave;
 
+  /// Told whenever the section's unsaved state or row count changes (after
+  /// the frame), so a tab can show "Unsaved changes" and a count. Optional.
+  final void Function(bool dirty, int count)? onStateChanged;
+
   const TopicContentSection({
     required this.kind,
     required this.initialCodes,
     required this.titles,
     required this.onSave,
+    this.onStateChanged,
     this.checkFailed = false,
     this.onRecheck,
     super.key,
@@ -98,8 +103,24 @@ class _TopicContentSectionState extends State<TopicContentSection> {
     });
   }
 
+  /// The last state reported through `onStateChanged`.
+  (bool, int)? _reported;
+
+  /// Reports the unsaved state and row count once they change.
+  void _reportState() {
+    final (bool, int) now = (_dirty, _controllers.length);
+    if (now == _reported) return;
+    _reported = now;
+    final void Function(bool, int)? report = widget.onStateChanged;
+    if (report == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) report(now.$1, now.$2);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    _reportState();
     final bool isNarrow = MediaQuery.sizeOf(context).width < 560;
 
     return Container(
