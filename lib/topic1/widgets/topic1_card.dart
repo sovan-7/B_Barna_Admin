@@ -147,74 +147,8 @@ class _Topic1CardState extends State<Topic1Card> {
     );
   }
 
-  /// What is attached: one chip per content kind that has items (empty
-  /// kinds are left out), or a "Nothing attached" note.
-  Widget _chips() {
-    final List<Widget> chips = <Widget>[];
-    for (final (ContentKind kind, int count) in _data.contentCounts) {
-      if (count == 0) continue;
-      chips.add(_countChip(kind, count));
-    }
-
-    if (chips.isEmpty) {
-      return Wrap(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTokens.surfaceMuted,
-              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-              border: Border.all(color: AppTokens.hairline),
-            ),
-            child: const Text("No content yet",
-                style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppTokens.inkFaint)),
-          ),
-        ],
-      );
-    }
-
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: chips,
-    );
-  }
-
-  /// Icon for each kind of attached content.
-  static const Map<ContentKind, IconData> _kindIcons = {
-    ContentKind.video: Icons.play_circle_outline,
-    ContentKind.audio: Icons.graphic_eq,
-    ContentKind.pdf: Icons.picture_as_pdf_outlined,
-    ContentKind.quiz: Icons.quiz_outlined,
-  };
-
-  /// How many items of [kind] the topic holds.
-  Widget _countChip(ContentKind kind, int count) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        border: Border.all(color: AppTokens.hairline),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(_kindIcons[kind], size: 12, color: AppTokens.inkMuted),
-          const SizedBox(width: 5),
-          Text("${kind.label} $count",
-              style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppTokens.inkMuted)),
-        ],
-      ),
-    );
-  }
+  /// What is attached (see [topic1ContentChips]).
+  Widget _chips() => topic1ContentChips(_data);
 
   /// Row buttons; faded in on hover, always shown on compact screens.
   Widget _actions(bool visible) =>
@@ -280,5 +214,74 @@ void confirmDeleteTopic1(
     title: data.name,
     delete: () => topic1ViewModel.deleteTopic(topic),
     successMessage: "Topic deleted successfully",
+  );
+}
+
+/// What [data] holds: one chip per content kind that has items (empty
+/// kinds are left out), or a "Nothing attached" note.
+Widget topic1ContentChips(Topic1Model data) {
+  final List<Widget> chips = <Widget>[];
+  for (final (ContentKind kind, int count) in data.contentCounts) {
+    if (count == 0) continue;
+    chips.add(_topic1CountChip(kind, count));
+  }
+
+  if (chips.isEmpty) {
+    return Wrap(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTokens.surfaceMuted,
+            borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+            border: Border.all(color: AppTokens.hairline),
+          ),
+          child: const Text("No content yet",
+              style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppTokens.inkFaint)),
+        ),
+      ],
+    );
+  }
+
+  return Wrap(
+    spacing: 6,
+    runSpacing: 6,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: chips,
+  );
+}
+
+/// Icon for each kind of attached content.
+const Map<ContentKind, IconData> _topic1KindIcons = {
+  ContentKind.video: Icons.play_circle_outline,
+  ContentKind.audio: Icons.graphic_eq,
+  ContentKind.pdf: Icons.picture_as_pdf_outlined,
+  ContentKind.quiz: Icons.quiz_outlined,
+};
+
+/// How many items of [kind] the topic holds.
+Widget _topic1CountChip(ContentKind kind, int count) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: AppTokens.surfaceMuted,
+      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+      border: Border.all(color: AppTokens.hairline),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(_topic1KindIcons[kind], size: 12, color: AppTokens.inkMuted),
+        const SizedBox(width: 5),
+        Text("${kind.label} $count",
+            style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: AppTokens.inkMuted)),
+      ],
+    ),
   );
 }

@@ -4,6 +4,13 @@ import 'package:bbarna/units/model/unit_model.dart';
 import 'package:bbarna/units/screen/add_unit.dart';
 import 'package:bbarna/units/viewModel/unit_view_model.dart';
 import 'package:bbarna/units/widgets/unit_card.dart';
+import 'package:bbarna/core/widgets/list_page/admin_table.dart';
+import 'package:bbarna/core/widgets/list_page/filter_chips.dart';
+import 'package:bbarna/core/widgets/list_page/stats_strip.dart';
+import 'package:bbarna/core/widgets/list_page/table_cells.dart';
+import 'package:bbarna/core/widgets/list_page/table_identity.dart';
+import 'package:bbarna/core/widgets/card/card_chips.dart';
+import 'package:bbarna/core/viewModel/catalogue_filter.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -34,6 +41,73 @@ class UnitList extends StatelessWidget {
         unitData: unit,
         onChanged: onChanged,
       ),
+      statTiles: (vm) {
+        final int? visible = vm.stats["visible"];
+        return [
+          StatTile.count(
+              key: const Key('unit_stat_total'),
+              label: "Total",
+              count: vm.totalCount),
+          StatTile.count(
+              key: const Key('unit_stat_visible'),
+              label: "Visible",
+              count: visible),
+          StatTile.count(
+              key: const Key('unit_stat_hidden'),
+              label: "Hidden",
+              count: visible == null ? null : vm.totalCount - visible),
+          StatTile.count(
+              key: const Key('unit_stat_locked'),
+              label: "Locked",
+              count: vm.stats["locked"]),
+        ];
+      },
+      chipOptions: [
+        for (final CatalogueFilter filter in CatalogueFilter.values)
+          FilterOption(filter.name, filter.label,
+              key: Key('unit_filter_${filter.name}')),
+      ],
+      chipMatches: (unit, filter) => CatalogueFilter.values
+          .byName(filter)
+          .matches(shown: unit.willShow, locked: unit.lockStatus),
+      tableColumns: const [
+        AdminTableColumn("Unit", flex: 5),
+        AdminTableColumn("Code", width: 120),
+        AdminTableColumn("Priority", width: 64),
+        AdminTableColumn("Status", width: 84),
+        AdminTableColumn("Locked", width: 64),
+        AdminTableColumn("", width: 76, alignment: Alignment.centerRight),
+      ],
+      rowId: (unit) => unit.id,
+      rowKeyPrefix: "unit",
+      tableMinWidth: 760,
+      rowCells: (context, unit, hovered, onChanged) => [
+        TableIdentity(
+          title: unit.name,
+          subtitle: [
+            TableIdentity.hasText(unit.subjectName)
+                ? unit.subjectName
+                : "No subject",
+            if (TableIdentity.hasText(unit.courseName)) unit.courseName,
+            if (unit.subjectCodeList.length > 1)
+              "also in ${unit.subjectCodeList.length - 1} more",
+          ].join(" · "),
+          imageUrl: unit.image,
+          initial: unit.code.isEmpty ? "?" : unit.code.characters.first,
+        ),
+        CodeChip(unit.code),
+        TableText("${unit.displayPriority}"),
+        StatusPill(unit.willShow ? "Visible" : "Hidden",
+            tone: unit.willShow ? StatusTone.success : StatusTone.neutral),
+        LockSwitch(
+          switchKey: Key('unit_lock_${unit.id}'),
+          locked: unit.lockStatus,
+          itemLabel: "this unit",
+          onChanged: (_) => Provider.of<UnitViewModel>(context, listen: false)
+              .toggleLocked(unit),
+        ),
+        unitActions(context, unit, onChanged, hovered),
+      ],
     );
   }
 

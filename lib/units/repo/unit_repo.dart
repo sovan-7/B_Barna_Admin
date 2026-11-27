@@ -88,6 +88,18 @@ class UnitRepo {
   /// Total units in the collection.
   Future<int> getUnitListLength() => countDocuments(_collection);
 
+  /// Visible / locked / added-this-month counts for the tiles above the
+  /// list.
+  Future<Map<String, int>> getUnitStats() async {
+    final List<int> counts = await Future.wait([
+      countQuery(_collection.where("willShow", isEqualTo: true)),
+      countQuery(_collection.where("lock_status", isEqualTo: true)),
+      countQuery(_collection.where("timeStamp",
+          isGreaterThanOrEqualTo: startOfMonthMillis())),
+    ]);
+    return {"visible": counts[0], "locked": counts[1], "month": counts[2]};
+  }
+
   /// Units whose `unit_code` starts with [searchText].
   Future<List<UnitModel>> searchUnit(String searchText) async =>
       _toModels(await prefixSearch(_collection, "unit_code", searchText));

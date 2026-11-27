@@ -41,6 +41,9 @@ class UnitViewModel extends PagedListViewModel<UnitModel> {
   Future<int> fetchTotalCount() => _unitRepo.getUnitListLength();
 
   @override
+  Future<Map<String, int>> fetchStats() => _unitRepo.getUnitStats();
+
+  @override
   Future<List<UnitModel>> fetchSearchResults(String query) =>
       _unitRepo.searchUnit(query);
 

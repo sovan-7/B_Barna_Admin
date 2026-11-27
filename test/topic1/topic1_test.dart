@@ -153,6 +153,13 @@ CourseModel _course(String code, String name) {
   return model;
 }
 
+/// Rows on screen: table rows on wide windows, cards on narrow.
+Finder _rows() => find.byWidgetPredicate((widget) {
+      if (widget is Topic1Card) return true;
+      final Key? key = widget.key;
+      return key is ValueKey<String> && key.value.startsWith('topic1_row_');
+    });
+
 const List<Size> _sizes = [
   Size(1440, 900),
   Size(1024, 768),
@@ -826,7 +833,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text('New Topics'), findsOneWidget);
-        expect(find.byType(Topic1Card), findsNWidgets(3));
+        expect(_rows(), size.width < 900 ? findsWidgets : findsNWidgets(3));
       });
 
       testWidgets('the add form lays out at ${size.width.toInt()}',
@@ -890,7 +897,7 @@ void main() {
       await tester.pump();
 
       verify(() => repo.searchTopic('NEWT-01')).called(1);
-      expect(find.byType(Topic1Card), findsOneWidget);
+      expect(_rows(), findsOneWidget);
     });
   });
 

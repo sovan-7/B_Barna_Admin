@@ -49,6 +49,9 @@ class Topic1ViewModel extends PagedListViewModel<Topic1Model> {
   Future<int> fetchTotalCount() => _repo.getTopicListLength();
 
   @override
+  Future<Map<String, int>> fetchStats() => _repo.getTopicStats();
+
+  @override
   Future<List<Topic1Model>> fetchSearchResults(String query) =>
       _repo.searchTopic(query);
 
