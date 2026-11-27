@@ -373,6 +373,16 @@ void main() {
       expect(find.text('Give the course a name'), findsOneWidget);
     });
 
+    testWidgets('the bar says when there are unsaved changes', (tester) async {
+      final vm = CourseViewModel(courseRepo: repo);
+      await _pump(tester, const Size(1024, 900), const AddCourse(), vm);
+      expect(find.byKey(const Key('form_unsaved_changes')), findsNothing);
+
+      await tester.enterText(find.byType(TextField).first, 'PHY-11');
+      await tester.pump();
+      expect(find.byKey(const Key('form_unsaved_changes')), findsOneWidget);
+    });
+
     testWidgets('the code field upper-cases as you type', (tester) async {
       final vm = CourseViewModel(courseRepo: repo);
       await _pump(tester, const Size(1024, 900), const AddCourse(), vm);

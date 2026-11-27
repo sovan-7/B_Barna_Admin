@@ -1,3 +1,4 @@
+import 'package:bbarna/core/widgets/form/form_dirty_scope.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 
@@ -7,8 +8,10 @@ double formPagePadding(double width) => width < 700 ? 16 : 32;
 /// A form page's scrolling content plus the action bar pinned below it.
 ///
 /// [children] (header, sections, …) are centred in a column at most
-/// [maxWidth] wide and scroll; [actionBar] stays at the bottom.
-class FormPageBody extends StatelessWidget {
+/// [maxWidth] wide and scroll; [actionBar] stays at the bottom. Both sit
+/// in a [FormDirtyScope], so the shared fields can tell the action bar
+/// that something has changed.
+class FormPageBody extends StatefulWidget {
   /// Window width, for the side padding.
   final double width;
 
@@ -30,26 +33,44 @@ class FormPageBody extends StatelessWidget {
   });
 
   @override
+  State<FormPageBody> createState() => _FormPageBodyState();
+}
+
+class _FormPageBodyState extends State<FormPageBody> {
+  /// Whether anything on this page has been changed.
+  final FormDirtyController _dirty = FormDirtyController();
+
+  @override
+  void dispose() {
+    _dirty.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: formPagePadding(width), vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxWidth),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: children,
+    final Widget? actionBar = widget.actionBar;
+    return FormDirtyScope(
+      controller: _dirty,
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                  horizontal: formPagePadding(widget.width), vertical: 24),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: widget.maxWidth),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: widget.children,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        if (actionBar != null) actionBar!,
-      ],
+          if (actionBar != null) actionBar,
+        ],
+      ),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:bbarna/core/widgets/form/form_dirty_scope.dart';
 import 'package:bbarna/core/widgets/form/form_page_body.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
@@ -84,6 +85,15 @@ class FormActionBar extends StatelessWidget {
                         ),
                       ),
               if (!narrow) const Spacer(),
+              if (!narrow && FormDirtyScope.isDirty(context)) ...[
+                const Text("Unsaved changes",
+                    key: Key('form_unsaved_changes'),
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppTokens.warningText)),
+                const SizedBox(width: AppTokens.gapMd),
+              ],
               TextButton(
                 onPressed: isSaving ? null : () => Navigator.pop(context),
                 style: TextButton.styleFrom(
