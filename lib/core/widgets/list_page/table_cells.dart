@@ -68,6 +68,10 @@ class StatusPill extends StatelessWidget {
       decoration: BoxDecoration(
         color: tone.fill,
         borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+        // Paid / locked: outlined, so it reads apart from the filled gold.
+        border: tone == StatusTone.warning
+            ? Border.all(color: AppTokens.accent)
+            : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -86,7 +86,7 @@ class QuizList extends StatelessWidget {
             title: quiz.name,
             subtitle: quiz.code,
             icon: Icons.quiz_outlined,
-            iconColor: AppTokens.accent),
+            iconColor: AppTokens.accentInk),
         TableText("${quiz.questionCodeList.length}"),
         TableText(formatDuration(quiz.totalTime)),
         TableText(quiz.totalMarks > 0

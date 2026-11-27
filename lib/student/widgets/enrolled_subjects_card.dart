@@ -315,7 +315,7 @@ class _ValidityChip extends StatelessWidget {
 
     final Color color = expired
         ? AppTokens.danger
-        : (date == null ? AppTokens.inkFaint : const Color(0xFF108460));
+        : (date == null ? AppTokens.inkFaint : AppTokens.accentInk);
     final String label = date == null
         ? "No end date"
         : showRemaining

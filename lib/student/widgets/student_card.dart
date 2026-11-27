@@ -129,8 +129,7 @@ class _StudentCardState extends State<StudentCard> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(never ? Icons.schedule_outlined : Icons.history,
-            size: 12,
-            color: never ? AppTokens.inkFaint : const Color(0xFF108460)),
+            size: 12, color: never ? AppTokens.inkFaint : AppTokens.accentInk),
         const SizedBox(width: 5),
         Text(
           label ?? StudentActivity.neverLabel,
@@ -198,7 +197,7 @@ String studentDeviceLabel(Student data) =>
 /// tapping it signs them out of it.
 Widget studentDeviceChip(BuildContext context, Student data) {
   final bool signedIn = data.isSignedIn;
-  final Color color = signedIn ? const Color(0xFF2563EB) : AppTokens.inkFaint;
+  final Color color = signedIn ? AppTokens.accentInk : AppTokens.inkFaint;
 
   return Tooltip(
     message: signedIn

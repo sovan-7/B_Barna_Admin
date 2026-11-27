@@ -673,9 +673,8 @@ class _QuizFormState extends State<QuizForm> {
                 icon: type == "FREE"
                     ? Icons.lock_open_outlined
                     : Icons.paid_outlined,
-                color: type == "FREE"
-                    ? const Color(0xFF108460)
-                    : const Color(0xFFB54708),
+                color:
+                    type == "FREE" ? AppTokens.accentInk : AppTokens.accentInk,
                 selected: _selectedType == type,
                 onTap: () {
                   setState(() => _selectedType = type);

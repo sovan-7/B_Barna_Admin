@@ -120,7 +120,7 @@ class _QuestionCardState extends State<QuestionCard> {
         _chip(
           icon: filled == 4 ? Icons.checklist : Icons.warning_amber_outlined,
           label: filled == 4 ? "4 options" : "$filled of 4 options",
-          color: filled == 4 ? AppTokens.inkMuted : const Color(0xFFB54708),
+          color: filled == 4 ? AppTokens.inkMuted : AppTokens.accentInk,
           filled: filled != 4,
         ),
         // A question with no answer marked is one no student can get right,
@@ -129,7 +129,7 @@ class _QuestionCardState extends State<QuestionCard> {
           icon:
               answer == null ? Icons.error_outline : Icons.check_circle_outline,
           label: answer == null ? "No answer set" : "Answer ${answer.label}",
-          color: answer == null ? AppTokens.danger : const Color(0xFF108460),
+          color: answer == null ? AppTokens.danger : AppTokens.accentInk,
           filled: true,
         ),
       ],

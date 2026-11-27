@@ -122,7 +122,7 @@ class _GroupComposerState extends State<GroupComposer> {
                 contentPadding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                 enabledBorder: _border(AppTokens.hairline, 1),
                 disabledBorder: _border(AppTokens.hairline, 1),
-                focusedBorder: _border(const Color(0xFF175CD3), 1.4),
+                focusedBorder: _border(AppTokens.accentInk, 1.4),
               ),
             ),
           ),
@@ -195,16 +195,16 @@ class _GroupComposerState extends State<GroupComposer> {
               width: 16,
               height: 16,
               child: CircularProgressIndicator(
-                  strokeWidth: 2.2, color: Colors.white),
+                  strokeWidth: 2.2, color: AppTokens.onAccent),
             )
           : const Icon(Icons.send_rounded, size: 16),
       label: const Text("Send",
           style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppTokens.ink,
-        disabledBackgroundColor: AppTokens.ink.withValues(alpha: .35),
-        foregroundColor: Colors.white,
-        disabledForegroundColor: Colors.white,
+        backgroundColor: AppTokens.accent,
+        disabledBackgroundColor: AppTokens.accent.withValues(alpha: .35),
+        foregroundColor: AppTokens.onAccent,
+        disabledForegroundColor: AppTokens.onAccent,
         elevation: 0,
         minimumSize: const Size(110, 42),
         shape: RoundedRectangleBorder(

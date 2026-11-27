@@ -1,9 +1,9 @@
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 
-/// One row of the navy navigation rail: icon and label in a rounded item.
-/// The selected module is a solid accent pill; hover lifts the row to the
-/// raised navy.
+/// One row of the white navigation rail: icon and label in a rounded item.
+/// The selected module is a solid gold pill with dark text; hover tints
+/// the row grey.
 class SidebarWidget extends StatefulWidget {
   /// Module icon.
   final IconData iconData;
@@ -44,9 +44,9 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     final Color background = selected
         ? AppTokens.accent
         : _hovered
-            ? AppTokens.brandNavyRaised
+            ? AppTokens.railHover
             : Colors.transparent;
-    final Color foreground = selected ? Colors.white : AppTokens.onNavy;
+    final Color foreground = selected ? AppTokens.onAccent : AppTokens.onRail;
 
     final Widget row = Row(
       mainAxisAlignment: widget.isCollapsed
@@ -54,10 +54,9 @@ class _SidebarWidgetState extends State<SidebarWidget> {
           : MainAxisAlignment.start,
       children: [
         // The icon sits a step back from the label so the row reads
-        // label-first, except on the selected row where both are white.
+        // label-first, except on the selected row where both are dark on gold.
         Icon(widget.iconData,
-            size: 18,
-            color: selected || _hovered ? foreground : AppTokens.onNavyMuted),
+            size: 18, color: selected ? foreground : AppTokens.onRailMuted),
         if (!widget.isCollapsed) ...[
           const SizedBox(width: 11),
           Expanded(

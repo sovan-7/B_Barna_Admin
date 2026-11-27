@@ -147,7 +147,7 @@ class _UnitCardState extends State<UnitCard> {
               ? Icons.visibility_outlined
               : Icons.visibility_off_outlined,
           label: _data.willShow ? "Visible" : "Hidden",
-          color: _data.willShow ? const Color(0xFF108460) : AppTokens.inkFaint,
+          color: _data.willShow ? AppTokens.accentInk : AppTokens.inkFaint,
           filled: _data.willShow,
         ),
         _lockChip(),
@@ -159,7 +159,7 @@ class _UnitCardState extends State<UnitCard> {
   /// with the other two, but it is tappable and says what it will do.
   Widget _lockChip() {
     final bool locked = _data.lockStatus;
-    final Color color = locked ? const Color(0xFFB54708) : AppTokens.inkFaint;
+    final Color color = locked ? AppTokens.accentInk : AppTokens.inkFaint;
 
     return Tooltip(
       message: locked ? "Unlock this unit" : "Lock this unit",

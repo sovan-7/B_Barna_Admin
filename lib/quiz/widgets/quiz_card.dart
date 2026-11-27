@@ -160,8 +160,7 @@ class _QuizCardState extends State<QuizCard> {
     final bool isFree = _data.type.toUpperCase() == "FREE";
     // What students see: an upcoming quiz whose time has come is live.
     final String status = _data.effectiveStatus;
-    final Color typeColor =
-        isFree ? const Color(0xFF108460) : const Color(0xFFB54708);
+    final Color typeColor = isFree ? AppTokens.accentInk : AppTokens.accentInk;
 
     return Wrap(
       spacing: 6,
@@ -299,9 +298,9 @@ Color statusColor(String status) {
     case "LIVE":
       return const Color(0xFFE0393E);
     case "UPCOMING":
-      return const Color(0xFF2563EB);
+      return AppTokens.accentInk;
     case "PENDING":
-      return const Color(0xFFB54708);
+      return AppTokens.accentInk;
     default:
       return AppTokens.inkFaint;
   }

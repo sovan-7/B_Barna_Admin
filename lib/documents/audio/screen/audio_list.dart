@@ -5,6 +5,7 @@ import 'package:bbarna/documents/audio/viewModel/audio_view_model.dart';
 import 'package:bbarna/documents/audio/widgets/audio_card.dart';
 import 'package:bbarna/core/widgets/card/card_chips.dart';
 import 'package:bbarna/documents/media_table.dart';
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// The audio clip list (sidebar module). All the behaviour lives in
@@ -45,7 +46,7 @@ class AudioList extends StatelessWidget {
             title: audio.title,
             description: audio.description,
             icon: Icons.headphones_outlined,
-            color: const Color(0xFF534AB7)),
+            color: AppTokens.accentInk),
         CodeChip(audio.code, copyable: true),
         accessPill(audio.audioType),
         addedCell(audio.timeStamp),

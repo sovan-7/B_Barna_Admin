@@ -43,8 +43,7 @@ class BookCard extends StatelessWidget {
       children: [
         ImageOrInitial(
           imageUrl: bookData.image,
-          initial:
-              bookData.name.isEmpty ? "?" : bookData.name.characters.first,
+          initial: bookData.name.isEmpty ? "?" : bookData.name.characters.first,
           size: 42,
         ),
         const SizedBox(width: 12),
@@ -100,9 +99,8 @@ class BookCard extends StatelessWidget {
               ? Icons.visibility_outlined
               : Icons.visibility_off_outlined,
           label: bookData.willDisplay ? "Visible" : "Hidden",
-          color: bookData.willDisplay
-              ? const Color(0xFF108460)
-              : AppTokens.inkFaint,
+          color:
+              bookData.willDisplay ? AppTokens.accentInk : AppTokens.inkFaint,
           filled: true,
         ),
         ToggleChip(
@@ -112,7 +110,7 @@ class BookCard extends StatelessWidget {
               : Icons.remove_shopping_cart_outlined,
           label: bookData.inStock ? "In stock" : "Out of stock",
           on: bookData.inStock,
-          onColor: const Color(0xFF108460),
+          onColor: AppTokens.accentInk,
           tooltip: bookData.inStock ? "Mark out of stock" : "Mark in stock",
           busy: bookViewModel.isTogglingStock(bookData.docId),
           onTap: () => bookViewModel.toggleInStock(bookData),

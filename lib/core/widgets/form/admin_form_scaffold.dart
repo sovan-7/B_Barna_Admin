@@ -75,7 +75,7 @@ class _AdminFormScaffoldState extends State<AdminFormScaffold> {
       drawer: isCompact
           ? Drawer(
               width: AppTokens.railWidth,
-              backgroundColor: AppTokens.brandNavy,
+              backgroundColor: AppTokens.railBackground,
               child: ExtraSideBar(sidebarIndex: widget.sidebarIndex))
           : null,
     );

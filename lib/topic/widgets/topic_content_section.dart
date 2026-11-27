@@ -326,7 +326,7 @@ class _TopicContentSectionState extends State<TopicContentSection> {
     return Row(
       children: [
         const Icon(Icons.check_circle_outline,
-            size: 12, color: Color(0xFF108460)),
+            size: 12, color: AppTokens.accentInk),
         const SizedBox(width: 5),
         Flexible(
           child: Text(title.isEmpty ? "Untitled" : title,
@@ -364,9 +364,9 @@ class _TopicContentSectionState extends State<TopicContentSection> {
       // anything to save.
       onPressed: (_isSaving || !_dirty) ? null : _save,
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppTokens.ink,
+        backgroundColor: AppTokens.accent,
         disabledBackgroundColor: AppTokens.surfaceMuted,
-        foregroundColor: Colors.white,
+        foregroundColor: AppTokens.onAccent,
         disabledForegroundColor: AppTokens.inkFaint,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),

@@ -392,8 +392,8 @@ class _ValidTillPickerState extends State<ValidTillPicker> {
             key: const Key('valid_till_confirm'),
             onPressed: () => Navigator.pop(context, _selected),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTokens.ink,
-              foregroundColor: Colors.white,
+              backgroundColor: AppTokens.accent,
+              foregroundColor: AppTokens.onAccent,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(

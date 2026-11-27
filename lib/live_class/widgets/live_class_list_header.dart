@@ -5,6 +5,7 @@ import 'package:bbarna/live_class/widgets/live_class_card_parts.dart';
 import 'package:bbarna/live_class/widgets/live_class_status_badge.dart';
 import 'package:bbarna/live_class/widgets/live_class_theme.dart';
 import 'package:bbarna/core/widgets/list_page/stats_strip.dart';
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// Strip at the top of the class list while a class is running: the first
@@ -122,7 +123,7 @@ class LiveClassStatsStrip extends StatelessWidget {
       {required this.stats, required this.showChats, super.key});
 
   /// Amber, for counts that need doing.
-  static const Color _attention = Color(0xFFB54708);
+  static const Color _attention = AppTokens.accentInk;
 
   @override
   Widget build(BuildContext context) {

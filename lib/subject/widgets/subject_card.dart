@@ -177,8 +177,7 @@ class _SubjectCardState extends State<SubjectCard> {
               ? Icons.visibility_outlined
               : Icons.visibility_off_outlined,
           label: _data.willDisplay ? "Visible" : "Hidden",
-          color:
-              _data.willDisplay ? const Color(0xFF108460) : AppTokens.inkFaint,
+          color: _data.willDisplay ? AppTokens.accentInk : AppTokens.inkFaint,
           filled: _data.willDisplay,
         ),
         subjectPopularToggle(context, _data),
@@ -192,7 +191,7 @@ class _SubjectCardState extends State<SubjectCard> {
                 : Icons.lock_open_outlined,
             label: _data.isLocked ? "Locked" : "Unlocked",
             on: _data.isLocked,
-            onColor: const Color(0xFFB54708),
+            onColor: AppTokens.accentInk,
             tooltip:
                 _data.isLocked ? "Unlock this subject" : "Lock this subject",
             onTap: () => Provider.of<SubjectViewModel>(context, listen: false)
@@ -254,7 +253,7 @@ Widget subjectPrice(SubjectModel data) {
               style: const TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF108460)),
+                  color: AppTokens.accentInk),
             ),
           ],
         ),
@@ -276,7 +275,7 @@ Widget? subjectCouponChip(SubjectModel data) {
 
   final bool expired = data.couponValidTill > 0 &&
       data.couponValidTill < DateTime.now().millisecondsSinceEpoch;
-  final Color color = expired ? AppTokens.inkFaint : const Color(0xFFB54708);
+  final Color color = expired ? AppTokens.inkFaint : AppTokens.accentInk;
   // A flat rupee amount off the selling price, not a percentage — that is
   // how the student app applies it at checkout.
   final double off = data.couponDiscount;
@@ -418,7 +417,7 @@ Widget subjectPopularToggle(BuildContext context, SubjectModel data) {
       icon: data.isPopular ? Icons.star : Icons.star_border,
       label: "Popular",
       on: data.isPopular,
-      onColor: const Color(0xFFB54708),
+      onColor: AppTokens.accentInk,
       tooltip: data.isPopular ? "Remove from popular" : "Mark as popular",
       onTap: () => Provider.of<SubjectViewModel>(context, listen: false)
           .togglePopular(data),

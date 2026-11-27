@@ -232,7 +232,7 @@ class UnitPickerDialog extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
         color: selected
-            ? const Color(0xFF2563EB).withValues(alpha: .06)
+            ? AppTokens.accentInk.withValues(alpha: .06)
             : AppTokens.surface,
         borderRadius: BorderRadius.circular(AppTokens.radiusSm),
         child: InkWell(
@@ -246,7 +246,7 @@ class UnitPickerDialog extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppTokens.radiusSm),
               border: Border.all(
                   color: selected
-                      ? const Color(0xFF2563EB).withValues(alpha: .35)
+                      ? AppTokens.accentInk.withValues(alpha: .35)
                       : AppTokens.hairline),
             ),
             child: Row(
@@ -282,8 +282,7 @@ class UnitPickerDialog extends StatelessWidget {
                 Icon(
                   selected ? Icons.check_box : Icons.check_box_outline_blank,
                   size: 20,
-                  color:
-                      selected ? const Color(0xFF2563EB) : AppTokens.inkFaint,
+                  color: selected ? AppTokens.accentInk : AppTokens.inkFaint,
                 ),
               ],
             ),
@@ -358,10 +357,10 @@ class UnitPickerDialog extends StatelessWidget {
             key: const Key('unit_picker_save'),
             onPressed: units.isEmpty || isSaving ? null : onSave,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTokens.ink,
-              disabledBackgroundColor: AppTokens.ink.withValues(alpha: .4),
-              foregroundColor: Colors.white,
-              disabledForegroundColor: Colors.white,
+              backgroundColor: AppTokens.accent,
+              disabledBackgroundColor: AppTokens.accent.withValues(alpha: .4),
+              foregroundColor: AppTokens.onAccent,
+              disabledForegroundColor: AppTokens.onAccent,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               shape: RoundedRectangleBorder(
@@ -372,7 +371,7 @@ class UnitPickerDialog extends StatelessWidget {
                     height: 16,
                     width: 16,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2, color: AppTokens.onAccent),
                   )
                 : Text(saveLabel,
                     style: const TextStyle(

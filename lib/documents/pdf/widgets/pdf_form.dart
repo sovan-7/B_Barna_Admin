@@ -370,9 +370,7 @@ class _PdfFormState extends State<PdfForm> {
                           ? Icons.picture_as_pdf
                           : Icons.upload_file_outlined,
                       size: 30,
-                      color: hasNew
-                          ? const Color(0xFFD92D20)
-                          : AppTokens.inkFaint),
+                      color: hasNew ? AppTokens.accentInk : AppTokens.inkFaint),
                   const SizedBox(height: 10),
                   Text(
                     hasNew

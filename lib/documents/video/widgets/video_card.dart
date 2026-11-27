@@ -83,7 +83,7 @@ class _VideoCardState extends State<VideoCard> {
             border: Border.all(color: AppTokens.hairline),
           ),
           child: const Icon(Icons.play_circle_outline,
-              size: 20, color: Color(0xFFE0393E)),
+              size: 20, color: AppTokens.accentInk),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -165,8 +165,7 @@ class _VideoCardState extends State<VideoCard> {
   /// Green FREE / amber PAID chip.
   Widget _typeChip() {
     final bool isFree = _data.videoType.toUpperCase() == "FREE";
-    final Color color =
-        isFree ? const Color(0xFF108460) : const Color(0xFFB54708);
+    final Color color = isFree ? AppTokens.accentInk : AppTokens.accentInk;
     final String label =
         _data.videoType.isEmpty || _data.videoType == stringDefault
             ? "No type"

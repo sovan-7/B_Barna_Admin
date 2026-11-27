@@ -297,7 +297,7 @@ class _QuizQuestionPickerState extends State<QuizQuestionPicker> {
                 child: Icon(
                   attached ? Icons.close : Icons.add,
                   size: 17,
-                  color: attached ? AppTokens.danger : const Color(0xFF108460),
+                  color: attached ? AppTokens.danger : AppTokens.accentInk,
                 ),
               ),
             ),

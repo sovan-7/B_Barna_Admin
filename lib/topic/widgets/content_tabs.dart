@@ -232,7 +232,7 @@ class TopicHeaderCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppTokens.radiusMd),
               ),
               child: const Icon(Icons.topic_outlined,
-                  size: 22, color: AppTokens.accent),
+                  size: 22, color: AppTokens.accentInk),
             ),
             const SizedBox(width: AppTokens.gapMd),
           ],

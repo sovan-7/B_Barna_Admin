@@ -26,7 +26,7 @@ import 'package:bbarna/topic1/screen/topic1_list.dart';
 import 'package:bbarna/units/screen/unit_list.dart';
 import 'package:bbarna/utils/helper.dart';
 
-/// The app shell: the navy navigation rail (collapsible to icons) beside
+/// The app shell: the white navigation rail (collapsible to icons) beside
 /// the selected module's list screen, under the slim [AppHeader]. Below
 /// [AppTokens.compactBreakpoint] the rail moves into a drawer.
 class Sidebar extends StatefulWidget {
@@ -144,7 +144,7 @@ class _SidebarState extends State<Sidebar> {
         drawer: isCompact
             ? Drawer(
                 width: AppTokens.railWidth,
-                backgroundColor: AppTokens.brandNavy,
+                backgroundColor: AppTokens.railBackground,
                 child: ExtraSideBar(
                   sidebarIndex: selectedIndex ?? -1,
                   isFromLogin: true,
@@ -277,15 +277,17 @@ class SidebarNav extends StatelessWidget {
     final List<int> allowed = Helper.allowedModuleIndices();
 
     return Container(
-      color: AppTokens.brandNavy,
+      decoration: const BoxDecoration(
+        color: AppTokens.railBackground,
+        border: Border(right: BorderSide(color: AppTokens.hairline)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _brand(isCollapsed),
           Expanded(child: _modules(allowed, isCollapsed)),
           if (onToggleCollapsed != null) ...[
-            const Divider(
-                height: 1, thickness: 1, color: AppTokens.brandNavyRaised),
+            const Divider(height: 1, thickness: 1, color: AppTokens.hairline),
             _collapseToggle(isCollapsed),
           ],
         ],
@@ -317,13 +319,13 @@ class SidebarNav extends StatelessWidget {
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.4,
-                              color: Colors.white),
+                              color: AppTokens.onRail),
                         ),
                         Text(
                           "Admin portal",
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: 11, color: AppTokens.onNavyMuted),
+                              fontSize: 11, color: AppTokens.onRailMuted),
                         ),
                       ],
                     ),
@@ -353,7 +355,7 @@ class SidebarNav extends StatelessWidget {
               padding:
                   EdgeInsets.fromLTRB(18, children.isEmpty ? 4 : 10, 18, 6),
               child: const Divider(
-                  height: 1, thickness: 1, color: AppTokens.brandNavyRaised),
+                  height: 1, thickness: 1, color: AppTokens.hairline),
             )
           : Padding(
               padding:
@@ -365,7 +367,7 @@ class SidebarNav extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.3,
-                    color: AppTokens.onNavyMuted),
+                    color: AppTokens.onRailMuted),
               ),
             ));
 
@@ -405,13 +407,13 @@ class SidebarNav extends StatelessWidget {
                     ? Icons.keyboard_double_arrow_right
                     : Icons.keyboard_double_arrow_left,
                 size: 17,
-                color: AppTokens.onNavyMuted,
+                color: AppTokens.onRailMuted,
               ),
               if (!isCollapsed) ...[
                 const SizedBox(width: 11),
                 const Text("Collapse",
                     style: TextStyle(
-                        fontSize: 12.5, color: AppTokens.onNavyMuted)),
+                        fontSize: 12.5, color: AppTokens.onRailMuted)),
               ],
             ],
           ),

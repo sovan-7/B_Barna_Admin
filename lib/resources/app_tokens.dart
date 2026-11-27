@@ -79,43 +79,53 @@ class AppTokens {
   /// Errors and destructive actions.
   static const Color danger = Color(0xFFD92D20);
 
-  // ---- Brand ------------------------------------------------------------
-  /// Deep navy behind the navigation rail and the login brand panel.
-  static const Color brandNavy = Color(0xFF042C53);
+  // ---- Brand: one colour (the logo's gold) on white -----------------------
+  /// The one brand colour, sampled from the B_BARNA logo's rings. Fills
+  /// for the selected module, primary buttons, picked chips, switches.
+  /// Text on it is [onAccent] (dark): white on this gold is unreadable.
+  static const Color accent = Color(0xFFDFAA12);
 
-  /// A step lighter than [brandNavy]: icon chips and hover on the rail.
-  static const Color brandNavyRaised = Color(0xFF0C447C);
+  /// Text and icons on [accent].
+  static const Color onAccent = ink;
 
-  /// The one accent: selected rail item, primary buttons, active chips.
-  static const Color accent = Color(0xFF185FA5);
+  /// Pale wash of [accent]: selected rows, soft badges, the account
+  /// initial.
+  static const Color accentTint = Color(0xFFFDF3D7);
 
-  /// Pale tint of [accent] for selected rows and quiet accent fills.
-  static const Color accentTint = Color(0xFFE6F1FB);
+  /// [accent] darkened enough to read as text or an icon on white and on
+  /// [accentTint] (plain gold on white is about 2:1).
+  static const Color accentInk = Color(0xFF7A5A00);
 
-  /// Text and icons on [brandNavy].
-  static const Color onNavy = Color(0xFFE6F1FB);
+  // ---- Navigation rail (white, like every other surface) ------------------
+  /// Behind the navigation rail.
+  static const Color railBackground = surface;
 
-  /// Secondary text, group labels and idle icons on [brandNavy].
-  static const Color onNavyMuted = Color(0xFF85B7EB);
+  /// A rail row under the pointer.
+  static const Color railHover = surfaceMuted;
 
-  /// The cyan of the rounded "B" brand mark.
-  static const Color brandMark = Color(0xFF8ADDE1);
+  /// Rail labels and the brand name.
+  static const Color onRail = ink;
 
-  /// Text on [brandMark].
-  static const Color onBrandMark = Color(0xFF042C53);
+  /// Group headings, idle icons and the "Admin portal" line on the rail.
+  static const Color onRailMuted = inkMuted;
 
   // ---- Status tints (fill + text pairs) ---------------------------------
+  // One brand colour: good / paid / upcoming states are shades of gold,
+  // idle states grey, and red is kept only for errors, destructive actions
+  // and "live now".
+
   /// Visible, sent, free, active.
-  static const Color successFill = Color(0xFFE7F6EE);
+  static const Color successFill = accentTint;
 
   /// Text on [successFill].
-  static const Color successText = Color(0xFF0F6E46);
+  static const Color successText = accentInk;
 
-  /// Locked, paid, pending attention.
-  static const Color warningFill = Color(0xFFFDF1DC);
+  /// Locked, paid, needs attention: an outlined gold pill (see
+  /// `StatusTone.warning`), so it reads apart from the filled one.
+  static const Color warningFill = surface;
 
   /// Text on [warningFill].
-  static const Color warningText = Color(0xFF8A4B08);
+  static const Color warningText = accentInk;
 
   /// Failed, expired, live-now.
   static const Color dangerFill = Color(0xFFFCEBEB);
@@ -124,10 +134,10 @@ class AppTokens {
   static const Color dangerText = Color(0xFFA32D2D);
 
   /// Upcoming, informational.
-  static const Color infoFill = Color(0xFFE6F1FB);
+  static const Color infoFill = accentTint;
 
   /// Text on [infoFill].
-  static const Color infoText = Color(0xFF185FA5);
+  static const Color infoText = accentInk;
 
   /// A tight contact shadow plus a wide soft one, rather than one big blur
   /// — cards read as resting on the page instead of floating over it.

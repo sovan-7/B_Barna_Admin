@@ -51,7 +51,7 @@ class PDFList extends StatelessWidget {
             title: pdf.title,
             description: pdf.description,
             icon: Icons.picture_as_pdf_outlined,
-            color: const Color(0xFFA32D2D)),
+            color: AppTokens.accentInk),
         CodeChip(pdf.code, copyable: true),
         accessPill(pdf.pdfType),
         Selector<PdfViewModel, bool>(
@@ -61,7 +61,7 @@ class PDFList extends StatelessWidget {
             on: pdf.isDownloadable,
             onIcon: Icons.download_rounded,
             offIcon: Icons.file_download_off_outlined,
-            onColor: AppTokens.accent,
+            onColor: AppTokens.accentInk,
             onTooltip: "Downloadable — make it view-only",
             offTooltip: "View only — allow downloads",
             busy: busy,

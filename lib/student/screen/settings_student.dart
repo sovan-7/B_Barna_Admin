@@ -289,10 +289,10 @@ class _SettingStudentState extends State<SettingStudent> {
                 ? null
                 : () => _onEnrol(studentViewModel),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTokens.ink,
-              disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
-              foregroundColor: Colors.white,
-              disabledForegroundColor: Colors.white,
+              backgroundColor: AppTokens.accent,
+              disabledBackgroundColor: AppTokens.accent.withValues(alpha: .55),
+              foregroundColor: AppTokens.onAccent,
+              disabledForegroundColor: AppTokens.onAccent,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
               shape: RoundedRectangleBorder(
@@ -303,7 +303,7 @@ class _SettingStudentState extends State<SettingStudent> {
                     height: 18,
                     width: 18,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2.2, color: Colors.white),
+                        strokeWidth: 2.2, color: AppTokens.onAccent),
                   )
                 : const Text("Enrol",
                     style:

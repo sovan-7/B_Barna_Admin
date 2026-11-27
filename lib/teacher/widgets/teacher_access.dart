@@ -12,13 +12,13 @@ import 'package:provider/provider.dart';
 // (`TeacherRosterRow`) and the compact card (`TeacherCard`).
 
 /// Amber, the Admin role's colour.
-const Color teacherAdminColor = Color(0xFFB54708);
+const Color teacherAdminColor = AppTokens.accentInk;
 
 /// Blue, the Subadmin role's colour.
-const Color teacherSubadminColor = Color(0xFF2563EB);
+const Color teacherSubadminColor = AppTokens.inkMuted;
 
 /// Green for "Every module".
-const Color teacherAllModulesColor = Color(0xFF108460);
+const Color teacherAllModulesColor = AppTokens.accentInk;
 
 /// Positions in [moduleList] of the modules [teacher] can open, in the
 /// sidebar's order rather than whatever order the access list happens to be

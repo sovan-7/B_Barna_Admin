@@ -100,7 +100,7 @@ class FilterDropdown<T> extends StatelessWidget {
           style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w500,
-              color: active ? AppTokens.accent : AppTokens.inkMuted),
+              color: active ? AppTokens.accentInk : AppTokens.inkMuted),
           onChanged: onChanged,
           items: [
             DropdownMenuItem<T?>(value: null, child: Text(allLabel)),
@@ -222,7 +222,8 @@ class FilterChipBar<T> extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected ? Colors.white : AppTokens.inkMuted)),
+                    color:
+                        isSelected ? AppTokens.onAccent : AppTokens.inkMuted)),
           ),
         ),
       ),

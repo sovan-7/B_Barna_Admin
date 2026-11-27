@@ -178,7 +178,7 @@ class NotificationCard extends StatelessWidget {
         return const StatusChip(
           icon: Icons.check_circle_outline,
           label: "Sent",
-          color: Color(0xFF079455),
+          color: AppTokens.accentInk,
           filled: true,
         );
       case NotificationStatus.failed:

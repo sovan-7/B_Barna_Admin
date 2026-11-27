@@ -5,6 +5,7 @@ import 'package:bbarna/documents/video/viewModel/video_view_model.dart';
 import 'package:bbarna/documents/video/widgets/video_card.dart';
 import 'package:bbarna/core/widgets/card/card_chips.dart';
 import 'package:bbarna/documents/media_table.dart';
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// The video list (sidebar module). All the behaviour lives in
@@ -45,7 +46,7 @@ class VideoList extends StatelessWidget {
             title: video.title,
             description: video.description,
             icon: Icons.smart_display_outlined,
-            color: const Color(0xFFD92D20)),
+            color: AppTokens.accentInk),
         CodeChip(video.code, copyable: true),
         accessPill(video.videoType),
         addedCell(video.timeStamp),

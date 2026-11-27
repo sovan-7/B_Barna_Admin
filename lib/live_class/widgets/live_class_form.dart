@@ -448,7 +448,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
       drawer: width < AppTokens.compactBreakpoint
           ? const Drawer(
               width: AppTokens.railWidth,
-              backgroundColor: AppTokens.brandNavy,
+              backgroundColor: AppTokens.railBackground,
               child: ExtraSideBar(sidebarIndex: liveClassModuleIndex))
           : null,
     );

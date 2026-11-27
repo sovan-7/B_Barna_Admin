@@ -339,8 +339,8 @@ class _LoginScreenState extends State<LoginScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTokens.accent,
           disabledBackgroundColor: AppTokens.accent.withValues(alpha: .55),
-          foregroundColor: Colors.white,
-          disabledForegroundColor: Colors.white,
+          foregroundColor: AppTokens.onAccent,
+          disabledForegroundColor: AppTokens.onAccent,
           elevation: 0,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
@@ -352,7 +352,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 height: 18,
                 width: 18,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2.2, color: Colors.white),
+                    strokeWidth: 2.2, color: AppTokens.onAccent),
               )
             : const Text("Sign in",
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
@@ -361,8 +361,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-/// The navy half of the page on a wide window: brand, tagline, the three
+/// The gold half of the page on a wide window: brand, tagline, the three
 /// things the panel is used for most, and a footer.
+/// Secondary text on the gold panel: a deep gold-brown, readable on gold.
+const Color _panelMuted = Color(0xFF4D3A00);
+
 class _BrandPanel extends StatelessWidget {
   const _BrandPanel();
 
@@ -372,7 +375,7 @@ class _BrandPanel extends StatelessWidget {
     // content sits in the middle and the footer at the bottom.
     return Container(
       key: const Key('login_brand_panel'),
-      color: AppTokens.brandNavy,
+      color: AppTokens.accent,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(48, 32, 48, 28),
@@ -387,8 +390,7 @@ class _BrandPanel extends StatelessWidget {
                 _content(),
                 Text(
                   "© ${DateTime.now().year} B_BARNA",
-                  style: const TextStyle(
-                      fontSize: 12, color: AppTokens.onNavyMuted),
+                  style: const TextStyle(fontSize: 12, color: _panelMuted),
                 ),
               ],
             ),
@@ -413,15 +415,13 @@ class _BrandPanel extends StatelessWidget {
                 fontSize: 32,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
-                color: Colors.white),
+                color: AppTokens.onAccent),
           ),
           const SizedBox(height: 4),
           const Text(
             "Admin portal",
             style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: AppTokens.onNavyMuted),
+                fontSize: 15, fontWeight: FontWeight.w500, color: _panelMuted),
           ),
           const SizedBox(height: AppTokens.gapLg),
           ConstrainedBox(
@@ -429,8 +429,7 @@ class _BrandPanel extends StatelessWidget {
             child: const Text(
               "Courses, subjects, units and everything that hangs off them, "
               "in one place.",
-              style: TextStyle(
-                  fontSize: 14, height: 1.55, color: AppTokens.onNavyMuted),
+              style: TextStyle(fontSize: 14, height: 1.55, color: _panelMuted),
             ),
           ),
           const SizedBox(height: AppTokens.gapXl),
@@ -463,15 +462,16 @@ class _Feature extends StatelessWidget {
             height: 34,
             width: 34,
             decoration: BoxDecoration(
-              color: AppTokens.brandNavyRaised,
+              color: AppTokens.surface,
               borderRadius: BorderRadius.circular(AppTokens.radiusSm),
             ),
-            child: Icon(icon, size: 18, color: AppTokens.onNavy),
+            child: Icon(icon, size: 18, color: AppTokens.accentInk),
           ),
           const SizedBox(width: 12),
           Flexible(
             child: Text(label,
-                style: const TextStyle(fontSize: 14, color: AppTokens.onNavy)),
+                style:
+                    const TextStyle(fontSize: 14, color: AppTokens.onAccent)),
           ),
         ],
       ),

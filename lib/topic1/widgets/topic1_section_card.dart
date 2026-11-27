@@ -155,9 +155,9 @@ class Topic1SectionCard extends StatelessWidget {
       // is anything to save.
       onPressed: (isSaving || !dirty) ? null : onSave,
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppTokens.ink,
+        backgroundColor: AppTokens.accent,
         disabledBackgroundColor: AppTokens.surfaceMuted,
-        foregroundColor: Colors.white,
+        foregroundColor: AppTokens.onAccent,
         disabledForegroundColor: AppTokens.inkFaint,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),

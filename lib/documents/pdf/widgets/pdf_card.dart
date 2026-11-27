@@ -60,7 +60,7 @@ class PdfCard extends StatelessWidget {
           ),
           child: Icon(Icons.picture_as_pdf_outlined,
               size: 20,
-              color: hasFile ? const Color(0xFFD92D20) : AppTokens.inkFaint),
+              color: hasFile ? AppTokens.accentInk : AppTokens.inkFaint),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -109,10 +109,10 @@ class PdfCard extends StatelessWidget {
                                 style: TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF2563EB))),
+                                    color: AppTokens.accentInk)),
                             SizedBox(width: 4),
                             Icon(Icons.open_in_new,
-                                size: 12, color: Color(0xFF2563EB)),
+                                size: 12, color: AppTokens.accentInk),
                           ],
                         ),
                       ),
@@ -132,8 +132,7 @@ class PdfCard extends StatelessWidget {
   /// FREE/PAID status, plus the downloadable and lock toggles.
   Widget _chips(BuildContext context) {
     final bool isFree = _data.pdfType.toUpperCase() == "FREE";
-    final Color typeColor =
-        isFree ? const Color(0xFF108460) : const Color(0xFFB54708);
+    final Color typeColor = isFree ? AppTokens.accentInk : AppTokens.accentInk;
     final PdfViewModel pdfViewModel =
         Provider.of<PdfViewModel>(context, listen: false);
 
@@ -161,7 +160,7 @@ class PdfCard extends StatelessWidget {
                 : Icons.lock_open_outlined,
             label: _data.isLocked ? "Locked" : "Unlocked",
             on: _data.isLocked,
-            onColor: const Color(0xFFB54708),
+            onColor: AppTokens.accentInk,
             tooltip: _data.isLocked ? "Unlock this PDF" : "Lock this PDF",
             onTap: () => pdfViewModel.toggleLocked(_data),
             busy: busy,
@@ -229,7 +228,7 @@ Widget pdfDownloadableToggle(BuildContext context, PdfModel data) {
           : Icons.visibility_outlined,
       label: data.isDownloadable ? "Downloadable" : "View only",
       on: data.isDownloadable,
-      onColor: const Color(0xFF2563EB),
+      onColor: AppTokens.accentInk,
       tooltip: data.isDownloadable ? "Make it view-only" : "Allow downloads",
       onTap: () => Provider.of<PdfViewModel>(context, listen: false)
           .toggleDownloadable(data),

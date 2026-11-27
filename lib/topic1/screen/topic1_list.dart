@@ -95,7 +95,7 @@ class Topic1List extends StatelessWidget {
                   ? " · also in ${topic.unitCodeList.length - 1} more"
                   : ""),
           icon: Icons.checklist_rtl,
-          iconColor: AppTokens.accent,
+          iconColor: AppTokens.accentInk,
         ),
         CodeChip(topic.code),
         TableText("${topic.displayPriority}"),

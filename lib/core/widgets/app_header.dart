@@ -235,7 +235,7 @@ class _AccountMenu extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: AppTokens.accent)),
+                      color: AppTokens.accentInk)),
             ),
             if (!isCompact) ...[
               const SizedBox(width: 8),

@@ -122,8 +122,8 @@ class FormActionBar extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTokens.accent,
           disabledBackgroundColor: AppTokens.accent.withValues(alpha: .55),
-          foregroundColor: Colors.white,
-          disabledForegroundColor: Colors.white,
+          foregroundColor: AppTokens.onAccent,
+          disabledForegroundColor: AppTokens.onAccent,
           elevation: 0,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
@@ -133,7 +133,7 @@ class FormActionBar extends StatelessWidget {
                 height: 18,
                 width: 18,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2.2, color: Colors.white),
+                    strokeWidth: 2.2, color: AppTokens.onAccent),
               )
             : Text(saveLabel,
                 overflow: TextOverflow.ellipsis,
