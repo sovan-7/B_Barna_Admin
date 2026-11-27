@@ -18,6 +18,13 @@ Future<void> _pump(WidgetTester tester, {double width = 1280}) async {
       body: StatefulBuilder(
         builder: (context, setState) => FormPageBody(
           width: width,
+          actionBar: FormActionBar(
+            width: width,
+            isSaving: false,
+            saveKey: const Key('save'),
+            saveLabel: "Save",
+            onSave: () {},
+          ),
           children: [
             FormTextField(
               label: "Course name",
@@ -33,13 +40,6 @@ Future<void> _pump(WidgetTester tester, {double width = 1280}) async {
               onChanged: (_) {},
             ),
           ],
-          actionBar: FormActionBar(
-            width: width,
-            isSaving: false,
-            saveKey: const Key('save'),
-            saveLabel: "Save",
-            onSave: () {},
-          ),
         ),
       ),
     ),

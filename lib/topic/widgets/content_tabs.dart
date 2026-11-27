@@ -202,6 +202,14 @@ class TopicHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+        builder: (context, constraints) =>
+            _card(context, narrow: constraints.maxWidth < 520));
+  }
+
+  /// The card; [narrow] drops the decorative icon and shrinks Edit to an
+  /// icon button, so a phone keeps room for the name.
+  Widget _card(BuildContext context, {required bool narrow}) {
     return Container(
       padding: const EdgeInsets.all(AppTokens.gapMd),
       decoration: BoxDecoration(
@@ -215,17 +223,19 @@ class TopicHeaderCard extends StatelessWidget {
         children: [
           FormBackButton(onTap: () => Navigator.pop(context)),
           const SizedBox(width: AppTokens.gapMd),
-          Container(
-            height: 44,
-            width: 44,
-            decoration: BoxDecoration(
-              color: AppTokens.accentTint,
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          if (!narrow) ...[
+            Container(
+              height: 44,
+              width: 44,
+              decoration: BoxDecoration(
+                color: AppTokens.accentTint,
+                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+              ),
+              child: const Icon(Icons.topic_outlined,
+                  size: 22, color: AppTokens.accent),
             ),
-            child: const Icon(Icons.topic_outlined,
-                size: 22, color: AppTokens.accent),
-          ),
-          const SizedBox(width: AppTokens.gapMd),
+            const SizedBox(width: AppTokens.gapMd),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,7 +281,15 @@ class TopicHeaderCard extends StatelessWidget {
               ],
             ),
           ),
-          if (onEdit != null) ...[
+          if (onEdit != null && narrow)
+            IconButton(
+              key: const Key('topic_header_edit'),
+              tooltip: "Edit topic",
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined,
+                  size: 18, color: AppTokens.inkMuted),
+            )
+          else if (onEdit != null) ...[
             const SizedBox(width: AppTokens.gapMd),
             OutlinedButton.icon(
               key: const Key('topic_header_edit'),
