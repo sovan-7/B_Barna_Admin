@@ -1,5 +1,7 @@
 import 'package:bbarna/login/model/login_result.dart';
 import 'package:bbarna/resources/constant.dart';
+import 'package:bbarna/teacher/widgets/teacher_access.dart';
+import 'package:bbarna/teacher/model/teacher_model.dart';
 import 'package:bbarna/utils/helper.dart';
 import 'package:bbarna/utils/session.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,10 +32,12 @@ const List<String> _modulesBeforeBooks = [
   "LIVE CLASSES",
 ];
 
-/// [_modulesBeforeBooks] as a non-admin sees it: Teachers is admin-only.
+/// [_modulesBeforeBooks] as a non-admin sees it: Teachers is admin-only,
+/// and the old Topics ("TOPIC", now hidden) opens as Topics ("TOPIC1"),
+/// right where it was.
 final List<String> _modulesWithoutTeachers = [
   for (final String module in _modulesBeforeBooks)
-    if (module != "TEACHERS") module,
+    if (module == "TOPIC") "TOPIC1" else if (module != "TEACHERS") module,
 ];
 
 Future<void> _freshStore([Map<String, Object> values = const {}]) async {
@@ -106,13 +110,14 @@ void main() {
           Helper.allowedModuleIndices(), isNot(contains(question1ModuleIndex)));
     });
 
-    test('sees Topic1 right after Topics', () async {
+    test('no longer sees the old Topics, only Topics (Topic1)', () async {
       await _freshStore();
       await Session.signIn(const LoginResult(
           adminId: 't1', moduleAccess: _modulesBeforeBooks, role: roleAdmin));
 
       final List<String> visible = _visibleModules();
-      expect(visible.indexOf("TOPIC1"), visible.indexOf("TOPIC") + 1);
+      expect(visible, contains("TOPIC1"));
+      expect(visible, isNot(contains("TOPIC")));
     });
 
     test('sees everything even with a short module list', () async {
@@ -129,22 +134,23 @@ void main() {
       await _freshStore();
       await Session.signIn(const LoginResult(
         adminId: 't2',
-        moduleAccess: ["COURSES", "TOPIC"],
+        moduleAccess: ["COURSES", "TOPIC1"],
         role: roleSubadmin,
       ));
 
       expect(Session.isAdmin, isFalse);
-      expect(_visibleModules(), ["COURSES", "TOPIC"]);
+      expect(_visibleModules(), ["COURSES", "TOPIC1"]);
     });
 
-    test('sees Topic1 only once it is ticked, next to Topics', () async {
+    test('keeps topics when only the old Topics was ticked', () async {
       await _freshStore();
       await Session.signIn(const LoginResult(
         adminId: 't2',
         moduleAccess: ["TOPIC"],
         role: roleSubadmin,
       ));
-      expect(_visibleModules(), ["TOPIC"]);
+      // Nothing was written to the account: the old access carries over.
+      expect(_visibleModules(), ["TOPIC1"]);
 
       await Session.signOut();
       await Session.signIn(const LoginResult(
@@ -152,7 +158,18 @@ void main() {
         moduleAccess: ["VIDEOS", "TOPIC1", "COURSES", "TOPIC"],
         role: roleSubadmin,
       ));
-      expect(_visibleModules(), ["COURSES", "TOPIC", "TOPIC1", "VIDEOS"]);
+      // Both ticked still means Topics once.
+      expect(_visibleModules(), ["COURSES", "TOPIC1", "VIDEOS"]);
+    });
+
+    test('without any topics access sees no Topics', () async {
+      await _freshStore();
+      await Session.signIn(const LoginResult(
+        adminId: 't2',
+        moduleAccess: ["COURSES"],
+        role: roleSubadmin,
+      ));
+      expect(_visibleModules(), ["COURSES"]);
     });
 
     test('does not get Books just because it exists', () async {
@@ -255,5 +272,24 @@ void main() {
         adminId: 't2', moduleAccess: ["COURSES"], role: roleSubadmin));
 
     expect(_visibleModules(), ["COURSES"]);
+  });
+
+  test('the Teachers table counts old Topics access as Topics, once', () {
+    TeacherModel teacher(List<String> access) => TeacherModel(
+          docId: 'd',
+          name: 'N',
+          imageUrl: '',
+          username: 'n',
+          password: 'p',
+          phoneNumber: '',
+          timeStamp: 0,
+          moduleAccess: access,
+          role: roleSubadmin,
+        );
+
+    expect(grantedModuleIndices(teacher(["TOPIC"])), [topic1ModuleIndex]);
+    expect(grantedModuleIndices(teacher(["TOPIC", "TOPIC1"])),
+        [topic1ModuleIndex]);
+    expect(grantedModuleIndices(teacher(["COURSES"])), [courseModuleIndex]);
   });
 }

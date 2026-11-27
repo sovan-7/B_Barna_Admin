@@ -107,7 +107,7 @@ class _Topic1DetailsState extends State<Topic1Details> {
   @override
   Widget build(BuildContext context) {
     return AdminFormScaffold(
-      headerTitle: "New Topics",
+      headerTitle: "Topics",
       sidebarIndex: topic1ModuleIndex,
       body: (context, width) => FormPageBody(
         width: width,

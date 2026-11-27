@@ -53,7 +53,7 @@ const String unit = "unit";
 /// `topic` collection.
 const String topic = "topic";
 
-/// `topics` collection, written by the New Topics module (`Topic1…` in
+/// `topics` collection, written by the Topics module (`Topic1…` in
 /// code): topics whose PDFs are uploaded and whose videos are YouTube links,
 /// both stored on the topic itself rather than attached by code (see
 /// `Topic1Model`). The module's one-time copy fills it from [topic]
@@ -148,7 +148,21 @@ const Set<int> hiddenModuleIndices = {
   bookModuleIndex,
   bookOrderModuleIndex,
   question1ModuleIndex,
+  // The old Topics module: "Topics" is now the former New Topics (Topic1).
+  // Its code and the `topic` collection stay; see [accessGrants].
+  topicModuleIndex,
 };
+
+/// Whether a teacher's stored module [access] lets them open the module at
+/// [moduleIndex].
+///
+/// Access to the old Topics module ("TOPIC", now hidden) carries over to
+/// Topics (Topic1), so teachers who were given topics keep them without
+/// anyone editing their accounts.
+bool accessGrants(Iterable<String> access, int moduleIndex) =>
+    access.contains(moduleList[moduleIndex]) ||
+    (moduleIndex == topic1ModuleIndex &&
+        access.contains(moduleList[topicModuleIndex]));
 
 /// The `course_type` of a subject that is a full course. Only these
 /// subjects get live classes (the student app shows its Live Class tab on
@@ -283,7 +297,8 @@ const int liveClassModuleIndex = 12;
 /// Position of the Topics module within [moduleList].
 const int topicModuleIndex = 4;
 
-/// Position of the New Topics module (`Topic1…` in code) within
+/// Position of the Topics module (`Topic1…` in code; once "New Topics")
+/// within
 /// [moduleList] — the value every Topic1 screen passes as `sidebarIndex`.
 /// Shown right after Topics (see [moduleNavOrder]).
 const int topic1ModuleIndex = 17;
@@ -317,7 +332,7 @@ const List<String> moduleDisplayList = [
   "Book orders",
   "Notifications",
   "Transactions",
-  "New Topics",
+  "Topics",
   "Question1",
 ];
 

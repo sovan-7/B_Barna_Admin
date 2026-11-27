@@ -26,7 +26,7 @@ const Color teacherAllModulesColor = Color(0xFF108460);
 List<int> grantedModuleIndices(TeacherModel teacher) => [
       for (final int i in moduleNavOrder)
         if (!hiddenModuleIndices.contains(i) &&
-            teacher.moduleAccess.contains(moduleList[i]))
+            accessGrants(teacher.moduleAccess, i))
           i,
     ];
 

@@ -103,8 +103,10 @@ void main() {
           if (!hiddenModuleIndices.contains(i)) i,
     ];
     final List<String> labels = items.map((item) => item.itemText).toList();
-    expect(labels.indexOf('New Topics'), labels.indexOf('Topics') + 1,
-        reason: 'Topic1 sits right after Topics');
+    expect(labels.where((label) => label == 'Topics'), hasLength(1),
+        reason: 'only Topics (Topic1) shows; the old Topics is hidden');
+    expect(labels, isNot(contains('New Topics')));
+    expect(labels.indexOf('Topics'), labels.indexOf('Units') + 1);
     expect(labels, isNot(contains('Question1')),
         reason: 'Question1 is hidden from the sidebar');
 

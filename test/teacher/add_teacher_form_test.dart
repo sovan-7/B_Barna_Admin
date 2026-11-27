@@ -271,7 +271,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('teacher_username_field')), 'jane_doe');
     await tester.enterText(find.byKey(const Key('teacher_password_field')), 'password123');
     await tester.enterText(find.byKey(const Key('teacher_phone_field')), '9876543210');
-    await checkModule(tester, 'TOPIC');
+    await checkModule(tester, 'TOPIC1');
     await checkModule(tester, 'COURSES');
     await tester.ensureVisible(find.byKey(const Key('teacher_save_button')));
     await tester.tap(find.byKey(const Key('teacher_save_button')));
@@ -280,7 +280,7 @@ void main() {
     final captured =
         verify(() => repo.addTeacher(captureAny())).captured.single
             as TeacherModel;
-    expect(captured.moduleAccess, ['COURSES', 'TOPIC']);
+    expect(captured.moduleAccess, ['COURSES', 'TOPIC1']);
   });
 
   testWidgets('defaults to the Subadmin role when none is explicitly chosen',

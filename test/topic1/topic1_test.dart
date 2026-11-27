@@ -832,7 +832,7 @@ void main() {
         await _pump(tester, size, const Scaffold(body: Topic1List()), vm);
 
         expect(tester.takeException(), isNull);
-        expect(find.text('New Topics'), findsOneWidget);
+        expect(find.text('Topics'), findsWidgets);
         expect(_rows(), size.width < 900 ? findsWidgets : findsNWidgets(3));
       });
 
