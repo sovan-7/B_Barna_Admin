@@ -58,10 +58,10 @@ class AppTokens {
 
   // ---- Shell metrics --------------------------------------------------
   /// Width of the navigation rail when it shows labels.
-  static const double railWidth = 260;
+  static const double railWidth = 224;
 
   /// Width when it is reduced to icons.
-  static const double railCollapsedWidth = 72;
+  static const double railCollapsedWidth = 64;
 
   /// Below this the rail drops to icons on its own, so the cramped
   /// `Expanded(child: ExtraSideBar(...))` panels on the add/edit screens
@@ -72,11 +72,62 @@ class AppTokens {
   /// by [Sidebar], [AppHeader] and every add/edit screen.
   static const double compactBreakpoint = 900;
 
-  /// Height of the top [AppHeader] bar.
-  static const double headerHeight = 56;
+  /// Height of the top [AppHeader] bar, and of the brand row at the top of
+  /// the rail beside it, so the two line up.
+  static const double headerHeight = 52;
 
   /// Errors and destructive actions.
   static const Color danger = Color(0xFFD92D20);
+
+  // ---- Brand ------------------------------------------------------------
+  /// Deep navy behind the navigation rail and the login brand panel.
+  static const Color brandNavy = Color(0xFF042C53);
+
+  /// A step lighter than [brandNavy]: icon chips and hover on the rail.
+  static const Color brandNavyRaised = Color(0xFF0C447C);
+
+  /// The one accent: selected rail item, primary buttons, active chips.
+  static const Color accent = Color(0xFF185FA5);
+
+  /// Pale tint of [accent] for selected rows and quiet accent fills.
+  static const Color accentTint = Color(0xFFE6F1FB);
+
+  /// Text and icons on [brandNavy].
+  static const Color onNavy = Color(0xFFE6F1FB);
+
+  /// Secondary text, group labels and idle icons on [brandNavy].
+  static const Color onNavyMuted = Color(0xFF85B7EB);
+
+  /// The cyan of the rounded "B" brand mark.
+  static const Color brandMark = Color(0xFF8ADDE1);
+
+  /// Text on [brandMark].
+  static const Color onBrandMark = Color(0xFF042C53);
+
+  // ---- Status tints (fill + text pairs) ---------------------------------
+  /// Visible, sent, free, active.
+  static const Color successFill = Color(0xFFE7F6EE);
+
+  /// Text on [successFill].
+  static const Color successText = Color(0xFF0F6E46);
+
+  /// Locked, paid, pending attention.
+  static const Color warningFill = Color(0xFFFDF1DC);
+
+  /// Text on [warningFill].
+  static const Color warningText = Color(0xFF8A4B08);
+
+  /// Failed, expired, live-now.
+  static const Color dangerFill = Color(0xFFFCEBEB);
+
+  /// Text on [dangerFill].
+  static const Color dangerText = Color(0xFFA32D2D);
+
+  /// Upcoming, informational.
+  static const Color infoFill = Color(0xFFE6F1FB);
+
+  /// Text on [infoFill].
+  static const Color infoText = Color(0xFF185FA5);
 
   /// A tight contact shadow plus a wide soft one, rather than one big blur
   /// — cards read as resting on the page instead of floating over it.

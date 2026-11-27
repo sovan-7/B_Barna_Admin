@@ -4,6 +4,7 @@ import 'package:bbarna/books/screen/book_list.dart';
 import 'package:bbarna/notifications/screen/notification_list.dart';
 import 'package:flutter/material.dart';
 import 'package:bbarna/core/widgets/app_header.dart';
+import 'package:bbarna/core/widgets/brand_mark.dart';
 import 'package:bbarna/core/widgets/list_page/list_empty_state.dart';
 import 'package:bbarna/core/widgets/sidebar_widget.dart';
 import 'package:bbarna/resources/app_tokens.dart';
@@ -25,8 +26,8 @@ import 'package:bbarna/topic1/screen/topic1_list.dart';
 import 'package:bbarna/units/screen/unit_list.dart';
 import 'package:bbarna/utils/helper.dart';
 
-/// The app shell: a fixed-width navigation rail (collapsible to icons)
-/// beside the selected module's list screen. Below
+/// The app shell: the navy navigation rail (collapsible to icons) beside
+/// the selected module's list screen, under the slim [AppHeader]. Below
 /// [AppTokens.compactBreakpoint] the rail moves into a drawer.
 class Sidebar extends StatefulWidget {
   /// Module to open first (index into [moduleList]).
@@ -72,12 +73,13 @@ class _SidebarState extends State<Sidebar> {
 
   @override
   void initState() {
-    // The requested module only if this user may open it (sign-in always
-    // asks for the first one); otherwise the first they may, if any.
+    // The requested module only if this user may open it; otherwise the
+    // first one the rail lists, if any.
     final List<int> allowed = Helper.allowedModuleIndices();
+    final List<int> inRailOrder = railOrder(allowed);
     selectedIndex = allowed.contains(widget.sidebarIndex)
         ? widget.sidebarIndex
-        : (allowed.isEmpty ? null : allowed.first);
+        : (inRailOrder.isEmpty ? null : inRailOrder.first);
     _collapsed = Helper.isSidebarCollapsed();
     super.initState();
   }
@@ -105,20 +107,23 @@ class _SidebarState extends State<Sidebar> {
             // handle back press
           },
           canPop: false,
-          child: Column(
+          child: Row(
             children: [
-              AppHeader(onTapIcon: () => key.currentState?.openDrawer()),
+              if (!isCompact)
+                SidebarNav(
+                  selectedIndex: selectedIndex ?? -1,
+                  collapsed: _collapsed,
+                  onToggleCollapsed: _toggleCollapsed,
+                  onSelect: (moduleIndex) =>
+                      setState(() => selectedIndex = moduleIndex),
+                ),
               Expanded(
-                child: Row(
+                child: Column(
                   children: [
-                    if (!isCompact)
-                      SidebarNav(
-                        selectedIndex: selectedIndex ?? -1,
-                        collapsed: _collapsed,
-                        onToggleCollapsed: _toggleCollapsed,
-                        onSelect: (moduleIndex) =>
-                            setState(() => selectedIndex = moduleIndex),
-                      ),
+                    AppHeader(
+                      onTapIcon: () => key.currentState?.openDrawer(),
+                      moduleIndex: selectedIndex,
+                    ),
                     Expanded(
                       child: selectedIndex == null
                           ? const ListEmptyState(
@@ -139,7 +144,7 @@ class _SidebarState extends State<Sidebar> {
         drawer: isCompact
             ? Drawer(
                 width: AppTokens.railWidth,
-                backgroundColor: AppTokens.surface,
+                backgroundColor: AppTokens.brandNavy,
                 child: ExtraSideBar(
                   sidebarIndex: selectedIndex ?? -1,
                   isFromLogin: true,
@@ -151,28 +156,64 @@ class _SidebarState extends State<Sidebar> {
   }
 }
 
-/// Bare logo+nav-list, embedded (not a full page like [Sidebar]) — used as
-/// the static side panel and narrow-width [Drawer] content across every
-/// add/edit screen, and by [Sidebar]'s own narrow-width drawer above.
+/// [allowed] module positions in the order the rail lists them: group by
+/// group, as [moduleGroups] orders them.
+List<int> railOrder(List<int> allowed) {
+  final Set<int> allowedSet = allowed.toSet();
+  return [
+    for (final ModuleGroup group in moduleGroups)
+      for (final int moduleIndex in group.modules)
+        if (allowedSet.contains(moduleIndex)) moduleIndex,
+  ];
+}
+
+/// Logo + nav list for pages that are not [Sidebar] itself: the rail beside
+/// every add/edit screen ([inline]) and the narrow-width [Drawer] content
+/// everywhere, [Sidebar]'s own drawer included.
 ///
 /// Selecting a module here leaves the current screen for [Sidebar], since
 /// those pages have no content area of their own to swap.
-class ExtraSideBar extends StatelessWidget {
+class ExtraSideBar extends StatefulWidget {
   /// Module to highlight.
   final int sidebarIndex;
 
   /// Set when shown right after login.
   final bool isFromLogin;
+
+  /// Shown as the rail beside a page (with the collapse toggle and the same
+  /// remembered width as [Sidebar]) rather than filling whatever box it is
+  /// given, as it does in a drawer.
+  final bool inline;
+
   const ExtraSideBar(
-      {required this.sidebarIndex, this.isFromLogin = false, super.key});
+      {required this.sidebarIndex,
+      this.isFromLogin = false,
+      this.inline = false,
+      super.key});
+
+  @override
+  State<ExtraSideBar> createState() => _ExtraSideBarState();
+}
+
+class _ExtraSideBarState extends State<ExtraSideBar> {
+  /// Whether the inline rail is reduced to icons.
+  bool _collapsed = Helper.isSidebarCollapsed();
 
   @override
   Widget build(BuildContext context) {
     return SidebarNav(
-      selectedIndex: sidebarIndex,
+      selectedIndex: widget.sidebarIndex,
+      collapsed: widget.inline ? _collapsed : null,
+      onToggleCollapsed: widget.inline
+          ? () {
+              setState(() => _collapsed = !_collapsed);
+              Helper.setSidebarCollapsed(_collapsed);
+            }
+          : null,
       onSelect: (moduleIndex) {
-        // Not from a drawer: there is no drawer route to unwind first.
-        if (!isFromLogin) Navigator.pop(context);
+        // In a drawer this closes the drawer; inline it leaves the add/edit
+        // page, so the replacement below lands on the Sidebar under it.
+        if (!widget.isFromLogin) Navigator.pop(context);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -183,8 +224,8 @@ class ExtraSideBar extends StatelessWidget {
   }
 }
 
-/// The navigation itself — brand mark, grouped module list, and (when the
-/// host offers one) a collapse toggle.
+/// The navigation itself — brand mark, the modules this user may open under
+/// their group headings, and (when the host offers one) a collapse toggle.
 ///
 /// Shared by [Sidebar] and [ExtraSideBar] so the two always match.
 class SidebarNav extends StatelessWidget {
@@ -195,9 +236,8 @@ class SidebarNav extends StatelessWidget {
   final ValueChanged<int> onSelect;
 
   /// When null the rail sizes itself to whatever box it is given and drops
-  /// to icons on its own if that box is narrow — which is what the
-  /// `Expanded(child: ExtraSideBar(...))` panels on the add/edit screens
-  /// hand it. When non-null the host is driving the width and the collapse
+  /// to icons on its own if that box is narrow — which is what a drawer
+  /// hands it. When non-null the host is driving the width and the collapse
   /// toggle is shown.
   final bool? collapsed;
 
@@ -232,23 +272,20 @@ class SidebarNav extends StatelessWidget {
     );
   }
 
-  /// Brand mark and the modules this user may open, grouped.
+  /// Brand mark and the grouped modules this user may open.
   Widget _body({required bool isCollapsed}) {
     final List<int> allowed = Helper.allowedModuleIndices();
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppTokens.surface,
-        border: Border(right: BorderSide(color: AppTokens.hairline)),
-      ),
+      color: AppTokens.brandNavy,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _brand(isCollapsed),
-          const Divider(height: 1, thickness: 1, color: AppTokens.hairline),
           Expanded(child: _modules(allowed, isCollapsed)),
           if (onToggleCollapsed != null) ...[
-            const Divider(height: 1, thickness: 1, color: AppTokens.hairline),
+            const Divider(
+                height: 1, thickness: 1, color: AppTokens.brandNavyRaised),
             _collapseToggle(isCollapsed),
           ],
         ],
@@ -256,37 +293,19 @@ class SidebarNav extends StatelessWidget {
     );
   }
 
-  /// A compact 60px brand row, so every module fits above the fold on a
-  /// laptop.
+  /// A compact brand row the same height as the header beside it.
   Widget _brand(bool isCollapsed) {
-    // The logo asset is a white badge, so on a white rail it needs a
-    // tinted chip behind it to read as a mark at all.
-    final Widget logo = Container(
-      height: 34,
-      width: 34,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        border: Border.all(color: AppTokens.hairline),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm - 3),
-        child: Image.asset("assets/images/logo.png", fit: BoxFit.contain),
-      ),
-    );
-
     return SizedBox(
-      height: 60,
+      height: AppTokens.headerHeight,
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 0 : 16),
         child: isCollapsed
-            ? Center(child: logo)
-            : Row(
+            ? const Center(child: BrandMark())
+            : const Row(
                 children: [
-                  logo,
-                  const SizedBox(width: 10),
-                  const Expanded(
+                  BrandMark(),
+                  SizedBox(width: 10),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -298,13 +317,13 @@ class SidebarNav extends StatelessWidget {
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.4,
-                              color: AppTokens.ink),
+                              color: Colors.white),
                         ),
                         Text(
-                          "Admin Portal",
+                          "Admin portal",
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: 11, color: AppTokens.inkFaint),
+                              fontSize: 11, color: AppTokens.onNavyMuted),
                         ),
                       ],
                     ),
@@ -315,20 +334,55 @@ class SidebarNav extends StatelessWidget {
     );
   }
 
-  /// One flat list, in [moduleNavOrder], of the modules this user may see.
+  /// The modules this user may see, under their [moduleGroups] headings.
+  /// Groups with nothing to show are left out; collapsed, the headings
+  /// become thin dividers.
   Widget _modules(List<int> allowed, bool isCollapsed) {
+    final Set<int> allowedSet = allowed.toSet();
+    final List<Widget> children = [];
+
+    for (final ModuleGroup group in moduleGroups) {
+      final List<int> shown = [
+        for (final int moduleIndex in group.modules)
+          if (allowedSet.contains(moduleIndex)) moduleIndex,
+      ];
+      if (shown.isEmpty) continue;
+
+      children.add(isCollapsed
+          ? Padding(
+              padding:
+                  EdgeInsets.fromLTRB(18, children.isEmpty ? 4 : 10, 18, 6),
+              child: const Divider(
+                  height: 1, thickness: 1, color: AppTokens.brandNavyRaised),
+            )
+          : Padding(
+              padding:
+                  EdgeInsets.fromLTRB(20, children.isEmpty ? 6 : 14, 12, 4),
+              child: Text(
+                group.label,
+                key: ValueKey('nav_group_${group.label}'),
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3,
+                    color: AppTokens.onNavyMuted),
+              ),
+            ));
+
+      for (final int moduleIndex in shown) {
+        children.add(SidebarWidget(
+          iconData: moduleIconList[moduleIndex],
+          itemText: moduleDisplayList[moduleIndex],
+          isSelected: moduleIndex == selectedIndex,
+          isCollapsed: isCollapsed,
+          onTap: () => onSelect(moduleIndex),
+        ));
+      }
+    }
+
     return ListView(
-      padding: const EdgeInsets.symmetric(vertical: AppTokens.gapSm),
-      children: [
-        for (final int moduleIndex in allowed)
-          SidebarWidget(
-            iconData: moduleIconList[moduleIndex],
-            itemText: moduleDisplayList[moduleIndex],
-            isSelected: moduleIndex == selectedIndex,
-            isCollapsed: isCollapsed,
-            onTap: () => onSelect(moduleIndex),
-          ),
-      ],
+      padding: const EdgeInsets.only(bottom: AppTokens.gapSm),
+      children: children,
     );
   }
 
@@ -345,19 +399,19 @@ class SidebarNav extends StatelessWidget {
                 ? MainAxisAlignment.center
                 : MainAxisAlignment.start,
             children: [
-              if (!isCollapsed) const SizedBox(width: 19),
+              if (!isCollapsed) const SizedBox(width: 22),
               Icon(
                 isCollapsed
                     ? Icons.keyboard_double_arrow_right
                     : Icons.keyboard_double_arrow_left,
                 size: 17,
-                color: AppTokens.inkFaint,
+                color: AppTokens.onNavyMuted,
               ),
               if (!isCollapsed) ...[
                 const SizedBox(width: 11),
                 const Text("Collapse",
-                    style:
-                        TextStyle(fontSize: 12.5, color: AppTokens.inkFaint)),
+                    style: TextStyle(
+                        fontSize: 12.5, color: AppTokens.onNavyMuted)),
               ],
             ],
           ),

@@ -1,6 +1,6 @@
+import 'package:bbarna/core/widgets/brand_mark.dart';
 import 'package:bbarna/core/widgets/sidebar.dart';
 import 'package:bbarna/login/viewModel/login_view_model.dart';
-import 'package:bbarna/resources/app_colors.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -136,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // the full width of the form.
                       const Align(
                         alignment: Alignment.centerLeft,
-                        child: _BrandMark(size: 44),
+                        child: BrandMark(size: 44),
                       ),
                       const SizedBox(height: AppTokens.gapLg),
                     ],
@@ -154,6 +154,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                     const SizedBox(height: AppTokens.gapLg),
                     _submitButton(loginViewModel),
+                    const SizedBox(height: AppTokens.gapMd),
+                    const Text(
+                      "Forgot your password? Ask an admin to reset it.",
+                      textAlign: TextAlign.center,
+                      style:
+                          TextStyle(fontSize: 12.5, color: AppTokens.inkFaint),
+                    ),
                     const SizedBox(height: AppTokens.gapXl),
                   ],
                 ),
@@ -330,8 +337,8 @@ class _LoginScreenState extends State<LoginScreen> {
         onPressed:
             loginViewModel.isSubmitting ? null : () => _submit(loginViewModel),
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTokens.ink,
-          disabledBackgroundColor: AppTokens.ink.withValues(alpha: .55),
+          backgroundColor: AppTokens.accent,
+          disabledBackgroundColor: AppTokens.accent.withValues(alpha: .55),
           foregroundColor: Colors.white,
           disabledForegroundColor: Colors.white,
           elevation: 0,
@@ -354,80 +361,119 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-/// The cyan half of the page on a wide window. It carries dark text: the
-/// brand cyan is too light for white text to be readable on it.
+/// The navy half of the page on a wide window: brand, tagline, the three
+/// things the panel is used for most, and a footer.
 class _BrandPanel extends StatelessWidget {
   const _BrandPanel();
 
   @override
   Widget build(BuildContext context) {
+    // Scrolls rather than overflowing on a short window; on a normal one the
+    // content sits in the middle and the footer at the bottom.
     return Container(
-      color: AppColorsInApp.colorLightBlue,
-      padding: const EdgeInsets.all(48),
+      key: const Key('login_brand_panel'),
+      color: AppTokens.brandNavy,
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(48, 32, 48, 28),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+                minHeight: (constraints.maxHeight - 60).clamp(0, 10000)),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox.shrink(),
+                _content(),
+                Text(
+                  "© ${DateTime.now().year} B_BARNA",
+                  style: const TextStyle(
+                      fontSize: 12, color: AppTokens.onNavyMuted),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Brand, tagline and feature rows.
+  Widget _content() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTokens.gapLg),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _BrandMark(size: 52),
+          const BrandMark(size: 48),
           const SizedBox(height: AppTokens.gapXl),
           const Text(
             "B_BARNA",
             style: TextStyle(
-                fontSize: 34,
+                fontSize: 32,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
-                color: AppTokens.ink),
+                color: Colors.white),
           ),
-          const SizedBox(height: 6),
-          Text(
-            "Admin Portal",
+          const SizedBox(height: 4),
+          const Text(
+            "Admin portal",
             style: TextStyle(
                 fontSize: 15,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.2,
-                color: AppTokens.ink.withValues(alpha: .65)),
+                fontWeight: FontWeight.w500,
+                color: AppTokens.onNavyMuted),
           ),
           const SizedBox(height: AppTokens.gapLg),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 340),
-            child: Text(
-              "Courses, subjects, units and everything that hangs off them "
-              "— in one place.",
+            child: const Text(
+              "Courses, subjects, units and everything that hangs off them, "
+              "in one place.",
               style: TextStyle(
-                  fontSize: 13.5,
-                  height: 1.5,
-                  color: AppTokens.ink.withValues(alpha: .7)),
+                  fontSize: 14, height: 1.55, color: AppTokens.onNavyMuted),
             ),
           ),
+          const SizedBox(height: AppTokens.gapXl),
+          const _Feature(
+              icon: Icons.menu_book_outlined,
+              label: "Courses, units and topics"),
+          const _Feature(
+              icon: Icons.sensors_outlined, label: "Live classes and quizzes"),
+          const _Feature(
+              icon: Icons.people_outline, label: "Students and payments"),
         ],
       ),
     );
   }
 }
 
-/// The same rounded "B" the app header uses, so the two read as one app.
-class _BrandMark extends StatelessWidget {
-  /// Width and height of the mark.
-  final double size;
-  const _BrandMark({required this.size});
+/// One "what you can do here" row on the brand panel.
+class _Feature extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _Feature({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: size,
-      width: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppTokens.surface,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: AppTokens.ink.withValues(alpha: .08)),
-      ),
-      child: Text(
-        "B",
-        style: TextStyle(
-            fontSize: size * 0.5,
-            fontWeight: FontWeight.w800,
-            color: AppTokens.ink),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.gapMd),
+      child: Row(
+        children: [
+          Container(
+            height: 34,
+            width: 34,
+            decoration: BoxDecoration(
+              color: AppTokens.brandNavyRaised,
+              borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+            ),
+            child: Icon(icon, size: 18, color: AppTokens.onNavy),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(label,
+                style: const TextStyle(fontSize: 14, color: AppTokens.onNavy)),
+          ),
+        ],
       ),
     );
   }

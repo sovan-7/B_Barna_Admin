@@ -80,11 +80,12 @@ void main() {
     testWidgets('the brand panel is dropped on a narrow window',
         (tester) async {
       await _pump(tester, const Size(1440, 900));
-      expect(find.text('BBARNA'), findsOneWidget);
+      expect(find.byKey(const Key('login_brand_panel')), findsOneWidget);
+      expect(find.text('B_BARNA'), findsOneWidget);
 
       await _pump(tester, const Size(700, 900));
       // Nothing to put it beside — the form takes the whole width.
-      expect(find.text('BBARNA'), findsNothing);
+      expect(find.byKey(const Key('login_brand_panel')), findsNothing);
     });
 
     testWidgets('the brand mark keeps its shape on a narrow window',

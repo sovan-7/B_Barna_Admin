@@ -1,4 +1,5 @@
-import 'package:bbarna/resources/app_tokens.dart';
+import 'package:bbarna/core/widgets/list_page/filter_chips.dart';
+import 'package:bbarna/core/widgets/list_page/stats_strip.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/teacher/widgets/teacher_access.dart';
 import 'package:flutter/material.dart';
@@ -24,53 +25,27 @@ class TeacherStatsStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-            child: _tile(const Key('teacher_stat_total'), "Total", total,
-                AppTokens.ink)),
-        const SizedBox(width: AppTokens.gapSm),
-        Expanded(
-            child: _tile(const Key('teacher_stat_admins'), "Admins", admins,
-                teacherAdminColor)),
-        const SizedBox(width: AppTokens.gapSm),
-        Expanded(
-            child: _tile(const Key('teacher_stat_subadmins'), "Subadmins",
-                subadmins, teacherSubadminColor)),
+    return StatsStrip(
+      oneLineMinWidth: 360,
+      tiles: [
+        StatTile.count(
+            key: const Key('teacher_stat_total'), label: "Total", count: total),
+        StatTile.count(
+            key: const Key('teacher_stat_admins'),
+            label: "Admins",
+            count: admins,
+            valueColor: teacherAdminColor),
+        StatTile.count(
+            key: const Key('teacher_stat_subadmins'),
+            label: "Subadmins",
+            count: subadmins,
+            valueColor: teacherSubadminColor),
       ],
-    );
-  }
-
-  /// One tile: a small label over a large number.
-  Widget _tile(Key key, String label, int value, Color color) {
-    return Container(
-      key: key,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppTokens.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: AppTokens.inkMuted)),
-          const SizedBox(height: 2),
-          Text("$value",
-              style: TextStyle(
-                  fontSize: 20,
-                  height: 1.2,
-                  fontWeight: FontWeight.w600,
-                  color: color)),
-        ],
-      ),
     );
   }
 }
 
-/// All / Admin / Subadmin as one segmented control.
+/// All / Admin / Subadmin as a row of filter chips.
 class TeacherRoleFilter extends StatelessWidget {
   /// The role shown ([roleAdmin] or [roleSubadmin]), or null for all.
   final String? selected;
@@ -83,46 +58,15 @@ class TeacherRoleFilter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 40,
-      decoration: BoxDecoration(
-        color: AppTokens.surface,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        border: Border.all(color: AppTokens.hairline),
-      ),
-      padding: const EdgeInsets.all(3),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _segment(const Key('teacher_role_filter_all'), "All", null),
-          _segment(const Key('teacher_role_filter_admin'), "Admin", roleAdmin),
-          _segment(const Key('teacher_role_filter_subadmin'), "Subadmin",
-              roleSubadmin),
-        ],
-      ),
-    );
-  }
-
-  /// One part of the control.
-  Widget _segment(Key key, String label, String? role) {
-    final bool isSelected = selected == role;
-    return Material(
-      color: isSelected ? AppTokens.surfaceMuted : Colors.transparent,
-      borderRadius: BorderRadius.circular(AppTokens.radiusSm - 2),
-      child: InkWell(
-        key: key,
-        onTap: () => onChanged(role),
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm - 2),
-        child: Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected ? AppTokens.ink : AppTokens.inkMuted)),
-        ),
-      ),
+    return FilterChipBar<String?>(
+      selected: selected,
+      onChanged: onChanged,
+      options: const [
+        FilterOption(null, "All", key: Key('teacher_role_filter_all')),
+        FilterOption(roleAdmin, "Admin", key: Key('teacher_role_filter_admin')),
+        FilterOption(roleSubadmin, "Subadmin",
+            key: Key('teacher_role_filter_subadmin')),
+      ],
     );
   }
 }

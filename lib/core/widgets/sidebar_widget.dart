@@ -1,9 +1,9 @@
-import 'package:bbarna/resources/app_colors.dart';
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 
-/// One row of the navigation rail: icon and label in a rounded item;
-/// the selected module is a tinted pill in the app's orange.
+/// One row of the navy navigation rail: icon and label in a rounded item.
+/// The selected module is a solid accent pill; hover lifts the row to the
+/// raised navy.
 class SidebarWidget extends StatefulWidget {
   /// Module icon.
   final IconData iconData;
@@ -39,17 +39,14 @@ class _SidebarWidgetState extends State<SidebarWidget> {
 
   @override
   Widget build(BuildContext context) {
-    const Color accent = AppColorsInApp.colorOrange;
     final bool selected = widget.isSelected;
 
     final Color background = selected
-        ? accent.withValues(alpha: .12)
+        ? AppTokens.accent
         : _hovered
-            ? AppTokens.surfaceMuted
+            ? AppTokens.brandNavyRaised
             : Colors.transparent;
-    // Hover is carried by the background alone — the label is already at
-    // full strength, so there is nothing to darken it to.
-    final Color foreground = selected ? accent : AppTokens.ink;
+    final Color foreground = selected ? Colors.white : AppTokens.onNavy;
 
     final Widget row = Row(
       mainAxisAlignment: widget.isCollapsed
@@ -57,9 +54,10 @@ class _SidebarWidgetState extends State<SidebarWidget> {
           : MainAxisAlignment.start,
       children: [
         // The icon sits a step back from the label so the row reads
-        // label-first, without either being washed out.
+        // label-first, except on the selected row where both are white.
         Icon(widget.iconData,
-            size: 18, color: selected ? accent : AppTokens.inkMuted),
+            size: 18,
+            color: selected || _hovered ? foreground : AppTokens.onNavyMuted),
         if (!widget.isCollapsed) ...[
           const SizedBox(width: 11),
           Expanded(
@@ -80,7 +78,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
       onExit: (_) => setState(() => _hovered = false),
       child: Padding(
         padding: EdgeInsets.symmetric(
-            horizontal: widget.isCollapsed ? 10 : 8, vertical: 1),
+            horizontal: widget.isCollapsed ? 10 : 10, vertical: 1),
         child: Material(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(AppTokens.radiusSm),
@@ -89,9 +87,9 @@ class _SidebarWidgetState extends State<SidebarWidget> {
             borderRadius: BorderRadius.circular(AppTokens.radiusSm),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 120),
-              height: 38,
+              height: 36,
               padding:
-                  EdgeInsets.symmetric(horizontal: widget.isCollapsed ? 0 : 11),
+                  EdgeInsets.symmetric(horizontal: widget.isCollapsed ? 0 : 10),
               decoration: BoxDecoration(
                 color: background,
                 borderRadius: BorderRadius.circular(AppTokens.radiusSm),

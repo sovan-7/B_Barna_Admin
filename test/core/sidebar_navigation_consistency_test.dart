@@ -64,15 +64,43 @@ void main() {
     });
   });
 
-  testWidgets('the nav renders every shown module, in moduleNavOrder',
+  group('module groups', () {
+    test('every module is in exactly one group', () {
+      final List<int> grouped = [
+        for (final ModuleGroup group in moduleGroups) ...group.modules,
+      ];
+      expect(grouped, hasLength(moduleList.length));
+      expect(grouped.toSet(), {for (int i = 0; i < moduleList.length; i++) i});
+    });
+
+    test('each module reports the group it is listed under', () {
+      expect(groupOfModule(courseModuleIndex)?.label, 'Content');
+      expect(groupOfModule(topic1ModuleIndex)?.label, 'Content');
+      expect(groupOfModule(videoModuleIndex)?.label, 'Media');
+      expect(groupOfModule(quizModuleIndex)?.label, 'Assessment');
+      expect(groupOfModule(teacherModuleIndex)?.label, 'People');
+      expect(groupOfModule(bannerModuleIndex)?.label, 'Engage');
+      expect(groupOfModule(transactionModuleIndex)?.label, 'Finance');
+      expect(groupOfModule(-1), isNull);
+    });
+
+    test('railOrder lists modules group by group', () {
+      expect(
+          railOrder([bannerModuleIndex, studentModuleIndex, courseModuleIndex]),
+          [courseModuleIndex, studentModuleIndex, bannerModuleIndex]);
+    });
+  });
+
+  testWidgets('the nav renders every shown module, group by group',
       (tester) async {
     await _pumpNav(tester);
 
     final List<SidebarWidget> items =
         tester.widgetList<SidebarWidget>(find.byType(SidebarWidget)).toList();
     final List<int> shown = [
-      for (final int i in moduleNavOrder)
-        if (!hiddenModuleIndices.contains(i)) i,
+      for (final ModuleGroup group in moduleGroups)
+        for (final int i in group.modules)
+          if (!hiddenModuleIndices.contains(i)) i,
     ];
     final List<String> labels = items.map((item) => item.itemText).toList();
     expect(labels.indexOf('New Topics'), labels.indexOf('Topics') + 1,
@@ -80,10 +108,23 @@ void main() {
     expect(labels, isNot(contains('Question1')),
         reason: 'Question1 is hidden from the sidebar');
 
-    expect(items.map((item) => item.itemText).toList(),
-        [for (final int i in shown) moduleDisplayList[i]]);
+    expect(labels, [for (final int i in shown) moduleDisplayList[i]]);
     expect(items.map((item) => item.iconData).toList(),
         [for (final int i in shown) moduleIconList[i]]);
+
+    // Headings for every group with something in it; Shop holds only
+    // hidden modules, so it has none.
+    for (final String label in [
+      'Content',
+      'Media',
+      'Assessment',
+      'People',
+      'Engage',
+      'Finance'
+    ]) {
+      expect(find.byKey(ValueKey('nav_group_$label')), findsOneWidget);
+    }
+    expect(find.byKey(const ValueKey('nav_group_Shop')), findsNothing);
   });
 
   testWidgets('the selected module is the only one marked selected',

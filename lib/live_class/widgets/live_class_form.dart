@@ -11,6 +11,7 @@ import 'package:bbarna/live_class/widgets/live_class_status_badge.dart';
 import 'package:bbarna/live_class/widgets/live_class_theme.dart';
 import 'package:bbarna/resources/constant.dart';
 import 'package:bbarna/utils/helper.dart';
+import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -417,18 +418,19 @@ class _LiveClassFormState extends State<LiveClassForm> {
         onPopInvokedWithResult: (didPop, result) {
           if (didPop) return;
         },
-        child: Column(
+        child: Row(
           children: [
-            AppHeader(onTapIcon: () => key.currentState?.openDrawer()),
+            if (width >= AppTokens.compactBreakpoint)
+              const ExtraSideBar(
+                  sidebarIndex: liveClassModuleIndex, inline: true),
             Expanded(
-              child: Row(
+              child: Column(
                 children: [
-                  if (width > 900)
-                    const Expanded(
-                        child:
-                            ExtraSideBar(sidebarIndex: liveClassModuleIndex)),
+                  AppHeader(
+                    onTapIcon: () => key.currentState?.openDrawer(),
+                    moduleIndex: liveClassModuleIndex,
+                  ),
                   Expanded(
-                    flex: 5,
                     child: Container(
                       color: LiveClassTheme.canvas,
                       child: Consumer<LiveClassViewModel>(
@@ -443,8 +445,10 @@ class _LiveClassFormState extends State<LiveClassForm> {
           ],
         ),
       ),
-      drawer: width < 900
+      drawer: width < AppTokens.compactBreakpoint
           ? const Drawer(
+              width: AppTokens.railWidth,
+              backgroundColor: AppTokens.brandNavy,
               child: ExtraSideBar(sidebarIndex: liveClassModuleIndex))
           : null,
     );
@@ -492,8 +496,7 @@ class _LiveClassFormState extends State<LiveClassForm> {
                           keyPrefix: 'live_class',
                           error: null,
                           enabled: !_isSaving,
-                          onSelect: (type) =>
-                              setState(() => _classType = type),
+                          onSelect: (type) => setState(() => _classType = type),
                         ),
                         const SizedBox(height: LiveClassTheme.gapMd),
                         _textField(
@@ -574,8 +577,12 @@ class _LiveClassFormState extends State<LiveClassForm> {
         teacherName: _selectedTeacher ?? "",
         teacherId: _selectedTeacherId,
         teacherPhone: _selectedTeacherPhone,
-        subjectNames: [for (final LiveClassSubject s in _selectedSubjects) s.name],
-        subjectCodes: [for (final LiveClassSubject s in _selectedSubjects) s.code],
+        subjectNames: [
+          for (final LiveClassSubject s in _selectedSubjects) s.name
+        ],
+        subjectCodes: [
+          for (final LiveClassSubject s in _selectedSubjects) s.code
+        ],
         classType: _classType,
         startDateTime: _startDateTime!,
         endDateTime: _endDateTime!,
