@@ -415,7 +415,7 @@ void main() {
     for (final (String layout, Size size, String rowKey) in const [
       ('card', Size(800, 900), 'transaction_row_a'),
       ('table row', Size(1440, 900), 'transaction_table_row_a'),
-    ])
+    ]) {
       testWidgets('tapping a $layout opens its details and receipt',
           (tester) async {
         answerFirstPage([_t('a', coupon: 'BARNA20', couponOff: 500)]);
@@ -431,6 +431,7 @@ void main() {
         expect(find.byKey(const Key('transaction_download_receipt')),
             findsOneWidget);
       });
+    }
 
     testWidgets('a short window scrolls instead of overflowing',
         (tester) async {
