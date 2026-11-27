@@ -3,6 +3,8 @@ import 'package:bbarna/documents/video/model/video_model.dart';
 import 'package:bbarna/documents/video/screen/add_video.dart';
 import 'package:bbarna/documents/video/viewModel/video_view_model.dart';
 import 'package:bbarna/documents/video/widgets/video_card.dart';
+import 'package:bbarna/core/widgets/card/card_chips.dart';
+import 'package:bbarna/documents/media_table.dart';
 import 'package:flutter/material.dart';
 
 /// The video list (sidebar module). All the behaviour lives in
@@ -30,6 +32,27 @@ class VideoList extends StatelessWidget {
         videoData: video,
         onChanged: onChanged,
       ),
+      statTiles: (vm) => mediaStatTiles("video", vm.totalCount, vm.stats),
+      chipOptions: accessChipOptions("video"),
+      chipMatches: (video, filter) =>
+          accessChipMatches(video.videoType, filter),
+      tableColumns: mediaColumns("Video"),
+      rowId: (video) => video.docId,
+      rowKeyPrefix: "video",
+      tableMinWidth: 720,
+      rowCells: (context, video, hovered, onChanged) => [
+        mediaIdentity(
+            title: video.title,
+            description: video.description,
+            icon: Icons.smart_display_outlined,
+            color: const Color(0xFFD92D20)),
+        CodeChip(video.code, copyable: true),
+        accessPill(video.videoType),
+        addedCell(video.timeStamp),
+        openLinkCell(
+            video.link, Key('video_open_${video.docId}'), "Open the video"),
+        videoActions(context, video, onChanged, hovered),
+      ],
     );
   }
 }

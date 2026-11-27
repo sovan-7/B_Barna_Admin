@@ -31,6 +31,9 @@ class AudioViewModel extends PagedListViewModel<AudioModel> {
   Future<int> fetchTotalCount() => _audioRepo.getAudioListLength();
 
   @override
+  Future<Map<String, int>> fetchStats() => _audioRepo.getAudioStats();
+
+  @override
   Future<List<AudioModel>> fetchSearchResults(String query) =>
       _audioRepo.searchAudio(query);
 

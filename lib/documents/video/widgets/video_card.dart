@@ -197,43 +197,51 @@ class _VideoCardState extends State<VideoCard> {
   }
 
   /// Row buttons; faded in on hover, always shown on compact screens.
-  Widget _actions(bool visible) {
-    return CardActions(
-      visible: visible,
-      buttons: [
-        CardEditButton(
-          buttonKey: Key('video_edit_${_data.docId}'),
-          tooltip: "Edit video",
-          onTap: _openEdit,
-        ),
-        CardDeleteButton(
-          buttonKey: Key('video_delete_${_data.docId}'),
-          tooltip: "Delete video",
-          onTap: _confirmDelete,
-        ),
-      ],
-    );
-  }
+  Widget _actions(bool visible) =>
+      videoActions(context, _data, widget.onChanged, visible);
+}
 
-  /// Opens the edit screen; the list reloads if it saved or deleted
-  /// something.
-  void _openEdit() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EditVideo(videoData: _data)),
-    ).ifSaved(widget.onChanged);
-  }
+/// Row buttons for [data], shared by the card and the table row (same
+/// keys); faded in on hover, always shown on compact screens.
+Widget videoActions(BuildContext context, VideoModel data,
+    VoidCallback onChanged, bool visible) {
+  return CardActions(
+    visible: visible,
+    buttons: [
+      CardEditButton(
+        buttonKey: Key('video_edit_${data.docId}'),
+        tooltip: "Edit video",
+        onTap: () => openEditVideo(context, data, onChanged),
+      ),
+      CardDeleteButton(
+        buttonKey: Key('video_delete_${data.docId}'),
+        tooltip: "Delete video",
+        onTap: () => confirmDeleteVideo(context, data, onChanged),
+      ),
+    ],
+  );
+}
 
-  /// Asks for confirmation, then deletes this item.
-  void _confirmDelete() {
-    final VideoViewModel videoViewModel =
-        Provider.of<VideoViewModel>(context, listen: false);
-    final String docId = _data.docId;
+/// Opens the edit screen; the list reloads if it saved or deleted
+/// something.
+void openEditVideo(
+    BuildContext context, VideoModel data, VoidCallback onChanged) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => EditVideo(videoData: data)),
+  ).ifSaved(onChanged);
+}
 
-    confirmDelete(
-      title: _data.title,
-      delete: () => videoViewModel.deleteVideo(docId),
-      successMessage: "Video deleted successfully",
-    );
-  }
+/// Asks for confirmation, then deletes this item.
+void confirmDeleteVideo(
+    BuildContext context, VideoModel data, VoidCallback onChanged) {
+  final VideoViewModel videoViewModel =
+      Provider.of<VideoViewModel>(context, listen: false);
+  final String docId = data.docId;
+
+  confirmDelete(
+    title: data.title,
+    delete: () => videoViewModel.deleteVideo(docId),
+    successMessage: "Video deleted successfully",
+  );
 }

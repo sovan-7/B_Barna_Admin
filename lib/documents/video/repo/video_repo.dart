@@ -50,6 +50,10 @@ class VideoRepo {
   /// Total videos in the collection.
   Future<int> getVideoListLength() => countDocuments(_collection);
 
+  /// Free / paid / added-this-month counts for the tiles above the list.
+  Future<Map<String, int>> getVideoStats() =>
+      mediaStats(_collection, "video_type");
+
   /// Videos whose `video_code` starts with [searchText].
   Future<List<VideoModel>> searchVideo(String searchText) async =>
       _toModels(await prefixSearch(_collection, "video_code", searchText));

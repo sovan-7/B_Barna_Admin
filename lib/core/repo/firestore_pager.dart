@@ -85,3 +85,32 @@ Future<List<FirestoreDoc>> prefixSearch(
       .get();
   return snapshot.docs;
 }
+
+/// How many documents [query] matches, as a Firestore `count()` aggregate
+/// (billed as one read per 1,000 documents, not one per document).
+Future<int> countQuery(Query<Map<String, dynamic>> query) async {
+  final AggregateQuerySnapshot snapshot = await query.count().get();
+  return snapshot.count ?? 0;
+}
+
+/// Midnight on the 1st of this month in epoch milliseconds — where "added
+/// this month" starts. Lists store `timeStamp` in the same unit.
+int startOfMonthMillis([DateTime? now]) {
+  final DateTime today = now ?? DateTime.now();
+  return DateTime(today.year, today.month).millisecondsSinceEpoch;
+}
+
+/// The tiles above a media list (video, PDF, audio): how many are free,
+/// how many paid, and how many were added this month. [typeField] holds
+/// "FREE" / "PAID", as every media form saves it.
+Future<Map<String, int>> mediaStats(
+    CollectionReference<Map<String, dynamic>> collection,
+    String typeField) async {
+  final List<int> counts = await Future.wait([
+    countQuery(collection.where(typeField, isEqualTo: "FREE")),
+    countQuery(collection.where(typeField, isEqualTo: "PAID")),
+    countQuery(collection.where("timeStamp",
+        isGreaterThanOrEqualTo: startOfMonthMillis())),
+  ]);
+  return {"free": counts[0], "paid": counts[1], "month": counts[2]};
+}

@@ -68,6 +68,10 @@ class AudioRepo {
   /// Total clips in the collection.
   Future<int> getAudioListLength() => countDocuments(_collection);
 
+  /// Free / paid / added-this-month counts for the tiles above the list.
+  Future<Map<String, int>> getAudioStats() =>
+      mediaStats(_collection, "audio_type");
+
   /// Clips whose `audio_code` starts with [searchText].
   Future<List<AudioModel>> searchAudio(String searchText) async =>
       _toModels(await prefixSearch(_collection, "audio_code", searchText));

@@ -72,6 +72,9 @@ class PdfRepo {
   /// Total PDFs in the collection.
   Future<int> getPdfListLength() => countDocuments(_collection);
 
+  /// Free / paid / added-this-month counts for the tiles above the list.
+  Future<Map<String, int>> getPdfStats() => mediaStats(_collection, "pdf_type");
+
   /// PDFs whose `pdf_code` starts with [searchText].
   Future<List<PdfModel>> searchPdf(String searchText) async =>
       _toModels(await prefixSearch(_collection, "pdf_code", searchText));

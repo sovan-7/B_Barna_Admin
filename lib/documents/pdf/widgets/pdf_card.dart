@@ -150,23 +150,7 @@ class PdfCard extends StatelessWidget {
           color: typeColor,
           filled: true,
         ),
-        // Rebuilds just this chip while its write is in flight.
-        Selector<PdfViewModel, bool>(
-          selector: (_, vm) => vm.isFlagBusy(_data.docId, "is_downloadable"),
-          builder: (context, busy, _) => ToggleChip(
-            buttonKey: Key('pdf_downloadable_${_data.docId}'),
-            icon: _data.isDownloadable
-                ? Icons.download_outlined
-                : Icons.visibility_outlined,
-            label: _data.isDownloadable ? "Downloadable" : "View only",
-            on: _data.isDownloadable,
-            onColor: const Color(0xFF2563EB),
-            tooltip:
-                _data.isDownloadable ? "Make it view-only" : "Allow downloads",
-            onTap: () => pdfViewModel.toggleDownloadable(_data),
-            busy: busy,
-          ),
-        ),
+        pdfDownloadableToggle(context, _data),
         // Rebuilds just this chip while its write is in flight.
         Selector<PdfViewModel, bool>(
           selector: (_, vm) => vm.isFlagBusy(_data.docId, "is_locked"),
@@ -188,42 +172,68 @@ class PdfCard extends StatelessWidget {
   }
 
   /// Edit and delete buttons.
-  Widget _actions(BuildContext context, bool visible) {
-    return CardActions(
-      visible: visible,
-      buttons: [
-        CardEditButton(
-          buttonKey: Key('pdf_edit_${_data.docId}'),
-          tooltip: "Edit PDF",
-          onTap: () => _openEdit(context),
-        ),
-        CardDeleteButton(
-          buttonKey: Key('pdf_delete_${_data.docId}'),
-          tooltip: "Delete PDF",
-          onTap: () => _confirmDelete(context),
-        ),
-      ],
-    );
-  }
+  Widget _actions(BuildContext context, bool visible) =>
+      pdfActions(context, _data, onChanged, visible);
+}
 
-  /// Opens Edit PDF; the list reloads if it saved or deleted something.
-  void _openEdit(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EditPdf(pdfData: _data)),
-    ).ifSaved(onChanged);
-  }
+/// Edit and delete for [data], shared by the card and the table row.
+Widget pdfActions(
+    BuildContext context, PdfModel data, VoidCallback onChanged, bool visible) {
+  return CardActions(
+    visible: visible,
+    buttons: [
+      CardEditButton(
+        buttonKey: Key('pdf_edit_${data.docId}'),
+        tooltip: "Edit PDF",
+        onTap: () => openEditPdf(context, data, onChanged),
+      ),
+      CardDeleteButton(
+        buttonKey: Key('pdf_delete_${data.docId}'),
+        tooltip: "Delete PDF",
+        onTap: () => confirmDeletePdf(context, data),
+      ),
+    ],
+  );
+}
 
-  /// Asks for confirmation, deletes, then reloads the list.
-  void _confirmDelete(BuildContext context) {
-    final PdfViewModel pdfViewModel =
-        Provider.of<PdfViewModel>(context, listen: false);
-    final String docId = _data.docId;
+/// Opens Edit PDF; the list reloads if it saved or deleted something.
+void openEditPdf(BuildContext context, PdfModel data, VoidCallback onChanged) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => EditPdf(pdfData: data)),
+  ).ifSaved(onChanged);
+}
 
-    confirmDelete(
-      title: _data.title,
-      delete: () => pdfViewModel.deletePdf(docId),
-      successMessage: "PDF deleted successfully",
-    );
-  }
+/// Asks for confirmation, deletes, then reloads the list.
+void confirmDeletePdf(BuildContext context, PdfModel data) {
+  final PdfViewModel pdfViewModel =
+      Provider.of<PdfViewModel>(context, listen: false);
+  final String docId = data.docId;
+
+  confirmDelete(
+    title: data.title,
+    delete: () => pdfViewModel.deletePdf(docId),
+    successMessage: "PDF deleted successfully",
+  );
+}
+
+/// The Downloadable / View only toggle chip for [data]; rebuilds just
+/// itself while its write is in flight. Shared by the card and the table.
+Widget pdfDownloadableToggle(BuildContext context, PdfModel data) {
+  return Selector<PdfViewModel, bool>(
+    selector: (_, vm) => vm.isFlagBusy(data.docId, "is_downloadable"),
+    builder: (context, busy, _) => ToggleChip(
+      buttonKey: Key('pdf_downloadable_${data.docId}'),
+      icon: data.isDownloadable
+          ? Icons.download_outlined
+          : Icons.visibility_outlined,
+      label: data.isDownloadable ? "Downloadable" : "View only",
+      on: data.isDownloadable,
+      onColor: const Color(0xFF2563EB),
+      tooltip: data.isDownloadable ? "Make it view-only" : "Allow downloads",
+      onTap: () => Provider.of<PdfViewModel>(context, listen: false)
+          .toggleDownloadable(data),
+      busy: busy,
+    ),
+  );
 }

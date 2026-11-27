@@ -216,61 +216,70 @@ class _QuizCardState extends State<QuizCard> {
   }
 
   /// Row buttons; faded in on hover, always shown on compact screens.
-  Widget _actions(bool visible) {
-    return CardActions(
-      visible: visible,
-      buttons: [
-        CardIconButton(
-          buttonKey: Key('quiz_duplicate_${_data.docId}'),
-          icon: Icons.copy_all_outlined,
-          tooltip: "Duplicate quiz",
-          color: AppTokens.inkMuted,
-          onTap: _openDuplicate,
-        ),
-        CardEditButton(
-          buttonKey: Key('quiz_edit_${_data.docId}'),
-          tooltip: "Edit quiz",
-          onTap: _openEdit,
-        ),
-        CardDeleteButton(
-          buttonKey: Key('quiz_delete_${_data.docId}'),
-          tooltip: "Delete quiz",
-          onTap: _confirmDelete,
-        ),
-      ],
-    );
-  }
+  Widget _actions(bool visible) =>
+      quizActions(context, _data, widget.onChanged, visible);
+}
 
-  /// Opens the edit screen; the list reloads if it saved or deleted
-  /// something.
-  void _openEdit() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EditQuiz(quizData: _data)),
-    ).ifSaved(widget.onChanged);
-  }
+/// Row buttons for [data], shared by the card and the table row (same
+/// keys); faded in on hover, always shown on compact screens.
+Widget quizActions(BuildContext context, QuizModel data, VoidCallback onChanged,
+    bool visible) {
+  return CardActions(
+    visible: visible,
+    buttons: [
+      CardIconButton(
+        buttonKey: Key('quiz_duplicate_${data.docId}'),
+        icon: Icons.copy_all_outlined,
+        tooltip: "Duplicate quiz",
+        color: AppTokens.inkMuted,
+        onTap: () => openDuplicateQuiz(context, data, onChanged),
+      ),
+      CardEditButton(
+        buttonKey: Key('quiz_edit_${data.docId}'),
+        tooltip: "Edit quiz",
+        onTap: () => openEditQuiz(context, data, onChanged),
+      ),
+      CardDeleteButton(
+        buttonKey: Key('quiz_delete_${data.docId}'),
+        tooltip: "Delete quiz",
+        onTap: () => confirmDeleteQuiz(context, data, onChanged),
+      ),
+    ],
+  );
+}
 
-  /// Opens Add Quiz prefilled from this quiz; the list reloads if the copy
-  /// was saved.
-  void _openDuplicate() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => AddQuiz(copyOf: _data)),
-    ).ifSaved(widget.onChanged);
-  }
+/// Opens the edit screen; the list reloads if it saved or deleted
+/// something.
+void openEditQuiz(
+    BuildContext context, QuizModel data, VoidCallback onChanged) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => EditQuiz(quizData: data)),
+  ).ifSaved(onChanged);
+}
 
-  /// Asks for confirmation, then deletes this item.
-  void _confirmDelete() {
-    final QuizViewModel quizViewModel =
-        Provider.of<QuizViewModel>(context, listen: false);
-    final String docId = _data.docId;
+/// Opens Add Quiz prefilled from this quiz; the list reloads if the copy
+/// was saved.
+void openDuplicateQuiz(
+    BuildContext context, QuizModel data, VoidCallback onChanged) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => AddQuiz(copyOf: data)),
+  ).ifSaved(onChanged);
+}
 
-    confirmDelete(
-      title: _data.name,
-      delete: () => quizViewModel.deleteQuiz(docId),
-      successMessage: "Quiz deleted successfully",
-    );
-  }
+/// Asks for confirmation, then deletes this item.
+void confirmDeleteQuiz(
+    BuildContext context, QuizModel data, VoidCallback onChanged) {
+  final QuizViewModel quizViewModel =
+      Provider.of<QuizViewModel>(context, listen: false);
+  final String docId = data.docId;
+
+  confirmDelete(
+    title: data.name,
+    delete: () => quizViewModel.deleteQuiz(docId),
+    successMessage: "Quiz deleted successfully",
+  );
 }
 
 /// "1h 30m" from a whole number of minutes — the form collects hours and

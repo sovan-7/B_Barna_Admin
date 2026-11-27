@@ -125,38 +125,108 @@ class LockSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (busy) {
-      return const SizedBox(
-        height: 20,
-        width: 36,
-        child: Center(
-          child: SizedBox(
-            height: 14,
-            width: 14,
-            child: CircularProgressIndicator(
-                strokeWidth: 2, color: AppTokens.accent),
-          ),
-        ),
-      );
-    }
-    return Tooltip(
-      message: locked ? "Unlock $itemLabel" : "Lock $itemLabel",
-      child: SizedBox(
-        height: 22,
-        child: FittedBox(
-          child: Switch(
-            key: switchKey,
-            value: locked,
-            onChanged: onChanged,
-            activeThumbColor: Colors.white,
-            activeTrackColor: AppTokens.accent,
-            inactiveThumbColor: Colors.white,
-            inactiveTrackColor: AppTokens.hairline,
-            trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-      ),
+    // The key sits on this box in both states, so a test (or a tap) finds
+    // the control whether it shows the switch or the spinner.
+    return SizedBox(
+      key: switchKey,
+      height: 22,
+      width: 40,
+      child: busy
+          ? const Center(
+              child: SizedBox(
+                height: 14,
+                width: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppTokens.accent),
+              ),
+            )
+          : Tooltip(
+              message: locked ? "Unlock $itemLabel" : "Lock $itemLabel",
+              child: FittedBox(
+                child: Switch(
+                  value: locked,
+                  onChanged: onChanged,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: AppTokens.accent,
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: AppTokens.hairline,
+                  trackOutlineColor:
+                      WidgetStateProperty.all(Colors.transparent),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+/// A yes/no flag as one icon button in a table cell (Popular star,
+/// Downloadable arrow): filled and tinted when on, faint when off, a
+/// spinner while [busy].
+class FlagIconToggle extends StatelessWidget {
+  /// The flag's value.
+  final bool on;
+
+  /// Icon while on.
+  final IconData onIcon;
+
+  /// Icon while off.
+  final IconData offIcon;
+
+  /// Tint while on.
+  final Color onColor;
+
+  /// What tapping does while on / off.
+  final String onTooltip;
+  final String offTooltip;
+
+  /// Flips the flag.
+  final VoidCallback onTap;
+
+  /// True while the change is being saved.
+  final bool busy;
+
+  /// Key on the tappable button (tests tap through it).
+  final Key? buttonKey;
+
+  const FlagIconToggle({
+    required this.on,
+    required this.onIcon,
+    required this.offIcon,
+    required this.onColor,
+    required this.onTooltip,
+    required this.offTooltip,
+    required this.onTap,
+    this.busy = false,
+    this.buttonKey,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Keyed in both states, like [LockSwitch].
+    return SizedBox(
+      key: buttonKey,
+      height: 28,
+      width: 28,
+      child: busy
+          ? Center(
+              child: SizedBox(
+                height: 16,
+                width: 16,
+                child:
+                    CircularProgressIndicator(strokeWidth: 2, color: onColor),
+              ),
+            )
+          : Tooltip(
+              message: on ? onTooltip : offTooltip,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                onTap: onTap,
+                child: Icon(on ? onIcon : offIcon,
+                    size: 20, color: on ? onColor : AppTokens.inkFaint),
+              ),
+            ),
     );
   }
 }

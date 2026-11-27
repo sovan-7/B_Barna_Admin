@@ -1,5 +1,6 @@
 import 'package:bbarna/resources/app_tokens.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 /// One count above a list: a small label over a large number, with an
 /// optional caption under it ("↑ 12% vs October", "this month").
@@ -29,10 +30,12 @@ class StatTile extends StatelessWidget {
     super.key,
   });
 
-  /// A tile for a whole-number count.
+  /// A tile for a whole-number count, grouped the Indian way ("2,318",
+  /// "1,20,500"). A null [count] (still loading, or it failed) shows a
+  /// dash.
   factory StatTile.count({
     required String label,
-    required int count,
+    required int? count,
     Color? valueColor,
     String? caption,
     Color? captionColor,
@@ -40,7 +43,9 @@ class StatTile extends StatelessWidget {
   }) =>
       StatTile(
         label: label,
-        value: "$count",
+        value: count == null
+            ? "—"
+            : NumberFormat.decimalPattern('en_IN').format(count),
         valueColor: valueColor,
         caption: caption,
         captionColor: captionColor,

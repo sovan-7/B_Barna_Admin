@@ -217,59 +217,68 @@ class _TopicCardState extends State<TopicCard> {
   }
 
   /// Row buttons; faded in on hover, always shown on compact screens.
-  Widget _actions(bool visible) {
-    return CardActions(
-      visible: visible,
-      buttons: [
-        CardIconButton(
-          buttonKey: Key('topic_content_${_data.docId}'),
-          icon: Icons.playlist_add,
-          tooltip: "Manage content",
-          color: AppTokens.inkMuted,
-          onTap: _openContent,
-        ),
-        CardEditButton(
-          buttonKey: Key('topic_edit_${_data.docId}'),
-          tooltip: "Edit topic",
-          onTap: _openEdit,
-        ),
-        CardDeleteButton(
-          buttonKey: Key('topic_delete_${_data.docId}'),
-          tooltip: "Delete topic",
-          onTap: _confirmDelete,
-        ),
-      ],
-    );
-  }
+  Widget _actions(bool visible) =>
+      topicActions(context, _data, widget.onChanged, visible);
+}
 
-  /// Opens the topic details screen to manage attached content. No reload
-  /// afterwards: content saves update this topic in place.
-  void _openContent() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => TopicDetails(topicData: _data)),
-    );
-  }
+/// Row buttons for [data], shared by the card and the table row (same
+/// keys); faded in on hover, always shown on compact screens.
+Widget topicActions(BuildContext context, TopicModel data,
+    VoidCallback onChanged, bool visible) {
+  return CardActions(
+    visible: visible,
+    buttons: [
+      CardIconButton(
+        buttonKey: Key('topic_content_${data.docId}'),
+        icon: Icons.playlist_add,
+        tooltip: "Manage content",
+        color: AppTokens.inkMuted,
+        onTap: () => openContentTopic(context, data, onChanged),
+      ),
+      CardEditButton(
+        buttonKey: Key('topic_edit_${data.docId}'),
+        tooltip: "Edit topic",
+        onTap: () => openEditTopic(context, data, onChanged),
+      ),
+      CardDeleteButton(
+        buttonKey: Key('topic_delete_${data.docId}'),
+        tooltip: "Delete topic",
+        onTap: () => confirmDeleteTopic(context, data, onChanged),
+      ),
+    ],
+  );
+}
 
-  /// Opens the edit screen; the list reloads if it saved or deleted
-  /// something.
-  void _openEdit() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EditTopic(topicData: _data)),
-    ).ifSaved(widget.onChanged);
-  }
+/// Opens the topic details screen to manage attached content. No reload
+/// afterwards: content saves update this topic in place.
+void openContentTopic(
+    BuildContext context, TopicModel data, VoidCallback onChanged) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => TopicDetails(topicData: data)),
+  );
+}
 
-  /// Asks for confirmation, then deletes this item.
-  void _confirmDelete() {
-    final TopicViewModel topicViewModel =
-        Provider.of<TopicViewModel>(context, listen: false);
-    final String docId = _data.docId;
+/// Opens the edit screen; the list reloads if it saved or deleted
+/// something.
+void openEditTopic(
+    BuildContext context, TopicModel data, VoidCallback onChanged) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => EditTopic(topicData: data)),
+  ).ifSaved(onChanged);
+}
 
-    confirmDelete(
-      title: _data.name,
-      delete: () => topicViewModel.deleteTopic(docId),
-      successMessage: "Topic deleted successfully",
-    );
-  }
+/// Asks for confirmation, then deletes this item.
+void confirmDeleteTopic(
+    BuildContext context, TopicModel data, VoidCallback onChanged) {
+  final TopicViewModel topicViewModel =
+      Provider.of<TopicViewModel>(context, listen: false);
+  final String docId = data.docId;
+
+  confirmDelete(
+    title: data.name,
+    delete: () => topicViewModel.deleteTopic(docId),
+    successMessage: "Topic deleted successfully",
+  );
 }

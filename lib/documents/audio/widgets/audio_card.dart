@@ -172,43 +172,51 @@ class _AudioCardState extends State<AudioCard> {
   }
 
   /// Row buttons; faded in on hover, always shown on compact screens.
-  Widget _actions(bool visible) {
-    return CardActions(
-      visible: visible,
-      buttons: [
-        CardEditButton(
-          buttonKey: Key('audio_edit_${_data.docId}'),
-          tooltip: "Edit audio",
-          onTap: _openEdit,
-        ),
-        CardDeleteButton(
-          buttonKey: Key('audio_delete_${_data.docId}'),
-          tooltip: "Delete audio",
-          onTap: _confirmDelete,
-        ),
-      ],
-    );
-  }
+  Widget _actions(bool visible) =>
+      audioActions(context, _data, widget.onChanged, visible);
+}
 
-  /// Opens the edit screen; the list reloads if it saved or deleted
-  /// something.
-  void _openEdit() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EditAudio(audioData: _data)),
-    ).ifSaved(widget.onChanged);
-  }
+/// Row buttons for [data], shared by the card and the table row (same
+/// keys); faded in on hover, always shown on compact screens.
+Widget audioActions(BuildContext context, AudioModel data,
+    VoidCallback onChanged, bool visible) {
+  return CardActions(
+    visible: visible,
+    buttons: [
+      CardEditButton(
+        buttonKey: Key('audio_edit_${data.docId}'),
+        tooltip: "Edit audio",
+        onTap: () => openEditAudio(context, data, onChanged),
+      ),
+      CardDeleteButton(
+        buttonKey: Key('audio_delete_${data.docId}'),
+        tooltip: "Delete audio",
+        onTap: () => confirmDeleteAudio(context, data, onChanged),
+      ),
+    ],
+  );
+}
 
-  /// Asks for confirmation, then deletes this item.
-  void _confirmDelete() {
-    final AudioViewModel audioViewModel =
-        Provider.of<AudioViewModel>(context, listen: false);
-    final String docId = _data.docId;
+/// Opens the edit screen; the list reloads if it saved or deleted
+/// something.
+void openEditAudio(
+    BuildContext context, AudioModel data, VoidCallback onChanged) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => EditAudio(audioData: data)),
+  ).ifSaved(onChanged);
+}
 
-    confirmDelete(
-      title: _data.title,
-      delete: () => audioViewModel.deleteAudio(docId),
-      successMessage: "Audio deleted successfully",
-    );
-  }
+/// Asks for confirmation, then deletes this item.
+void confirmDeleteAudio(
+    BuildContext context, AudioModel data, VoidCallback onChanged) {
+  final AudioViewModel audioViewModel =
+      Provider.of<AudioViewModel>(context, listen: false);
+  final String docId = data.docId;
+
+  confirmDelete(
+    title: data.title,
+    delete: () => audioViewModel.deleteAudio(docId),
+    successMessage: "Audio deleted successfully",
+  );
 }

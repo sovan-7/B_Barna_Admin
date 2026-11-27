@@ -84,6 +84,45 @@ abstract class PagedListViewModel<T> extends ChangeNotifier with SafeNotifier {
   /// Server-side prefix search. [query] is already trimmed and upper-cased.
   Future<List<T>> fetchSearchResults(String query);
 
+  /// Counts for the tiles above the list, by name (e.g. `{"free": 36}`),
+  /// usually Firestore `count()` queries over the whole collection. None
+  /// by default.
+  Future<Map<String, int>> fetchStats() async => const {};
+
+  // ---- Stats and the chip filter ----------------------------------------
+
+  /// The latest [fetchStats] result; empty until it arrives (or if it
+  /// failed — the tiles then show a dash).
+  Map<String, int> stats = {};
+
+  /// Counts searches for stats, so only the newest one is kept.
+  int _statsSeq = 0;
+
+  /// Reloads [stats] alongside the list. Failures only cost the tiles their
+  /// numbers, so they are not toasted.
+  Future<void> loadStats() async {
+    final int seq = ++_statsSeq;
+    try {
+      final Map<String, int> fresh = await fetchStats();
+      if (seq != _statsSeq) return;
+      stats = fresh;
+    } catch (_) {
+      if (seq != _statsSeq) return;
+      stats = {};
+    }
+    notifyListeners();
+  }
+
+  /// The chip picked above the list ("all" for none). The chips narrow
+  /// the rows already loaded; kept here so the choice survives Add/Edit.
+  String chipFilter = "all";
+
+  /// Picks a chip.
+  void setChipFilter(String value) {
+    chipFilter = value;
+    notifyListeners();
+  }
+
   // ---- Paging -------------------------------------------------------------
 
   /// The first-page load currently running, so overlapping calls (e.g. the
@@ -182,6 +221,7 @@ abstract class PagedListViewModel<T> extends ChangeNotifier with SafeNotifier {
   /// one runs, so a refresh after a save never returns pre-save data.
   Future<void> refresh() async {
     _debounce?.cancel();
+    unawaited(loadStats());
     final Future<void>? inFlight = _firstPageInFlight;
     if (inFlight != null) await inFlight;
     return _runSearch();

@@ -207,43 +207,51 @@ class _UnitCardState extends State<UnitCard> {
   }
 
   /// Row buttons; faded in on hover, always shown on compact screens.
-  Widget _actions(bool visible) {
-    return CardActions(
-      visible: visible,
-      buttons: [
-        CardEditButton(
-          buttonKey: Key('unit_edit_${_data.id}'),
-          tooltip: "Edit unit",
-          onTap: _openEdit,
-        ),
-        CardDeleteButton(
-          buttonKey: Key('unit_delete_${_data.id}'),
-          tooltip: "Delete unit",
-          onTap: _confirmDelete,
-        ),
-      ],
-    );
-  }
+  Widget _actions(bool visible) =>
+      unitActions(context, _data, widget.onChanged, visible);
+}
 
-  /// Opens the edit screen; the list reloads if it saved or deleted
-  /// something.
-  void _openEdit() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EditUnit(unitData: _data)),
-    ).ifSaved(widget.onChanged);
-  }
+/// Row buttons for [data], shared by the card and the table row (same
+/// keys); faded in on hover, always shown on compact screens.
+Widget unitActions(BuildContext context, UnitModel data, VoidCallback onChanged,
+    bool visible) {
+  return CardActions(
+    visible: visible,
+    buttons: [
+      CardEditButton(
+        buttonKey: Key('unit_edit_${data.id}'),
+        tooltip: "Edit unit",
+        onTap: () => openEditUnit(context, data, onChanged),
+      ),
+      CardDeleteButton(
+        buttonKey: Key('unit_delete_${data.id}'),
+        tooltip: "Delete unit",
+        onTap: () => confirmDeleteUnit(context, data, onChanged),
+      ),
+    ],
+  );
+}
 
-  /// Asks for confirmation, then deletes this item.
-  void _confirmDelete() {
-    final UnitViewModel unitViewModel =
-        Provider.of<UnitViewModel>(context, listen: false);
-    final String docId = _data.id;
+/// Opens the edit screen; the list reloads if it saved or deleted
+/// something.
+void openEditUnit(
+    BuildContext context, UnitModel data, VoidCallback onChanged) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => EditUnit(unitData: data)),
+  ).ifSaved(onChanged);
+}
 
-    confirmDelete(
-      title: _data.name,
-      delete: () => unitViewModel.deleteUnit(docId),
-      successMessage: "Unit deleted successfully",
-    );
-  }
+/// Asks for confirmation, then deletes this item.
+void confirmDeleteUnit(
+    BuildContext context, UnitModel data, VoidCallback onChanged) {
+  final UnitViewModel unitViewModel =
+      Provider.of<UnitViewModel>(context, listen: false);
+  final String docId = data.id;
+
+  confirmDelete(
+    title: data.name,
+    delete: () => unitViewModel.deleteUnit(docId),
+    successMessage: "Unit deleted successfully",
+  );
 }

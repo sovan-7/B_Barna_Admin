@@ -31,6 +31,9 @@ class PdfViewModel extends PagedListViewModel<PdfModel> {
   Future<int> fetchTotalCount() => _pdfRepo.getPdfListLength();
 
   @override
+  Future<Map<String, int>> fetchStats() => _pdfRepo.getPdfStats();
+
+  @override
   Future<List<PdfModel>> fetchSearchResults(String query) =>
       _pdfRepo.searchPdf(query);
 
