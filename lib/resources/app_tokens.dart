@@ -58,7 +58,7 @@ class AppTokens {
 
   // ---- Shell metrics --------------------------------------------------
   /// Width of the navigation rail when it shows labels.
-  static const double railWidth = 224;
+  static const double railWidth = 184;
 
   /// Width when it is reduced to icons.
   static const double railCollapsedWidth = 64;

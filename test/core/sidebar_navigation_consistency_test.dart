@@ -166,4 +166,39 @@ void main() {
     expect(items.every((item) => !item.isCollapsed), isTrue);
     expect(find.text('Live Classes'), findsOneWidget);
   });
+
+  testWidgets('the full-width rail is railWidth wide and lays out cleanly',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Align(
+          alignment: Alignment.topLeft,
+          child: SidebarNav(
+            selectedIndex: notificationModuleIndex,
+            collapsed: false,
+            onToggleCollapsed: () {},
+            onSelect: (_) {},
+          ),
+        ),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(tester.takeException(), isNull);
+    expect(tester.getSize(find.byType(SidebarNav)).width, AppTokens.railWidth);
+    // Real text widths are checked in a browser: the test font draws every
+    // character as a full square, so it would overstate every label.
+    for (final String label in [
+      'Notifications',
+      'Transactions',
+      'Live Classes'
+    ]) {
+      expect(find.text(label), findsOneWidget);
+    }
+  });
 }
